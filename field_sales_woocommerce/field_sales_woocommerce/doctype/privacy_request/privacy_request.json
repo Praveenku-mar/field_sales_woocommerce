@@ -1,0 +1,132 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "format:PRIV-{#####}",
+ "creation": "2026-10-23 12:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "in_create": 1,
+ "module": "Field Sales Woocommerce",
+ "name": "Privacy Request",
+ "owner": "Administrator",
+ "modified": "2026-10-23 12:00:00.000000",
+ "modified_by": "Administrator",
+ "field_order": [
+  "topic",
+  "shop_domain",
+  "shopify_customer_id",
+  "request_id",
+  "column_break_1",
+  "status",
+  "received_on",
+  "completed_on",
+  "webhook_id",
+  "section_break_2",
+  "details"
+ ],
+ "fields": [
+  {
+   "fieldname": "topic",
+   "fieldtype": "Select",
+   "label": "Topic",
+   "options": "customers/data_request\ncustomers/redact\nshop/redact",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "shop_domain",
+   "fieldtype": "Data",
+   "label": "Shop Domain",
+   "read_only": 1
+  },
+  {
+   "fieldname": "shopify_customer_id",
+   "fieldtype": "Data",
+   "label": "Shopify Customer ID",
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "request_id",
+   "fieldtype": "Data",
+   "label": "Data Request ID",
+   "description": "Shopify's data_request.id",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "Received\nCompleted\nFailed",
+   "default": "Received",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "received_on",
+   "fieldtype": "Datetime",
+   "label": "Received On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "completed_on",
+   "fieldtype": "Datetime",
+   "label": "Completed On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "webhook_id",
+   "fieldtype": "Data",
+   "label": "Webhook ID",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_2",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "details",
+   "fieldtype": "Code",
+   "label": "Details",
+   "options": "JSON",
+   "description": "What was found and done; never the exported data itself"
+  }
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "report": 1,
+   "export": 1,
+   "write": 1,
+   "create": 0,
+   "delete": 1,
+   "email": 0,
+   "print": 0,
+   "share": 0
+  },
+  {
+   "role": "Sales Manager",
+   "read": 1,
+   "report": 1,
+   "export": 0,
+   "write": 0,
+   "create": 0,
+   "delete": 0,
+   "email": 0,
+   "print": 0,
+   "share": 0
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "topic",
+ "track_changes": 1,
+ "links": []
+}

@@ -1,0 +1,17 @@
+<p>{{ _("Hello {0},").format(customer) }}</p>
+
+<p>{{ _("Welcome to {0}! A sign-in has been created for you to see the orders you place with us.").format(store_name) }}</p>
+
+<p>{{ _("Your login ID is:") }} <b>{{ user }}</b></p>
+
+<p>{{ _("After setting your password you can sign in at {0} to follow your orders, invoices and payment links.").format(login_url) }}</p>
+
+<div style="margin: 20px 0; padding: 16px; border: 1px solid #d1d5db; border-radius: 8px; text-align: center;">
+	<a href="{{ link }}" style="display: inline-block; padding: 10px 24px; background: #171717; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: bold;">{{ _("Set your password") }}</a>
+	<p style="margin: 12px 0 0; color: #6b7280; font-size: 13px;">
+		{{ _("Or copy and paste this link:") }}<br />
+		<a href="{{ link }}" style="color: #2563eb; word-break: break-all;">{{ link }}</a>
+	</p>
+</div>
+
+<p style="color: #6b7280; font-size: 13px;">{{ _("This link works only once. If you weren't expecting this email, you can safely ignore it.") }}</p>

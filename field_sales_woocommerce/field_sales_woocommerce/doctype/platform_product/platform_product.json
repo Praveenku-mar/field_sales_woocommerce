@@ -1,0 +1,259 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "format:{platform}-{external_variant_id}",
+ "creation": "2026-10-09 10:46:20.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "product_section",
+  "product_title",
+  "variant_title",
+  "sku",
+  "barcode",
+  "hsn_code",
+  "image",
+  "col_break_product",
+  "collection",
+  "uom",
+  "status",
+  "price_stock_section",
+  "price",
+  "compare_at_price",
+  "col_break_price",
+  "available_qty",
+  "stock_updated_at",
+  "location_id",
+  "track_inventory",
+  "platform_link_section",
+  "platform",
+  "external_product_id",
+  "external_variant_id",
+  "external_inventory_id",
+  "col_break_platform",
+  "last_synced",
+  "sync_hash"
+ ],
+ "fields": [
+  {
+   "fieldname": "product_section",
+   "fieldtype": "Section Break",
+   "label": "Product"
+  },
+  {
+   "fieldname": "product_title",
+   "fieldtype": "Data",
+   "label": "Product Title",
+   "reqd": 1,
+   "in_standard_filter": 1,
+   "bold": 1
+  },
+  {
+   "fieldname": "variant_title",
+   "fieldtype": "Data",
+   "label": "Variant Title",
+   "description": "e.g. 5 kg, 1 L; blank if no variants",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "sku",
+   "fieldtype": "Data",
+   "label": "SKU",
+   "in_standard_filter": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "barcode",
+   "fieldtype": "Data",
+   "label": "Barcode"
+  },
+  {
+   "fieldname": "hsn_code",
+   "fieldtype": "Data",
+   "label": "HSN Code",
+   "description": "Printed on the tax invoice"
+  },
+  {
+   "fieldname": "image",
+   "fieldtype": "Attach Image",
+   "label": "Image"
+  },
+  {
+   "fieldname": "col_break_product",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "collection",
+   "fieldtype": "Data",
+   "label": "Collection / Category",
+   "in_standard_filter": 1,
+   "description": "Shopify collection / Woo category / Odoo category"
+  },
+  {
+   "fieldname": "uom",
+   "fieldtype": "Data",
+   "label": "UOM",
+   "default": "Nos"
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "Active\nDraft\nArchived",
+   "default": "Active",
+   "in_standard_filter": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "price_stock_section",
+   "fieldtype": "Section Break",
+   "label": "Price & Stock"
+  },
+  {
+   "fieldname": "price",
+   "fieldtype": "Currency",
+   "label": "Price",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "compare_at_price",
+   "fieldtype": "Currency",
+   "label": "Compare At Price"
+  },
+  {
+   "fieldname": "col_break_price",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "available_qty",
+   "fieldtype": "Float",
+   "label": "Available Qty",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "stock_updated_at",
+   "fieldtype": "Datetime",
+   "label": "Stock Updated At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "location_id",
+   "fieldtype": "Data",
+   "label": "Location ID",
+   "read_only": 1
+  },
+  {
+   "fieldname": "track_inventory",
+   "fieldtype": "Check",
+   "label": "Track Inventory",
+   "default": "1"
+  },
+  {
+   "fieldname": "platform_link_section",
+   "fieldtype": "Section Break",
+   "label": "Platform Link",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "platform",
+   "fieldtype": "Select",
+   "label": "Platform",
+   "options": "WooCommerce",
+   "reqd": 1,
+   "in_standard_filter": 1,
+   "default": "WooCommerce"
+  },
+  {
+   "fieldname": "external_product_id",
+   "fieldtype": "Data",
+   "label": "External Product ID",
+   "reqd": 1,
+   "description": "Shopify Product GID / Woo product ID / Odoo product.template ID"
+  },
+  {
+   "fieldname": "external_variant_id",
+   "fieldtype": "Data",
+   "label": "External Variant ID",
+   "reqd": 1,
+   "unique": 1,
+   "description": "Shopify ProductVariant GID / Woo variation ID / Odoo product.product ID"
+  },
+  {
+   "fieldname": "external_inventory_id",
+   "fieldtype": "Data",
+   "label": "External Inventory ID",
+   "description": "Shopify InventoryItem GID; blank for Woo/Odoo"
+  },
+  {
+   "fieldname": "col_break_platform",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "last_synced",
+   "fieldtype": "Datetime",
+   "label": "Last Synced",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sync_hash",
+   "fieldtype": "Data",
+   "label": "Sync Hash",
+   "hidden": 1,
+   "description": "to skip unchanged rows on resync"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "in_create": 0,
+ "issingle": 0,
+ "links": [],
+ "modified": "2026-10-14 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Field Sales Woocommerce",
+ "name": "Platform Product",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 0,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Sales Manager",
+   "share": 0,
+   "write": 1
+  },
+  {
+   "create": 0,
+   "delete": 0,
+   "email": 0,
+   "export": 0,
+   "print": 0,
+   "read": 1,
+   "report": 0,
+   "role": "Field Sales Rep",
+   "share": 0,
+   "write": 0
+  }
+ ],
+ "search_fields": "sku,product_title,variant_title",
+ "sort_field": "product_title",
+ "sort_order": "ASC",
+ "title_field": "product_title",
+ "track_changes": 1
+}

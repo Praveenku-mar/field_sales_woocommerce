@@ -1,0 +1,22 @@
+{
+ "color": "#f5a623",
+ "creation": "2026-10-09 12:00:00.000000",
+ "docstatus": 0,
+ "doctype": "Number Card",
+ "document_type": "Retailer",
+ "dynamic_filters_json": "[]",
+ "filters_json": "[[\"Retailer\", \"sync_status\", \"in\", [\"Pending\", \"Failed\"]]]",
+ "function": "Count",
+ "idx": 0,
+ "is_public": 1,
+ "is_standard": 1,
+ "label": "Pending Retailers",
+ "modified": "2026-10-09 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Field Sales Woocommerce",
+ "name": "Pending Retailers",
+ "owner": "Administrator",
+ "show_percentage_stats": 1,
+ "stats_time_interval": "Daily",
+ "type": "Document Type"
+}

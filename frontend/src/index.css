@@ -1,0 +1,21 @@
+@import 'frappe-ui/style.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body {
+    @apply bg-desk-bg text-ink-gray-8 antialiased;
+    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+    font-size: 13px;
+  }
+}
+
+@layer components {
+  /* White card on the grey page, as in the Frappe desk. */
+  .fs-card {
+    @apply rounded-4 border border-desk-border bg-white;
+  }
+}

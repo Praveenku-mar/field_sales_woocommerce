@@ -1,0 +1,358 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "naming_series:",
+ "creation": "2026-10-09 10:56:59.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "visit_tab",
+  "visit_details_section",
+  "naming_series",
+  "sales_rep",
+  "sales_rep_name",
+  "retailer",
+  "retailer_name",
+  "city",
+  "col_break_details",
+  "visit_date",
+  "status",
+  "visit_purpose",
+  "checkin_section",
+  "check_in_time",
+  "check_out_time",
+  "col_break_checkin",
+  "time_on_site_min",
+  "location_section",
+  "latitude",
+  "longitude",
+  "location_accuracy_m",
+  "col_break_location",
+  "retailer_latitude",
+  "retailer_longitude",
+  "distance_from_retailer_m",
+  "within_geofence",
+  "location_map_section",
+  "location_map_html",
+  "orders_section",
+  "orders_html",
+  "notes_tab",
+  "notes_section",
+  "notes",
+  "photo",
+  "outcome_section",
+  "order_taken",
+  "no_order_reason",
+  "no_order_remarks"
+ ],
+ "fields": [
+  {
+   "fieldname": "visit_tab",
+   "fieldtype": "Tab Break",
+   "label": "Visit"
+  },
+  {
+   "fieldname": "visit_details_section",
+   "fieldtype": "Section Break",
+   "label": "Visit Details"
+  },
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Series",
+   "options": "VIS-.YYYY.-.#####",
+   "hidden": 1
+  },
+  {
+   "fieldname": "sales_rep",
+   "fieldtype": "Link",
+   "label": "Sales Rep",
+   "options": "Sales Rep",
+   "reqd": 1,
+   "in_standard_filter": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "sales_rep_name",
+   "fieldtype": "Data",
+   "label": "Sales Rep Name",
+   "fetch_from": "sales_rep.full_name",
+   "fetch_if_empty": 0,
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "retailer",
+   "fieldtype": "Link",
+   "label": "Retailer",
+   "options": "Retailer",
+   "reqd": 1,
+   "in_standard_filter": 1,
+   "search_index": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "retailer_name",
+   "fieldtype": "Data",
+   "label": "Retailer Name",
+   "fetch_from": "retailer.retailer_name",
+   "fetch_if_empty": 0,
+   "read_only": 1
+  },
+  {
+   "fieldname": "city",
+   "fieldtype": "Data",
+   "label": "City",
+   "fetch_from": "retailer.city",
+   "fetch_if_empty": 0,
+   "read_only": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "col_break_details",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "visit_date",
+   "fieldtype": "Date",
+   "label": "Visit Date",
+   "reqd": 1,
+   "default": "Today",
+   "in_standard_filter": 1,
+   "search_index": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "Planned\nIn Progress\nCompleted\nCancelled",
+   "default": "Planned",
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "visit_purpose",
+   "fieldtype": "Select",
+   "label": "Visit Purpose",
+   "options": "Order Taking\nCollection\nMerchandising\nComplaint\nFollow-up",
+   "default": "Order Taking"
+  },
+  {
+   "fieldname": "checkin_section",
+   "fieldtype": "Section Break",
+   "label": "Check-in / Check-out"
+  },
+  {
+   "fieldname": "check_in_time",
+   "fieldtype": "Datetime",
+   "label": "Check-in Time",
+   "read_only": 1
+  },
+  {
+   "fieldname": "check_out_time",
+   "fieldtype": "Datetime",
+   "label": "Check-out Time",
+   "read_only": 1
+  },
+  {
+   "fieldname": "col_break_checkin",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "time_on_site_min",
+   "fieldtype": "Int",
+   "label": "Time on Site (min)",
+   "read_only": 1,
+   "description": "Minutes between check-in and check-out",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "location_section",
+   "fieldtype": "Section Break",
+   "label": "Location"
+  },
+  {
+   "fieldname": "latitude",
+   "fieldtype": "Float",
+   "label": "Latitude",
+   "precision": "6",
+   "read_only": 1
+  },
+  {
+   "fieldname": "longitude",
+   "fieldtype": "Float",
+   "label": "Longitude",
+   "precision": "6",
+   "read_only": 1
+  },
+  {
+   "fieldname": "location_accuracy_m",
+   "fieldtype": "Float",
+   "label": "Location Accuracy (m)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "col_break_location",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "retailer_latitude",
+   "fieldtype": "Float",
+   "label": "Retailer Latitude",
+   "precision": "6",
+   "fetch_from": "retailer.latitude",
+   "fetch_if_empty": 0,
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "retailer_longitude",
+   "fieldtype": "Float",
+   "label": "Retailer Longitude",
+   "precision": "6",
+   "fetch_from": "retailer.longitude",
+   "fetch_if_empty": 0,
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "distance_from_retailer_m",
+   "fieldtype": "Float",
+   "label": "Distance from Retailer (m)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "within_geofence",
+   "fieldtype": "Check",
+   "label": "Within Geofence",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "location_map_section",
+   "fieldtype": "Section Break",
+   "depends_on": "eval:doc.check_in_time"
+  },
+  {
+   "fieldname": "location_map_html",
+   "fieldtype": "HTML",
+   "label": "Location Map"
+  },
+  {
+   "fieldname": "orders_section",
+   "fieldtype": "Section Break",
+   "label": "Orders",
+   "depends_on": "eval:!doc.__islocal"
+  },
+  {
+   "fieldname": "orders_html",
+   "fieldtype": "HTML",
+   "label": "Orders"
+  },
+  {
+   "fieldname": "notes_tab",
+   "fieldtype": "Tab Break",
+   "label": "Notes & Outcome"
+  },
+  {
+   "fieldname": "notes_section",
+   "fieldtype": "Section Break",
+   "label": "Notes"
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Small Text",
+   "label": "Notes"
+  },
+  {
+   "fieldname": "photo",
+   "fieldtype": "Attach Image",
+   "label": "Photo"
+  },
+  {
+   "fieldname": "outcome_section",
+   "fieldtype": "Section Break",
+   "label": "Outcome"
+  },
+  {
+   "fieldname": "order_taken",
+   "fieldtype": "Check",
+   "label": "Order Taken",
+   "read_only": 1
+  },
+  {
+   "fieldname": "no_order_reason",
+   "fieldtype": "Select",
+   "label": "No Order Reason",
+   "options": "\nStock Available\nOwner Absent\nPrice Issue\nShop Closed\nOther",
+   "depends_on": "eval:doc.status=='Completed' && !doc.order_taken",
+   "mandatory_depends_on": "eval:doc.status=='Completed' && !doc.order_taken"
+  },
+  {
+   "fieldname": "no_order_remarks",
+   "fieldtype": "Small Text",
+   "label": "Reason Details",
+   "depends_on": "eval:!doc.order_taken && doc.no_order_reason",
+   "mandatory_depends_on": "eval:!doc.order_taken && doc.no_order_reason=='Other'"
+  }
+ ],
+ "in_create": 0,
+ "issingle": 0,
+ "links": [
+  {
+   "link_doctype": "Field Order",
+   "link_fieldname": "visit",
+   "group": "Orders"
+  }
+ ],
+ "modified": "2026-10-12 13:39:23.716914",
+ "modified_by": "Administrator",
+ "module": "Field Sales Woocommerce",
+ "name": "Visit",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Sales Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 0,
+   "email": 0,
+   "export": 0,
+   "if_owner": 0,
+   "print": 1,
+   "read": 1,
+   "report": 0,
+   "role": "Field Sales Rep",
+   "share": 0,
+   "write": 1
+  }
+ ],
+ "search_fields": "sales_rep,retailer,visit_date",
+ "sort_field": "visit_date",
+ "sort_order": "DESC",
+ "title_field": "retailer_name",
+ "track_changes": 1
+}

@@ -1,0 +1,60 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "creation": "2026-10-15 10:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "match_type",
+  "product",
+  "match_value",
+  "rate"
+ ],
+ "fields": [
+  {
+   "fieldname": "match_type",
+   "fieldtype": "Select",
+   "label": "Match Type",
+   "options": "Product\nCollection/Product Type\nTag",
+   "reqd": 1,
+   "in_list_view": 1,
+   "default": "Product"
+  },
+  {
+   "fieldname": "product",
+   "fieldtype": "Link",
+   "label": "Product",
+   "options": "Platform Product",
+   "depends_on": "eval:doc.match_type==\"Product\"",
+   "mandatory_depends_on": "eval:doc.match_type==\"Product\"",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "match_value",
+   "fieldtype": "Data",
+   "label": "Match Value",
+   "depends_on": "eval:doc.match_type!=\"Product\"",
+   "mandatory_depends_on": "eval:doc.match_type!=\"Product\"",
+   "in_list_view": 1,
+   "description": "Collection / product type, or tag (case-insensitive)"
+  },
+  {
+   "fieldname": "rate",
+   "fieldtype": "Percent",
+   "label": "Rate %",
+   "reqd": 1,
+   "in_list_view": 1
+  }
+ ],
+ "istable": 1,
+ "links": [],
+ "modified": "2026-10-15 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Field Sales Woocommerce",
+ "name": "Commission Plan Rate",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "creation",
+ "sort_order": "DESC"
+}

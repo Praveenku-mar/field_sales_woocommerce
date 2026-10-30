@@ -1,0 +1,34 @@
+{
+ "attach_print": 0,
+ "channel": "Email",
+ "condition": "doc.sync_status == \"Failed\" and frappe.utils.cint(doc.sync_attempts) >= 3",
+ "condition_type": "Python",
+ "creation": "2026-10-10 14:00:00.000000",
+ "days_in_advance": 0,
+ "docstatus": 0,
+ "doctype": "Notification",
+ "document_type": "Field Order",
+ "enabled": 0,
+ "event": "Value Change",
+ "idx": 0,
+ "is_standard": 1,
+ "message": "<p>{{ _(\"Field Order\") }} <a href=\"{{ frappe.utils.get_url_to_form(doc.doctype, doc.name) }}\">{{ doc.name | e }}</a> {{ _(\"for\") }} {{ (doc.retailer_name or doc.retailer) | e }} ({{ _(\"Sales Rep\") }}: {{ doc.sales_rep | e }}) {{ _(\"failed to sync to the store after {0} attempts.\").format(doc.sync_attempts) }}</p>\n\n<p><b>{{ _(\"Error\") }}:</b> {{ doc.sync_error | e }}</p>\n\n<p>{{ _(\"Fix the cause, then use Retry Sync on the order or the Sync Failures page.\") }}</p>\n",
+ "message_type": "HTML",
+ "method": "",
+ "minutes_offset": 0,
+ "modified": "2026-10-22 17:30:00.000000",
+ "modified_by": "Administrator",
+ "module": "Field Sales Woocommerce",
+ "name": "Field Order Sync Failed",
+ "owner": "Administrator",
+ "recipients": [
+  {
+   "receiver_by_role": "Sales Manager"
+  }
+ ],
+ "send_system_notification": 1,
+ "send_to_all_assignees": 0,
+ "sender_email": "",
+ "subject": "Field Order {{ doc.name }} failed to sync",
+ "value_changed": "sync_status"
+}

@@ -1,0 +1,312 @@
+{
+ "charts": [
+  {
+   "chart_name": "Orders by Rep \u2013 Last 7 Days",
+   "doctype": "Workspace Chart",
+   "label": "Orders by Rep \u2013 Last 7 Days"
+  },
+  {
+   "chart_name": "Order Value \u2013 Last 30 Days",
+   "doctype": "Workspace Chart",
+   "label": "Order Value \u2013 Last 30 Days"
+  },
+  {
+   "doctype": "Workspace Chart",
+   "label": "Visits by Status \u2013 This Month",
+   "chart_name": "Visits by Status \u2013 This Month"
+  },
+  {
+   "doctype": "Workspace Chart",
+   "label": "Visits \u2013 Last 30 Days",
+   "chart_name": "Visits \u2013 Last 30 Days"
+  }
+ ],
+ "content": "[{\"id\": \"fs2-0\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Today</b></span>\", \"col\": 12}}, {\"id\": \"fs2-a0\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Today's Visits\", \"col\": 3}}, {\"id\": \"fs2-a1\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Visits In Progress\", \"col\": 3}}, {\"id\": \"fs2-a2\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Orders Today\", \"col\": 3}}, {\"id\": \"fs2-a3\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Order Value Today\", \"col\": 3}}, {\"id\": \"fs2-1\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Needs Attention</b></span>\", \"col\": 12}}, {\"id\": \"fs2-b0\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Missed Visits \\u2013 7 Days\", \"col\": 3}}, {\"id\": \"fs2-b1\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Sync Failures\", \"col\": 3}}, {\"id\": \"fs2-b2\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Pending Retailers\", \"col\": 3}}, {\"id\": \"fs2-b3\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Out of Stock Products\", \"col\": 3}}, {\"id\": \"fs2-s1\", \"type\": \"spacer\", \"data\": {\"col\": 12}}, {\"id\": \"fs2-2\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Shortcuts</b></span>\", \"col\": 12}}, {\"id\": \"fs2-c0\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Field Sales App\", \"col\": 4}}, {\"id\": \"fs2-c1\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"New Visit\", \"col\": 4}}, {\"id\": \"fs2-c2\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"New Field Order\", \"col\": 4}}, {\"id\": \"fs2-c3\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Sync Failures\", \"col\": 4}}, {\"id\": \"fs2-c4\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Sync Products\", \"col\": 4}}, {\"id\": \"fs2-c5\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Store Connection\", \"col\": 4}}, {\"id\": \"fs2-s2\", \"type\": \"spacer\", \"data\": {\"col\": 12}}, {\"id\": \"fs2-3\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Activity</b></span>\", \"col\": 12}}, {\"id\": \"fs2-q1\", \"type\": \"quick_list\", \"data\": {\"quick_list_name\": \"Today's Visits\", \"col\": 6}}, {\"id\": \"fs2-q2\", \"type\": \"quick_list\", \"data\": {\"quick_list_name\": \"Sync Failures\", \"col\": 6}}, {\"id\": \"fs2-d1\", \"type\": \"chart\", \"data\": {\"chart_name\": \"Visits \\u2013 Last 30 Days\", \"col\": 8}}, {\"id\": \"fs2-d2\", \"type\": \"chart\", \"data\": {\"chart_name\": \"Visits by Status \\u2013 This Month\", \"col\": 4}}, {\"id\": \"fs2-d3\", \"type\": \"chart\", \"data\": {\"chart_name\": \"Order Value \\u2013 Last 30 Days\", \"col\": 8}}, {\"id\": \"fs2-d4\", \"type\": \"chart\", \"data\": {\"chart_name\": \"Orders by Rep \\u2013 Last 7 Days\", \"col\": 4}}, {\"id\": \"fs2-q3\", \"type\": \"quick_list\", \"data\": {\"quick_list_name\": \"Draft Field Orders\", \"col\": 12}}, {\"id\": \"fs2-s3\", \"type\": \"spacer\", \"data\": {\"col\": 12}}, {\"id\": \"fs2-4\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Reports &amp; Masters</b></span>\", \"col\": 12}}, {\"id\": \"fs2-e0\", \"type\": \"card\", \"data\": {\"card_name\": \"Masters\", \"col\": 3}}, {\"id\": \"fs2-e1\", \"type\": \"card\", \"data\": {\"card_name\": \"Transactions\", \"col\": 3}}, {\"id\": \"fs2-e2\", \"type\": \"card\", \"data\": {\"card_name\": \"Settings & Logs\", \"col\": 3}}, {\"id\": \"fs2-e3\", \"type\": \"card\", \"data\": {\"card_name\": \"Reports\", \"col\": 3}}]",
+ "creation": "2026-10-09 12:00:00.000000",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "for_user": "",
+ "hide_custom": 0,
+ "icon": "map-pin",
+ "idx": 0,
+ "is_hidden": 0,
+ "label": "Field Sales",
+ "links": [
+  {
+   "doctype": "Workspace Link",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Masters",
+   "link_count": 3,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "dependencies": "",
+   "doctype": "Workspace Link",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Retailer",
+   "link_count": 0,
+   "link_to": "Retailer",
+   "link_type": "DocType",
+   "onboard": 0,
+   "report_ref_doctype": null,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "doctype": "Workspace Link",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Sales Rep",
+   "link_count": 0,
+   "link_to": "Sales Rep",
+   "link_type": "DocType",
+   "onboard": 0,
+   "report_ref_doctype": null,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "doctype": "Workspace Link",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Platform Product",
+   "link_count": 0,
+   "link_to": "Platform Product",
+   "link_type": "DocType",
+   "onboard": 0,
+   "report_ref_doctype": null,
+   "type": "Link"
+  },
+  {
+   "doctype": "Workspace Link",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Transactions",
+   "link_count": 2,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "dependencies": "",
+   "doctype": "Workspace Link",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Visit",
+   "link_count": 0,
+   "link_to": "Visit",
+   "link_type": "DocType",
+   "onboard": 0,
+   "report_ref_doctype": null,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "doctype": "Workspace Link",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Field Order",
+   "link_count": 0,
+   "link_to": "Field Order",
+   "link_type": "DocType",
+   "onboard": 0,
+   "report_ref_doctype": null,
+   "type": "Link"
+  },
+  {
+   "doctype": "Workspace Link",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Settings & Logs",
+   "link_count": 2,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "dependencies": "",
+   "doctype": "Workspace Link",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Store Connection",
+   "link_count": 0,
+   "link_to": "Store Connection",
+   "link_type": "DocType",
+   "onboard": 0,
+   "report_ref_doctype": null,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "doctype": "Workspace Link",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Sync Log",
+   "link_count": 0,
+   "link_to": "Sync Log",
+   "link_type": "DocType",
+   "onboard": 0,
+   "report_ref_doctype": null,
+   "type": "Link"
+  },
+  {
+   "doctype": "Workspace Link",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Reports",
+   "link_count": 1,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "dependencies": "",
+   "doctype": "Workspace Link",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Rep Performance",
+   "link_count": 0,
+   "link_to": "Rep Performance",
+   "link_type": "Report",
+   "onboard": 0,
+   "report_ref_doctype": "Field Order",
+   "type": "Link"
+  }
+ ],
+ "modified": "2026-10-10 17:40:00.000000",
+ "modified_by": "Administrator",
+ "module": "Field Sales Woocommerce",
+ "name": "Field Sales",
+ "number_cards": [
+  {
+   "doctype": "Workspace Number Card",
+   "label": "Today's Visits",
+   "number_card_name": "Today's Visits"
+  },
+  {
+   "doctype": "Workspace Number Card",
+   "label": "Orders Today",
+   "number_card_name": "Orders Today"
+  },
+  {
+   "doctype": "Workspace Number Card",
+   "label": "Order Value Today",
+   "number_card_name": "Order Value Today"
+  },
+  {
+   "doctype": "Workspace Number Card",
+   "label": "Sync Failures",
+   "number_card_name": "Sync Failures"
+  },
+  {
+   "doctype": "Workspace Number Card",
+   "label": "Pending Retailers",
+   "number_card_name": "Pending Retailers"
+  },
+  {
+   "doctype": "Workspace Number Card",
+   "label": "Visits In Progress",
+   "number_card_name": "Visits In Progress"
+  },
+  {
+   "doctype": "Workspace Number Card",
+   "label": "Missed Visits \u2013 7 Days",
+   "number_card_name": "Missed Visits \u2013 7 Days"
+  },
+  {
+   "doctype": "Workspace Number Card",
+   "label": "Out of Stock Products",
+   "number_card_name": "Out of Stock Products"
+  }
+ ],
+ "owner": "Administrator",
+ "parent_page": "",
+ "public": 1,
+ "quick_lists": [
+  {
+   "doctype": "Workspace Quick List",
+   "document_type": "Field Order",
+   "label": "Sync Failures",
+   "quick_list_filter": "[[\"Field Order\", \"sync_status\", \"=\", \"Failed\"]]"
+  },
+  {
+   "doctype": "Workspace Quick List",
+   "document_type": "Visit",
+   "label": "Today's Visits",
+   "quick_list_filter": "[[\"Visit\", \"visit_date\", \"Timespan\", \"today\"], [\"Visit\", \"status\", \"!=\", \"Cancelled\"]]"
+  },
+  {
+   "doctype": "Workspace Quick List",
+   "document_type": "Field Order",
+   "label": "Draft Field Orders",
+   "quick_list_filter": "[[\"Field Order\", \"docstatus\", \"=\", \"0\"]]"
+  }
+ ],
+ "restrict_to_domain": "",
+ "roles": [],
+ "sequence_id": 1.0,
+ "shortcuts": [
+  {
+   "color": "Blue",
+   "doc_view": "",
+   "doctype": "Workspace Shortcut",
+   "icon": "external-link",
+   "label": "Field Sales App",
+   "type": "URL",
+   "url": "/fieldsales"
+  },
+  {
+   "color": "Green",
+   "doc_view": "New",
+   "doctype": "Workspace Shortcut",
+   "icon": "calendar",
+   "label": "New Visit",
+   "link_to": "Visit",
+   "type": "DocType"
+  },
+  {
+   "color": "Blue",
+   "doc_view": "New",
+   "doctype": "Workspace Shortcut",
+   "format": "{} Draft",
+   "icon": "file-text",
+   "label": "New Field Order",
+   "link_to": "Field Order",
+   "stats_filter": "[[\"Field Order\", \"docstatus\", \"=\", 0]]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "doctype": "Workspace Shortcut",
+   "icon": "refresh",
+   "label": "Sync Products",
+   "link_to": "Platform Product",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "",
+   "doctype": "Workspace Shortcut",
+   "icon": "setting-gear",
+   "label": "Store Connection",
+   "link_to": "Store Connection",
+   "type": "DocType"
+  },
+  {
+   "color": "Red",
+   "doc_view": "",
+   "doctype": "Workspace Shortcut",
+   "icon": "alert-triangle",
+   "label": "Sync Failures",
+   "link_to": "sync-failures",
+   "type": "Page"
+  }
+ ],
+ "title": "Field Sales"
+}

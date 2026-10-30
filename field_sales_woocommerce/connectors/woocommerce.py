@@ -27,7 +27,7 @@ import requests
 from frappe import _
 from requests_oauthlib import OAuth1
 
-from field_sales.connectors.base import (
+from field_sales_woocommerce.connectors.base import (
 	ORDER_CANCELLED_TOPIC,
 	ORDER_FULFILLED_TOPIC,
 	ORDER_PAID_TOPIC,

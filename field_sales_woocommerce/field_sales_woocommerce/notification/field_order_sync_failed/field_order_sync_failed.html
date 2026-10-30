@@ -1,0 +1,5 @@
+<p>{{ _("Field Order") }} <a href="{{ frappe.utils.get_url_to_form(doc.doctype, doc.name) }}">{{ doc.name | e }}</a> {{ _("for") }} {{ (doc.retailer_name or doc.retailer) | e }} ({{ _("Sales Rep") }}: {{ doc.sales_rep | e }}) {{ _("failed to sync to the store after {0} attempts.").format(doc.sync_attempts) }}</p>
+
+<p><b>{{ _("Error") }}:</b> {{ doc.sync_error | e }}</p>
+
+<p>{{ _("Fix the cause, then use Retry Sync on the order or the Sync Failures page.") }}</p>

@@ -1,0 +1,21 @@
+<!doctype html>
+<html class="h-full" lang="en">
+  <head>
+    {% if boot.embedded %}<meta name="shopify-api-key" content="{{ boot.shopify_api_key }}" />
+    <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>{% endif %}
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Field Sales</title>
+    <meta name="theme-color" content="#ffffff" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/field_sales/manifest/favicon-32.png" />
+    <link rel="apple-touch-icon" href="/assets/field_sales/manifest/apple-touch-icon-180.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Field Sales" />
+  </head>
+  <body class="h-full">
+    <div id="app" class="h-full"></div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

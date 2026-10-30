@@ -1,0 +1,202 @@
+{% extends "templates/web.html" %}
+
+{% set title = "Field Sales Help" %}
+{% block header %}<h1>Field Sales Help</h1>{% endblock %}
+
+{% block page_content %}
+<div style="max-width: 760px; line-height: 1.65;">
+	<p>Field Sales is for brands that sell to retail shops through a field team. Reps plan visits,
+		check in at the shop with GPS and take orders against your Shopify stock; the orders and
+		retailers are created in your Shopify store. Managers use Field Sales inside the Shopify
+		admin; reps use the Field Sales app on their phones.</p>
+
+	<p><strong>On this page:</strong>
+		<a href="#requirements">Requirements</a> ·
+		<a href="#getting-started">Getting started</a> ·
+		<a href="#settings">Locations, order mode and email</a> ·
+		<a href="#reps">Sales reps</a> ·
+		<a href="#rep-app">The rep app</a> ·
+		<a href="#products">Products and stock</a> ·
+		<a href="#customers">Customers</a> ·
+		<a href="#visits">Visits and check-in</a> ·
+		<a href="#orders">Orders</a> ·
+		<a href="#payments">Payments</a> ·
+		<a href="#failures">Sync failures</a> ·
+		<a href="#commission">Commission</a> ·
+		<a href="#plans">Plans</a> ·
+		<a href="#faq">Troubleshooting</a> ·
+		<a href="#uninstall">Uninstall and data deletion</a> ·
+		<a href="#contact">Contact</a>
+	</p>
+
+	<h2 id="requirements">Requirements</h2>
+	<ul>
+		<li>A Shopify store with at least one location that holds stock, and products with prices.</li>
+		<li>Reps need a smartphone with a current browser (Chrome or Safari) and location turned on.</li>
+		<li>An outgoing email account for welcome, password and order confirmation emails
+			(see <a href="#settings">Locations, order mode and email</a>).</li>
+		<li>Optional: a Razorpay account for payment links (India only).</li>
+	</ul>
+
+	<h2 id="getting-started">Getting started</h2>
+	<ol>
+		<li>Install Field Sales from the Shopify App Store and approve the requested access. Field
+			Sales opens inside your Shopify admin, connects your store, picks your first location as
+			the default and starts syncing products and stock.</li>
+		<li>Open <strong>Settings</strong> to check the locations and the order mode, and set up
+			outgoing email (next section).</li>
+		<li>Add your sales reps (<a href="#reps">Sales reps</a>). They sign in to the rep app on their
+			phones.</li>
+		<li>Plan visits, or let reps take orders on their visits.</li>
+	</ol>
+
+	<h2 id="settings">Locations, order mode and email</h2>
+	<p>Open <strong>Settings</strong> in Field Sales inside your Shopify admin. It shows the
+		connected shop, the access you granted and your plan, and lets you change:</p>
+	<ul>
+		<li><strong>Locations:</strong> <em>Fetch Locations</em> loads your Shopify locations; tick
+			<em>Sell from here</em> for each one reps may sell from, and choose the default. Changing
+			the default starts a product sync.</li>
+		<li><strong>Order mode:</strong> <em>Draft</em> creates a draft order in Shopify that your team
+			reviews and completes; <em>Confirmed</em> creates a real order straight away.</li>
+		<li><strong>Product sync:</strong> every 30 minutes, hourly or daily.</li>
+		<li><strong>Email Account:</strong> the outgoing email account used for welcome emails,
+			password links and order confirmations (for Gmail, use an app password).</li>
+		<li><strong>Invoice:</strong> company details printed on the invoice (and GSTIN in India), and
+			whether an order confirmation email is sent.</li>
+		<li><strong>Commission:</strong> turn commission on or off for your company.</li>
+		<li><strong>Currency and time zone</strong> follow your Shopify store.</li>
+	</ul>
+
+	<h2 id="reps">Sales reps</h2>
+	<ol>
+		<li>Go to <strong>Sales Reps</strong> and click <strong>New Sales Rep</strong>.</li>
+		<li>Enter the rep's email and name, choose who they report to, and keep
+			<em>Send welcome email</em> on.</li>
+		<li>The rep gets an email to set a password. If it's lost, open the rep and click
+			<strong>Send Reset Link</strong>.</li>
+	</ol>
+	<p>Reps see only their own customers, visits and orders; a manager sees everyone who reports to
+		them. You can set a monthly target and a maximum discount per rep.</p>
+
+	<h2 id="rep-app">The rep app</h2>
+	<ul>
+		<li>Reps open <code>/fieldsales</code> on your Field Sales site in their phone's browser and
+			sign in with the email and password from the welcome email.</li>
+		<li>Add it to the home screen (Chrome: menu → <em>Install app</em>; Safari: Share →
+			<em>Add to Home Screen</em>) to open it like an app.</li>
+		<li>GPS check-in and barcode scanning need the phone's location and camera, and work only in
+			the rep app, not inside the Shopify admin.</li>
+	</ul>
+
+	<h2 id="products">Products and stock</h2>
+	<ul>
+		<li>Products, variants, prices, barcodes and stock are copied from Shopify on the chosen
+			schedule; stock and price changes in Shopify also arrive within moments.</li>
+		<li>Stock shown to reps is for the order's location. When an order is submitted, stock is
+			checked live in Shopify again; an item over the available stock stops the order.</li>
+		<li>Products are changed only in Shopify; Field Sales does not edit them.</li>
+	</ul>
+
+	<h2 id="customers">Customers</h2>
+	<ul>
+		<li>Retail shops are <strong>Customers</strong> in Field Sales. Each is created as a customer in
+			Shopify, with its phone, email and address.</li>
+		<li>The country sets how the phone number is checked; new customers start in your store's
+			country.</li>
+		<li>A customer's location (map pin) is used for the check-in distance. It is set on the first
+			check-in or picked on the map; after that only a manager can move it.</li>
+	</ul>
+
+	<h2 id="visits">Visits and check-in</h2>
+	<ul>
+		<li>Managers plan visits for reps one by one or by importing an Excel file
+			(<strong>Visits → Import</strong>).</li>
+		<li>Only the assigned rep can check in, and only on the visit's date. Check-in records the GPS
+			position and the distance to the shop (within 50 m by default; managers can change a
+			shop's radius).</li>
+		<li>At check-out the rep records whether an order was taken, or why not.</li>
+	</ul>
+
+	<h2 id="orders">Orders</h2>
+	<ul>
+		<li>Reps take orders on a visit or from a customer, with quantities, discount (up to their
+			limit) and tax.</li>
+		<li>On submit, the order is sent to Shopify as a draft or confirmed order (your order mode),
+			with the Field Sales order number and the rep on it.</li>
+		<li>The retailer gets an order confirmation email with an invoice PDF (if switched on).</li>
+		<li>To change a submitted order, cancel it and create a new one.</li>
+	</ul>
+
+	<h2 id="payments">Payments (Razorpay, India)</h2>
+	<ul>
+		<li>Enter your Razorpay keys under <strong>Settings → Razorpay</strong>.</li>
+		<li>A payment link is added to the confirmation email, and can be copied or shared on WhatsApp
+			from the order.</li>
+		<li>When the retailer pays, the order shows Paid, and confirmed orders are marked paid in
+			Shopify.</li>
+	</ul>
+
+	<h2 id="failures">Sync failures and retrying</h2>
+	<p>A sync failure means Shopify refused, or could not be reached for, a customer or an order.
+		<strong>Sync Failures</strong> lists each one with Shopify's message.</p>
+	<ul>
+		<li>Common causes: an item out of stock, a location that no longer exists, an email address
+			Shopify rejects, or too many orders sent at once.</li>
+		<li>Fix the cause (edit the customer or order, or the product in Shopify), then click
+			<strong>Retry</strong> or <strong>Retry All</strong>.</li>
+		<li>Failed orders are also retried automatically every 15 minutes, up to 5 times.</li>
+		<li><strong>Sync Log</strong> shows every call to Shopify, for troubleshooting.</li>
+	</ul>
+
+	<h2 id="commission">Commission basics</h2>
+	<ul>
+		<li>Create a commission plan (flat %, per product, tiered slabs or per order) and assign it to
+			reps. Managers can also earn on their team's sales.</li>
+		<li>Commission is earned when the Shopify order is paid or fulfilled (chosen per plan), and
+			reversed if it is cancelled or refunded.</li>
+		<li>Monthly statements are drafted on the 1st; a manager approves them and marks them paid.</li>
+		<li>Companies that don't pay commission can turn it off (<strong>Settings → Commission</strong>).</li>
+	</ul>
+
+	<h2 id="plans">Plans</h2>
+	<ul>
+		<li>You choose your Field Sales plan on Shopify's plan page; charges appear on your Shopify
+			bill. <strong>Settings</strong> shows your current plan and usage.</li>
+		<li>If a plan limits the number of reps or orders per month, Field Sales tells you when the
+			limit is reached, with a link to change your plan.</li>
+	</ul>
+
+	<h2 id="faq">Troubleshooting</h2>
+	<dl>
+		<dt><strong>Products or stock are missing.</strong></dt>
+		<dd>Check that a default location is set in <a href="#settings">Settings</a>; setting it starts
+			a sync. Only active products with a price are shown.</dd>
+		<dt><strong>"Location is not available inside Shopify admin".</strong></dt>
+		<dd>Browsers don't give location to apps inside the Shopify admin. Use <em>Open in Field
+			Sales</em> on the visit, or the rep app on a phone.</dd>
+		<dt><strong>A rep didn't get the welcome email.</strong></dt>
+		<dd>Check the spam folder and that outgoing email is set up, then use <em>Send Reset Link</em>
+			on the rep.</dd>
+		<dt><strong>Check-in is not offered.</strong></dt>
+		<dd>Check-in is only for the assigned rep, on the visit's date, in the rep app.</dd>
+		<dt><strong>An order is stuck as Pending or Failed.</strong></dt>
+		<dd>Open <strong>Sync Failures</strong> for Shopify's message; see
+			<a href="#failures">Sync failures</a>.</dd>
+	</dl>
+
+	<h2 id="uninstall">Uninstalling and data deletion</h2>
+	<ul>
+		<li>Uninstalling removes Field Sales' access to your store at once, and syncing stops.</li>
+		<li>48 hours later Shopify asks us to delete your shop's data: customers' personal data is
+			anonymised, synced products and log contents are deleted. Order amounts and dates are
+			kept anonymised for your records.</li>
+		<li>Requests from your shoppers to see or delete their data are handled automatically through
+			Shopify. See the <a href="/privacy">privacy policy</a> for details.</li>
+	</ul>
+
+	<h2 id="contact">Contact</h2>
+	<p>Email <a href="mailto:praveenkumar@agamnxt.com">praveenkumar@agamnxt.com</a>. Please include
+		your shop's myshopify.com address and, for an order, its Field Sales order number.</p>
+</div>
+{% endblock %}

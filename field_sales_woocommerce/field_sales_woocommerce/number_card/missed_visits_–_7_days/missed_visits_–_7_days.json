@@ -1,0 +1,21 @@
+{
+ "color": "#e24c4c",
+ "creation": "2026-10-10 17:20:00.000000",
+ "docstatus": 0,
+ "doctype": "Number Card",
+ "document_type": "Visit",
+ "dynamic_filters_json": "[[\"Visit\", \"visit_date\", \"<\", \"frappe.datetime.get_today()\"], [\"Visit\", \"visit_date\", \">=\", \"frappe.datetime.add_days(frappe.datetime.get_today(), -7)\"]]",
+ "filters_json": "[[\"Visit\", \"status\", \"=\", \"Planned\"]]",
+ "function": "Count",
+ "idx": 0,
+ "is_public": 1,
+ "is_standard": 1,
+ "label": "Missed Visits \u2013 7 Days",
+ "modified": "2026-10-10 17:20:00.000000",
+ "modified_by": "Administrator",
+ "module": "Field Sales Woocommerce",
+ "name": "Missed Visits \u2013 7 Days",
+ "owner": "Administrator",
+ "show_percentage_stats": 0,
+ "type": "Document Type"
+}

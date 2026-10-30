@@ -1,6 +1,57 @@
-*.pyc
+# Byte-compiled / optimized / DLL files
 __pycache__/
-*.egg-info/
+*.py[cod]
+*$py.class
+*.pyc
+*.py~
+
+# Distribution / packaging
+.Python
+develop-eggs/
 dist/
-build/
-.DS_Store
+downloads/
+eggs/
+.eggs/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+tags
+MANIFEST
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Dependency directories
+node_modules/
+jspm_packages/
+
+# IDEs and editors
+.vscode/
+.vs/
+.idea/
+.kdev4/
+*.kdev4
+*.DS_Store
+*.swp
+*.comp.js
+.wnf-lang-status
+*debug.log
+
+# Desktop app build output (yarn build / bench build)
+field_sales_woocommerce/public/frontend
+field_sales_woocommerce/www/fieldsales.html
+
+# Created by bench build: symlink to node_modules, and an empty root lockfile
+field_sales_woocommerce/public/node_modules
+/yarn.lock

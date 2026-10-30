@@ -1,0 +1,378 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "naming_series:",
+ "creation": "2026-10-09 10:50:16.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "details_tab",
+  "details_section",
+  "naming_series",
+  "retailer_name",
+  "owner_name",
+  "phone",
+  "email",
+  "user",
+  "col_break_details",
+  "sales_rep",
+  "retailer_type",
+  "gstin",
+  "status",
+  "address_tab",
+  "address_section",
+  "address_line1",
+  "address_line2",
+  "city",
+  "col_break_address",
+  "state",
+  "pincode",
+  "country",
+  "location_section",
+  "latitude",
+  "longitude",
+  "location_map",
+  "col_break_location",
+  "geofence_radius_m",
+  "sync_tab",
+  "platform_sync_section",
+  "platform",
+  "external_customer_id",
+  "sync_status",
+  "col_break_sync",
+  "last_synced",
+  "last_sync_attempt",
+  "sync_attempts",
+  "sync_error",
+  "activity_section",
+  "last_visit"
+ ],
+ "fields": [
+  {
+   "fieldname": "details_tab",
+   "fieldtype": "Tab Break",
+   "label": "Details"
+  },
+  {
+   "fieldname": "details_section",
+   "fieldtype": "Section Break",
+   "label": "Details"
+  },
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Series",
+   "options": "RET-.#####",
+   "hidden": 1
+  },
+  {
+   "fieldname": "retailer_name",
+   "fieldtype": "Data",
+   "label": "Retailer Name",
+   "reqd": 1,
+   "bold": 1
+  },
+  {
+   "fieldname": "owner_name",
+   "fieldtype": "Data",
+   "label": "Owner Name"
+  },
+  {
+   "fieldname": "phone",
+   "fieldtype": "Data",
+   "label": "Phone",
+   "options": "Phone",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "email",
+   "fieldtype": "Data",
+   "label": "Email",
+   "options": "Email"
+  },
+  {
+   "fieldname": "user",
+   "fieldtype": "Link",
+   "label": "Login User",
+   "options": "User",
+   "unique": 1,
+   "description": "The retailer's sign-in for the app's My Orders view; set through Login Access on the retailer page."
+  },
+  {
+   "fieldname": "col_break_details",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "sales_rep",
+   "fieldtype": "Link",
+   "label": "Sales Rep",
+   "options": "Sales Rep",
+   "in_standard_filter": 1,
+   "search_index": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "retailer_type",
+   "fieldtype": "Select",
+   "label": "Retailer Type",
+   "options": "\nKirana\nSupermarket\nWholesaler\nMedical\nOther",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "gstin",
+   "fieldtype": "Data",
+   "label": "GSTIN",
+   "depends_on": "eval:doc.country=='India'",
+   "description": "Indian GST number; shown on the tax invoice."
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "Active\nInactive",
+   "default": "Active",
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "address_tab",
+   "fieldtype": "Tab Break",
+   "label": "Address & Location"
+  },
+  {
+   "fieldname": "address_section",
+   "fieldtype": "Section Break",
+   "label": "Address"
+  },
+  {
+   "fieldname": "address_line1",
+   "fieldtype": "Data",
+   "label": "Address Line 1",
+   "reqd": 1
+  },
+  {
+   "fieldname": "address_line2",
+   "fieldtype": "Data",
+   "label": "Address Line 2"
+  },
+  {
+   "fieldname": "city",
+   "fieldtype": "Data",
+   "label": "City",
+   "reqd": 1,
+   "in_standard_filter": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "col_break_address",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "state",
+   "fieldtype": "Data",
+   "label": "State",
+   "default": "Tamil Nadu"
+  },
+  {
+   "fieldname": "pincode",
+   "fieldtype": "Data",
+   "label": "Postal Code"
+  },
+  {
+   "fieldname": "country",
+   "fieldtype": "Link",
+   "options": "Country",
+   "label": "Country",
+   "description": "Sets how the phone number is checked and the address sent to the store. New retailers start with the store's country."
+  },
+  {
+   "fieldname": "location_section",
+   "fieldtype": "Section Break",
+   "label": "Location"
+  },
+  {
+   "fieldname": "latitude",
+   "fieldtype": "Float",
+   "label": "Latitude",
+   "precision": "6"
+  },
+  {
+   "fieldname": "longitude",
+   "fieldtype": "Float",
+   "label": "Longitude",
+   "precision": "6"
+  },
+  {
+   "fieldname": "location_map",
+   "fieldtype": "Geolocation",
+   "label": "Map",
+   "description": "Drop a pin, or use Use My Location; kept in sync with Latitude / Longitude"
+  },
+  {
+   "fieldname": "col_break_location",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "geofence_radius_m",
+   "fieldtype": "Int",
+   "label": "Geofence Radius (m)",
+   "default": "50",
+   "description": "Allowed check-in distance"
+  },
+  {
+   "fieldname": "sync_tab",
+   "fieldtype": "Tab Break",
+   "label": "Store Sync"
+  },
+  {
+   "fieldname": "platform_sync_section",
+   "fieldtype": "Section Break",
+   "label": "Platform Sync",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "platform",
+   "fieldtype": "Select",
+   "label": "Platform",
+   "options": "\nWooCommerce",
+   "default": "WooCommerce"
+  },
+  {
+   "fieldname": "external_customer_id",
+   "fieldtype": "Data",
+   "label": "External Customer ID",
+   "read_only": 1,
+   "description": "Shopify Customer GID / Woo customer ID / Odoo res.partner ID"
+  },
+  {
+   "fieldname": "sync_status",
+   "fieldtype": "Select",
+   "label": "Sync Status",
+   "options": "Draft\nPending\nSynced\nFailed",
+   "default": "Draft",
+   "read_only": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "col_break_sync",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "last_synced",
+   "fieldtype": "Datetime",
+   "label": "Last Synced",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_sync_attempt",
+   "fieldtype": "Datetime",
+   "label": "Last Sync Attempt",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sync_attempts",
+   "fieldtype": "Int",
+   "label": "Sync Attempts",
+   "read_only": 1,
+   "description": "Failed pushes since the last successful sync"
+  },
+  {
+   "fieldname": "sync_error",
+   "fieldtype": "Small Text",
+   "label": "Sync Error",
+   "read_only": 1
+  },
+  {
+   "fieldname": "activity_section",
+   "fieldtype": "Section Break",
+   "label": "Activity"
+  },
+  {
+   "fieldname": "last_visit",
+   "fieldtype": "Datetime",
+   "label": "Last Visit",
+   "read_only": 1,
+   "in_list_view": 1
+  }
+ ],
+ "in_create": 0,
+ "issingle": 0,
+ "links": [
+  {
+   "link_doctype": "Visit",
+   "link_fieldname": "retailer",
+   "group": "Activity"
+  },
+  {
+   "link_doctype": "Field Order",
+   "link_fieldname": "retailer",
+   "group": "Activity"
+  }
+ ],
+ "modified": "2026-10-28 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Field Sales Woocommerce",
+ "name": "Retailer",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Sales Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 0,
+   "email": 0,
+   "export": 0,
+   "if_owner": 0,
+   "print": 1,
+   "read": 1,
+   "report": 0,
+   "role": "Field Sales Rep",
+   "share": 0,
+   "write": 1
+  },
+  {
+   "create": 0,
+   "delete": 0,
+   "email": 0,
+   "export": 0,
+   "if_owner": 0,
+   "print": 0,
+   "read": 1,
+   "report": 0,
+   "role": "Field Sales Retailer",
+   "share": 0,
+   "write": 0
+  }
+ ],
+ "search_fields": "owner_name,phone,city",
+ "sort_field": "retailer_name",
+ "sort_order": "ASC",
+ "title_field": "retailer_name",
+ "track_changes": 1,
+ "show_title_field_in_link": 1,
+ "track_views": 1
+}

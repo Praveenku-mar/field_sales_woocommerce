@@ -1,0 +1,536 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "naming_series:",
+ "creation": "2026-10-09 11:05:06.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "order_tab",
+  "order_section",
+  "naming_series",
+  "retailer",
+  "retailer_name",
+  "visit",
+  "col_break_order",
+  "sales_rep",
+  "order_date",
+  "delivery_date",
+  "location_id",
+  "location_name",
+  "items_section",
+  "items",
+  "totals_section",
+  "total_qty",
+  "col_break_totals",
+  "net_total",
+  "tax_percent",
+  "tax_amount",
+  "discount_percent",
+  "discount_amount",
+  "grand_total",
+  "notes_tab",
+  "notes_section",
+  "remarks",
+  "sync_tab",
+  "platform_sync_section",
+  "platform",
+  "external_draft_id",
+  "store_draft_name",
+  "external_order_id",
+  "col_break_sync",
+  "sync_status",
+  "sync_attempts",
+  "last_sync_attempt",
+  "sync_error",
+  "payment_tab",
+  "payment_section",
+  "payment_status",
+  "amount_paid",
+  "paid_on",
+  "store_marked_paid_on",
+  "col_break_payment",
+  "razorpay_payment_link_id",
+  "razorpay_payment_link_url",
+  "payment_link_created_on",
+  "payment_link_expires_on",
+  "razorpay_payment_id",
+  "invoice_tab",
+  "invoice_section",
+  "invoice_no",
+  "invoice_date",
+  "store_order_name",
+  "col_break_invoice",
+  "confirmation_sent_on",
+  "confirmation_status"
+ ],
+ "fields": [
+  {
+   "fieldname": "order_tab",
+   "fieldtype": "Tab Break",
+   "label": "Order"
+  },
+  {
+   "fieldname": "order_section",
+   "fieldtype": "Section Break",
+   "label": "Order"
+  },
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Series",
+   "options": "FO-.YYYY.-.#####",
+   "hidden": 1
+  },
+  {
+   "fieldname": "retailer",
+   "fieldtype": "Link",
+   "label": "Retailer",
+   "options": "Retailer",
+   "reqd": 1,
+   "in_standard_filter": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "retailer_name",
+   "fieldtype": "Data",
+   "label": "Retailer Name",
+   "fetch_from": "retailer.retailer_name",
+   "fetch_if_empty": 0,
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "visit",
+   "fieldtype": "Link",
+   "label": "Visit",
+   "options": "Visit",
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "col_break_order",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "sales_rep",
+   "fieldtype": "Link",
+   "label": "Sales Rep",
+   "options": "Sales Rep",
+   "reqd": 1,
+   "in_standard_filter": 1,
+   "search_index": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "order_date",
+   "fieldtype": "Date",
+   "label": "Order Date",
+   "reqd": 1,
+   "default": "Today",
+   "search_index": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "delivery_date",
+   "fieldtype": "Date",
+   "label": "Delivery Date"
+  },
+  {
+   "fieldname": "items_section",
+   "fieldtype": "Section Break",
+   "label": "Items"
+  },
+  {
+   "fieldname": "items",
+   "fieldtype": "Table",
+   "label": "Items",
+   "options": "Field Order Item",
+   "reqd": 1
+  },
+  {
+   "fieldname": "totals_section",
+   "fieldtype": "Section Break",
+   "label": "Totals"
+  },
+  {
+   "fieldname": "total_qty",
+   "fieldtype": "Float",
+   "label": "Total Qty",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "col_break_totals",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "net_total",
+   "fieldtype": "Currency",
+   "label": "Net Total",
+   "read_only": 1
+  },
+  {
+   "fieldname": "tax_percent",
+   "fieldtype": "Percent",
+   "label": "Tax (%)",
+   "default": "5"
+  },
+  {
+   "fieldname": "tax_amount",
+   "fieldtype": "Currency",
+   "label": "Tax Amount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "discount_percent",
+   "fieldtype": "Percent",
+   "label": "Discount %"
+  },
+  {
+   "fieldname": "discount_amount",
+   "fieldtype": "Currency",
+   "label": "Discount Amount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "grand_total",
+   "fieldtype": "Currency",
+   "label": "Grand Total",
+   "read_only": 1,
+   "bold": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "notes_tab",
+   "fieldtype": "Tab Break",
+   "label": "Notes"
+  },
+  {
+   "fieldname": "notes_section",
+   "fieldtype": "Section Break",
+   "label": "Notes"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks"
+  },
+  {
+   "fieldname": "sync_tab",
+   "fieldtype": "Tab Break",
+   "label": "Store Sync"
+  },
+  {
+   "fieldname": "platform_sync_section",
+   "fieldtype": "Section Break",
+   "label": "Platform Sync",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "platform",
+   "fieldtype": "Select",
+   "label": "Platform",
+   "options": "\nWooCommerce",
+   "default": "WooCommerce"
+  },
+  {
+   "fieldname": "location_id",
+   "fieldtype": "Select",
+   "label": "Location",
+   "options": "",
+   "description": "Stock is checked against this store location"
+  },
+  {
+   "fieldname": "external_draft_id",
+   "fieldtype": "Data",
+   "label": "External Draft ID",
+   "read_only": 1,
+   "description": "Shopify Draft Order GID / Odoo draft sale.order ID"
+  },
+  {
+   "fieldname": "store_draft_name",
+   "fieldtype": "Data",
+   "label": "Store Draft No",
+   "description": "The store's own draft order number, e.g. #D5",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "external_order_id",
+   "fieldtype": "Data",
+   "label": "External Order ID",
+   "read_only": 1,
+   "description": "Shopify Order GID / Woo order ID / Odoo sale.order ID"
+  },
+  {
+   "fieldname": "col_break_sync",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "sync_status",
+   "fieldtype": "Select",
+   "label": "Sync Status",
+   "options": "Draft\nPending\nSynced\nFailed",
+   "default": "Draft",
+   "read_only": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "sync_attempts",
+   "fieldtype": "Int",
+   "label": "Sync Attempts",
+   "read_only": 1,
+   "default": "0"
+  },
+  {
+   "fieldname": "last_sync_attempt",
+   "fieldtype": "Datetime",
+   "label": "Last Sync Attempt",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sync_error",
+   "fieldtype": "Small Text",
+   "label": "Sync Error",
+   "read_only": 1
+  },
+  {
+   "fieldname": "location_name",
+   "fieldtype": "Data",
+   "label": "Location Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "payment_tab",
+   "fieldtype": "Tab Break",
+   "label": "Payment"
+  },
+  {
+   "fieldname": "payment_section",
+   "fieldtype": "Section Break",
+   "label": "Payment"
+  },
+  {
+   "fieldname": "payment_status",
+   "fieldtype": "Select",
+   "label": "Payment Status",
+   "options": "Unpaid\nLink Sent\nPartially Paid\nPaid\nLink Expired\nLink Cancelled",
+   "default": "Unpaid",
+   "in_standard_filter": 1,
+   "in_list_view": 1,
+   "read_only": 1,
+   "allow_on_submit": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "amount_paid",
+   "fieldtype": "Currency",
+   "label": "Amount Paid",
+   "read_only": 1,
+   "allow_on_submit": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "paid_on",
+   "fieldtype": "Datetime",
+   "label": "Paid On",
+   "read_only": 1,
+   "allow_on_submit": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "store_marked_paid_on",
+   "fieldtype": "Datetime",
+   "label": "Store Marked Paid On",
+   "description": "When the confirmed store order was marked paid after the Razorpay payment",
+   "read_only": 1,
+   "allow_on_submit": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "col_break_payment",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "razorpay_payment_link_id",
+   "fieldtype": "Data",
+   "label": "Razorpay Payment Link ID",
+   "search_index": 1,
+   "read_only": 1,
+   "allow_on_submit": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "razorpay_payment_link_url",
+   "fieldtype": "Data",
+   "label": "Payment Link URL",
+   "options": "URL",
+   "read_only": 1,
+   "allow_on_submit": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "payment_link_created_on",
+   "fieldtype": "Datetime",
+   "label": "Link Created On",
+   "read_only": 1,
+   "allow_on_submit": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "payment_link_expires_on",
+   "fieldtype": "Datetime",
+   "label": "Link Expires On",
+   "read_only": 1,
+   "allow_on_submit": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "razorpay_payment_id",
+   "fieldtype": "Data",
+   "label": "Razorpay Payment ID",
+   "read_only": 1,
+   "allow_on_submit": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "invoice_tab",
+   "fieldtype": "Tab Break",
+   "label": "Invoice"
+  },
+  {
+   "fieldname": "invoice_section",
+   "fieldtype": "Section Break",
+   "label": "Invoice"
+  },
+  {
+   "fieldname": "invoice_no",
+   "fieldtype": "Data",
+   "label": "Invoice No",
+   "unique": 1,
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "invoice_date",
+   "fieldtype": "Date",
+   "label": "Invoice Date",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "store_order_name",
+   "fieldtype": "Data",
+   "label": "Store Order No",
+   "description": "The store's own order number, e.g. #1006",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "store_checkout_url",
+   "fieldtype": "Data",
+   "label": "Store Checkout URL",
+   "description": "The store's hosted checkout link for this order's draft, for the customer to pay it",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "col_break_invoice",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "confirmation_sent_on",
+   "fieldtype": "Datetime",
+   "label": "Confirmation Sent On",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "confirmation_status",
+   "fieldtype": "Small Text",
+   "label": "Confirmation Status",
+   "read_only": 1,
+   "no_copy": 1
+  }
+ ],
+ "in_create": 0,
+ "is_submittable": 1,
+ "issingle": 0,
+ "links": [],
+ "modified": "2026-10-28 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Field Sales Woocommerce",
+ "name": "Field Order",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "amend": 1,
+   "cancel": 1,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "amend": 1,
+   "cancel": 1,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Sales Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 1,
+   "delete": 0,
+   "email": 0,
+   "export": 0,
+   "if_owner": 0,
+   "print": 1,
+   "read": 1,
+   "report": 0,
+   "role": "Field Sales Rep",
+   "share": 0,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "amend": 0,
+   "cancel": 0,
+   "create": 0,
+   "delete": 0,
+   "email": 0,
+   "export": 0,
+   "if_owner": 0,
+   "print": 1,
+   "read": 1,
+   "report": 0,
+   "role": "Field Sales Retailer",
+   "share": 0,
+   "submit": 0,
+   "write": 0
+  }
+ ],
+ "sort_field": "order_date",
+ "sort_order": "DESC",
+ "title_field": "retailer_name",
+ "track_changes": 1,
+ "track_views": 1
+}

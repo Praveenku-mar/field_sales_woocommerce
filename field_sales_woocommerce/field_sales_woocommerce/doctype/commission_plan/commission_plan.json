@@ -1,0 +1,215 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "field:plan_name",
+ "creation": "2026-10-15 10:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "plan_name",
+  "is_active",
+  "col_break_main",
+  "rule_type",
+  "commission_on",
+  "rule_section",
+  "flat_rate",
+  "default_rate",
+  "rates",
+  "slab_mode",
+  "slabs",
+  "per_order_amount",
+  "discount_section",
+  "penalty_factor",
+  "override_section",
+  "override_levels",
+  "col_break_override",
+  "override_pct",
+  "description_section",
+  "description"
+ ],
+ "fields": [
+  {
+   "fieldname": "plan_name",
+   "fieldtype": "Data",
+   "label": "Plan Name",
+   "reqd": 1,
+   "unique": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "label": "Is Active",
+   "default": "1",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "col_break_main",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "rule_type",
+   "fieldtype": "Select",
+   "label": "Rule Type",
+   "options": "Flat %\nProduct Rate\nTiered Slab\nPer Order",
+   "reqd": 1,
+   "default": "Flat %",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "commission_on",
+   "fieldtype": "Select",
+   "label": "Commission On",
+   "options": "Paid\nFulfilled",
+   "reqd": 1,
+   "default": "Paid",
+   "in_standard_filter": 1,
+   "description": "When a Pending commission becomes Earned"
+  },
+  {
+   "fieldname": "rule_section",
+   "fieldtype": "Section Break",
+   "label": "Rule"
+  },
+  {
+   "fieldname": "flat_rate",
+   "fieldtype": "Percent",
+   "label": "Flat Rate %",
+   "depends_on": "eval:doc.rule_type==\"Flat %\"",
+   "mandatory_depends_on": "eval:doc.rule_type==\"Flat %\""
+  },
+  {
+   "fieldname": "default_rate",
+   "fieldtype": "Percent",
+   "label": "Default Rate %",
+   "depends_on": "eval:doc.rule_type==\"Product Rate\"",
+   "description": "Used when no rate row matches the product"
+  },
+  {
+   "fieldname": "rates",
+   "fieldtype": "Table",
+   "label": "Rates",
+   "options": "Commission Plan Rate",
+   "depends_on": "eval:doc.rule_type==\"Product Rate\""
+  },
+  {
+   "fieldname": "slab_mode",
+   "fieldtype": "Select",
+   "label": "Slab Mode",
+   "options": "Whole Amount\nMarginal",
+   "default": "Whole Amount",
+   "depends_on": "eval:doc.rule_type==\"Tiered Slab\"",
+   "description": "Whole Amount: one rate on all sales. Marginal: each band at its own rate."
+  },
+  {
+   "fieldname": "slabs",
+   "fieldtype": "Table",
+   "label": "Slabs",
+   "options": "Commission Plan Slab",
+   "depends_on": "eval:doc.rule_type==\"Tiered Slab\""
+  },
+  {
+   "fieldname": "per_order_amount",
+   "fieldtype": "Currency",
+   "label": "Amount per Order",
+   "depends_on": "eval:doc.rule_type==\"Per Order\"",
+   "mandatory_depends_on": "eval:doc.rule_type==\"Per Order\""
+  },
+  {
+   "fieldname": "discount_section",
+   "fieldtype": "Section Break",
+   "label": "Discount Penalty"
+  },
+  {
+   "fieldname": "penalty_factor",
+   "fieldtype": "Float",
+   "label": "Penalty Factor",
+   "default": "0",
+   "description": "0 to 1. Share of the rate lost when a rep gives their full discount limit. 0 = no penalty."
+  },
+  {
+   "fieldname": "override_section",
+   "fieldtype": "Section Break",
+   "label": "Manager Override"
+  },
+  {
+   "fieldname": "override_levels",
+   "fieldtype": "Int",
+   "label": "Override Levels",
+   "default": "0",
+   "description": "How many managers up the Reports To chain earn an override on this rep's sales"
+  },
+  {
+   "fieldname": "col_break_override",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "override_pct",
+   "fieldtype": "Percent",
+   "label": "Override %",
+   "description": "Applies when this plan belongs to the manager"
+  },
+  {
+   "fieldname": "description_section",
+   "fieldtype": "Section Break",
+   "label": "Notes",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Small Text",
+   "label": "Description"
+  }
+ ],
+ "links": [],
+ "modified": "2026-10-15 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Field Sales Woocommerce",
+ "name": "Commission Plan",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "share": 1,
+   "write": 1,
+   "role": "System Manager"
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "share": 1,
+   "write": 1,
+   "role": "Sales Manager"
+  },
+  {
+   "create": 0,
+   "delete": 0,
+   "email": 0,
+   "export": 0,
+   "print": 0,
+   "read": 1,
+   "report": 0,
+   "share": 0,
+   "write": 0,
+   "role": "Field Sales Rep"
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "title_field": "plan_name",
+ "track_changes": 1
+}

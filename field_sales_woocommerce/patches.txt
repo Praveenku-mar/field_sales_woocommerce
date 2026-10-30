@@ -1,0 +1,21 @@
+[pre_model_sync]
+# Patches added in this section will be executed before doctypes are migrated
+# Read docs to understand patches: https://docs.frappe.io/framework/user/en/database-migrations
+
+[post_model_sync]
+# Patches added in this section will be executed after doctypes are migrated
+field_sales.patches.v1_0.multi_location
+field_sales.patches.v1_0.discount_percent
+field_sales.patches.v1_0.commission_setup
+field_sales.patches.v1_0.order_confirmation_default
+field_sales.patches.v1_0.backfill_store_draft_names
+field_sales.patches.v1_0.enable_match_shop_settings
+field_sales.patches.v1_0.enable_commission_by_default
+field_sales.patches.v1_0.set_shopify_auth_mode
+field_sales.patches.v1_0.retailer_country_india
+field_sales.patches.v1_0.data_retention_defaults
+field_sales.patches.v1_0.retailer_role
+
+[post_fixture_sync]
+# Patches added in this section will be executed after fixtures and customizations
+# (Custom Field, Property Setter, etc) are synced

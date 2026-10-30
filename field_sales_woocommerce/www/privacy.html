@@ -1,0 +1,121 @@
+{# DRAFT: needs legal review before publishing. Every [TO FILL] must be completed. #}
+{% extends "templates/web.html" %}
+
+{% set title = "Field Sales Privacy Policy" %}
+{% block header %}<h1>Field Sales Privacy Policy</h1>{% endblock %}
+
+{% block page_content %}
+<!-- DRAFT: needs legal review before publishing. Every [TO FILL] must be completed. -->
+<div class="fs-legal" style="max-width: 760px; line-height: 1.65;">
+	<p><em>Last updated: 23 October 2026</em></p>
+
+	<p>
+		Field Sales ("the app") is provided by [TO FILL: legal name of the company] ("we", "us").
+		It helps a brand's field sales team visit retail shops, take orders and sync those orders
+		to the brand's online store. This policy explains what personal data the app processes for
+		a merchant (the brand that installs the app), why, where it is stored and for how long.
+		The merchant decides which data is entered; we process it on the merchant's behalf.
+	</p>
+
+	<h2>1. Data we process</h2>
+	<ul>
+		<li><strong>Retailers (the merchant's business customers):</strong> shop name, owner or contact
+			person name, email address, phone number, postal address, country, tax number (GSTIN, India
+			only) and the shop's map location (latitude and longitude).</li>
+		<li><strong>Visits:</strong> planned and completed visits by sales reps, including the GPS
+			position and accuracy captured at check-in and check-out, the distance to the shop,
+			notes and an optional photo.</li>
+		<li><strong>Orders:</strong> items, quantities, prices, discounts, taxes, delivery dates,
+			remarks, the store order and draft numbers, and the sync status with the store.</li>
+		<li><strong>Payments:</strong> when the merchant uses Razorpay payment links, the link id and
+			URL, payment status, amount paid and payment id. We do not receive or store card or bank
+			details.</li>
+		<li><strong>Sales rep users:</strong> name, email address, mobile number, territory, reporting
+			line, targets, commission plan and commission amounts, and sign-in records.</li>
+		<li><strong>Shopify staff:</strong> when the app is opened inside the Shopify admin, the
+			Shopify staff member's numeric user id from the session token, used for audit logs.</li>
+		<li><strong>Technical logs:</strong> records of calls to the store and to Razorpay. Secrets and
+			customer contact details (names, emails, phone numbers, addresses) are masked before a log
+			is saved.</li>
+	</ul>
+
+	<h2>2. Why we process it</h2>
+	<ul>
+		<li>To let reps plan and record visits, and check that a visit happened at the shop
+			(geofence check).</li>
+		<li>To create and update the retailer as a customer in the merchant's online store, and to
+			place orders there.</li>
+		<li>To send order confirmations, invoices and payment links to retailers.</li>
+		<li>To calculate sales rep commission and show managers reports on visits and orders.</li>
+		<li>To find and fix sync errors (technical logs).</li>
+	</ul>
+	<p>We do not sell personal data, use it for advertising, or make automated decisions with legal
+		or similarly significant effects on retailers or reps.</p>
+
+	<h2>3. Where data is stored</h2>
+	<p>
+		Each merchant's data is stored in its own database on [TO FILL: hosting provider] in
+		[TO FILL: region/country]. Data is encrypted in transit (HTTPS) and at rest
+		[TO FILL: confirm disk and backup encryption with the hosting provider].
+		Store access tokens and API keys are stored encrypted.
+	</p>
+
+	<h2>4. How long we keep it</h2>
+	<ul>
+		<li>Retailers, visits, orders and commission records: while the merchant uses the app, unless
+			the merchant deletes them. The merchant can switch on automatic anonymisation of inactive
+			retailers after a chosen number of days.</li>
+		<li>Successful technical logs: 30 days. Failed technical logs: 180 days by default (the
+			merchant can change this).</li>
+		<li>After the merchant uninstalls the app from Shopify, the store access tokens are deleted
+			immediately. When Shopify sends its shop deletion request (48 hours after uninstall),
+			retailer personal data is anonymised, product data and log contents are deleted, and
+			data exports are removed. Order amounts and dates are kept in anonymised form for the
+			merchant's accounting [TO FILL: confirm retention needed for accounting/tax law].</li>
+		<li>Backups: [TO FILL: backup retention period of the hosting provider].</li>
+	</ul>
+
+	<h2>5. Sub-processors</h2>
+	<ul>
+		<li><strong>Shopify</strong>: the merchant's online store; receives retailer customer
+			records and orders.</li>
+		<li><strong>Razorpay</strong> (only if the merchant enables payments): payment links;
+			receives the retailer's name, email and phone number and the order amount.</li>
+		<li><strong>Email provider</strong>: [TO FILL: the outgoing email service configured for the
+			site] sends order confirmations, invoices and account emails.</li>
+		<li><strong>OpenStreetMap</strong>: map tiles and place search (Nominatim) in the map picker;
+			the browser sends the map area being viewed and the search text.</li>
+		<li><strong>Hosting provider</strong>: [TO FILL: name, location, link to its data processing
+			terms].</li>
+	</ul>
+
+	<h2>6. Rights of retailers and other individuals</h2>
+	<p>
+		Retailers and reps can ask the merchant to see, correct or delete their personal data. For
+		shoppers and customers of a Shopify store, Shopify forwards data requests to us:
+	</p>
+	<ul>
+		<li><strong>Customer data request:</strong> we export what we hold about that customer
+			(retailer details, visits and orders) to a file, and notify the merchant's administrators
+			to send it to the store owner within 30 days.</li>
+		<li><strong>Customer deletion request:</strong> we anonymise the customer's name, contact
+			details, address and location on the retailer and its orders and visits, and delete the
+			edit history and emails that held them. Amounts and dates are kept.</li>
+		<li><strong>Shop deletion request:</strong> see section 4.</li>
+	</ul>
+	<p>We respond within 30 days, unless the law requires us to keep the data.</p>
+
+	<h2>7. Security</h2>
+	<p>
+		Access is limited by role (sales rep, sales manager, system manager); reps only see their
+		own and their team's data. Exports of personal data are recorded in an access log.
+		[TO FILL: password policy, staff access, incident response — see docs/data-protection.md.]
+	</p>
+
+	<h2>8. Contact</h2>
+	<p>
+		Questions or requests: <a href="mailto:praveenkumar@agamnxt.com">praveenkumar@agamnxt.com</a>.<br>
+		[TO FILL: postal address of the company]
+	</p>
+</div>
+{% endblock %}

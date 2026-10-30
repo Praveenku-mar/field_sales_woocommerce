@@ -1,0 +1,313 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "field_sales-store-connection",
+ "creation": "2026-10-09 09:36:35.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "connection_section",
+  "platform",
+  "col_break_connection",
+  "enabled",
+  "store_url",
+  "woocommerce_section",
+  "woo_consumer_key",
+  "col_break_woo",
+  "woo_consumer_secret",
+  "woo_api_version",
+  "defaults_section",
+  "default_location_id",
+  "col_break_defaults",
+  "default_location_name",
+  "order_mode",
+  "product_sync_frequency",
+  "shop_settings_section",
+  "shop_name",
+  "shop_country",
+  "col_break_shop_settings",
+  "shop_currency",
+  "shop_timezone",
+  "match_shop_settings",
+  "invoice_section",
+  "company_name",
+  "company_email",
+  "company_phone",
+  "col_break_invoice",
+  "company_address",
+  "company_state",
+  "company_gstin",
+  "commission_section",
+  "enable_commission",
+  "col_break_commission",
+  "email_account_section",
+  "send_order_confirmation",
+  "col_break_email",
+  "locations_section",
+  "locations",
+  "test_section",
+  "last_tested_on",
+  "col_break_test",
+  "last_test_status",
+  "data_retention_section",
+  "failed_log_retention_days",
+  "col_break_data_retention",
+  "retailer_inactive_anonymise_days"
+ ],
+ "fields": [
+  {
+   "fieldname": "connection_section",
+   "fieldtype": "Section Break",
+   "label": "Connection"
+  },
+  {
+   "fieldname": "platform",
+   "fieldtype": "Select",
+   "label": "Platform",
+   "default": "WooCommerce",
+   "options": "WooCommerce",
+   "reqd": 1
+  },
+  {
+   "fieldname": "col_break_connection",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "label": "Enabled"
+  },
+  {
+   "fieldname": "store_url",
+   "fieldtype": "Data",
+   "label": "Store URL",
+   "reqd": 1,
+   "description": "WooCommerce: https://shop.com"
+  },
+  {
+   "fieldname": "woocommerce_section",
+   "fieldtype": "Section Break",
+   "label": "WooCommerce Credentials"
+  },
+  {
+   "fieldname": "woo_consumer_key",
+   "fieldtype": "Data",
+   "label": "Consumer Key",
+   "reqd": 1
+  },
+  {
+   "fieldname": "col_break_woo",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "woo_consumer_secret",
+   "fieldtype": "Password",
+   "label": "Consumer Secret",
+   "reqd": 1
+  },
+  {
+   "fieldname": "woo_api_version",
+   "fieldtype": "Data",
+   "label": "API Version",
+   "default": "wc/v3"
+  },
+  {
+   "fieldname": "defaults_section",
+   "fieldtype": "Section Break",
+   "label": "Defaults"
+  },
+  {
+   "fieldname": "default_location_id",
+   "fieldtype": "Data",
+   "label": "Default Location ID",
+   "description": "WooCommerce Stock (leave as woo)",
+   "default": "woo"
+  },
+  {
+   "fieldname": "col_break_defaults",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "default_location_name",
+   "fieldtype": "Data",
+   "label": "Default Location Name",
+   "read_only": 1,
+   "default": "WooCommerce Stock"
+  },
+  {
+   "fieldname": "order_mode",
+   "fieldtype": "Select",
+   "label": "Order Mode",
+   "options": "Draft\nConfirmed",
+   "default": "Draft"
+  },
+  {
+   "fieldname": "product_sync_frequency",
+   "fieldtype": "Select",
+   "label": "Product Sync Frequency",
+   "options": "Every 30 minutes\nHourly\nDaily",
+   "default": "Every 30 minutes"
+  },
+  {
+   "fieldname": "last_test_status",
+   "fieldtype": "Data",
+   "label": "Last Test Status",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_tested_on",
+   "fieldtype": "Datetime",
+   "label": "Last Tested On",
+   "read_only": 1
+  },
+  {
+   "description": "Store name from the last successful Test Connection; shown next to the page title.",
+   "fieldname": "shop_name",
+   "fieldtype": "Data",
+   "label": "Shop Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "locations_section",
+   "fieldtype": "Section Break",
+   "label": "Locations"
+  },
+  {
+   "fieldname": "locations",
+   "fieldtype": "Table",
+   "label": "Locations",
+   "options": "Store Location",
+   "description": "Stock locations reps can sell from. The default location is always one of them."
+  },
+  {
+   "fieldname": "invoice_section",
+   "fieldtype": "Section Break",
+   "label": "Invoice"
+  },
+  {
+   "fieldname": "send_order_confirmation",
+   "fieldtype": "Check",
+   "label": "Send Order Confirmation",
+   "default": "1",
+   "description": "Email the customer a tax invoice once the store confirms the order"
+  },
+  {
+   "fieldname": "company_name",
+   "fieldtype": "Data",
+   "label": "Company Name"
+  },
+  {
+   "fieldname": "company_address",
+   "fieldtype": "Small Text",
+   "label": "Company Address"
+  },
+  {
+   "fieldname": "col_break_invoice",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "company_state",
+   "fieldtype": "Data",
+   "label": "State",
+   "description": "Decides CGST + SGST (same state as the customer) or IGST"
+  },
+  {
+   "fieldname": "company_gstin",
+   "fieldtype": "Data",
+   "label": "GSTIN"
+  },
+  {
+   "fieldname": "company_phone",
+   "fieldtype": "Data",
+   "label": "Phone"
+  },
+  {
+   "fieldname": "company_email",
+   "fieldtype": "Data",
+   "label": "Email",
+   "options": "Email"
+  },
+  {
+   "default": "1",
+   "description": "Use the store's currency and time zone for this site (System Settings), checked on save and daily. Shopify prices are used as they are, so the site must use the store's currency.",
+   "fieldname": "match_shop_settings",
+   "fieldtype": "Check",
+   "label": "Match Store Currency and Timezone"
+  },
+  {
+   "description": "The store's currency, from the last check.",
+   "fieldname": "shop_currency",
+   "fieldtype": "Data",
+   "label": "Store Currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "shop_country",
+   "fieldtype": "Data",
+   "label": "Store Country",
+   "read_only": 1,
+   "description": "Country code of the store's address (from the store); new Retailers start in this country."
+  },
+  {
+   "description": "The store's time zone, from the last check.",
+   "fieldname": "shop_timezone",
+   "fieldtype": "Data",
+   "label": "Store Time Zone",
+   "read_only": 1
+  },
+  {
+   "fieldname": "commission_section",
+   "fieldtype": "Section Break",
+   "label": "Commission"
+  },
+  {
+   "default": "1",
+   "fieldname": "enable_commission",
+   "fieldtype": "Check",
+   "label": "Pay Commission to Sales Reps",
+   "description": "Turn off if this company does not pay commission. New orders then create no commission entries, no monthly statements are made, and the Commission screens are hidden. Existing records are kept."
+  },
+  {
+   "fieldname": "failed_log_retention_days",
+   "fieldtype": "Int",
+   "label": "Keep Failed Sync Logs (days)",
+   "default": "180",
+   "non_negative": 1,
+   "description": "Failed and Retrying Sync Logs older than this are deleted daily. 0 keeps them. Successful ones are kept 30 days."
+  },
+  {
+   "fieldname": "retailer_inactive_anonymise_days",
+   "fieldtype": "Int",
+   "label": "Anonymise Inactive Retailers After (days)",
+   "default": "0",
+   "non_negative": 1,
+   "description": "Inactive retailers not changed for this many days get their name, contact, address and location removed (orders keep amounts and dates). 0 turns it off."
+  }
+ ],
+ "in_create": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-10-25 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Field Sales Woocommerce",
+ "name": "Store Connection",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 0,
+   "email": 0,
+   "export": 0,
+   "print": 0,
+   "read": 1,
+   "report": 0,
+   "role": "System Manager",
+   "share": 0,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 1
+}

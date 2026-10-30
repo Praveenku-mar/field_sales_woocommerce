@@ -1,0 +1,158 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "creation": "2026-10-21 10:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "connection_section",
+  "enabled",
+  "mode",
+  "col_break_connection",
+  "key_id",
+  "key_secret",
+  "webhook_section",
+  "webhook_url",
+  "col_break_webhook",
+  "webhook_secret",
+  "links_section",
+  "link_expiry_hours",
+  "callback_url",
+  "col_break_links",
+  "notify_sms",
+  "notify_email"
+ ],
+ "fields": [
+  {
+   "fieldname": "connection_section",
+   "fieldtype": "Section Break",
+   "label": "Connection"
+  },
+  {
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "label": "Enabled",
+   "default": "0"
+  },
+  {
+   "fieldname": "mode",
+   "fieldtype": "Select",
+   "label": "Mode",
+   "options": "Test\nLive",
+   "default": "Test",
+   "description": "For display only: Razorpay decides the mode from the key (rzp_test_ / rzp_live_)."
+  },
+  {
+   "fieldname": "col_break_connection",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "key_id",
+   "fieldtype": "Data",
+   "label": "Key ID",
+   "mandatory_depends_on": "eval:doc.enabled"
+  },
+  {
+   "fieldname": "key_secret",
+   "fieldtype": "Password",
+   "label": "Key Secret",
+   "mandatory_depends_on": "eval:doc.enabled"
+  },
+  {
+   "fieldname": "webhook_section",
+   "fieldtype": "Section Break",
+   "label": "Webhook"
+  },
+  {
+   "fieldname": "webhook_url",
+   "fieldtype": "Data",
+   "label": "Webhook URL",
+   "read_only": 1,
+   "description": "Add this URL as a webhook in the Razorpay Dashboard (event payment_link.paid)."
+  },
+  {
+   "fieldname": "col_break_webhook",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "webhook_secret",
+   "fieldtype": "Password",
+   "label": "Webhook Secret",
+   "description": "The secret entered when creating the webhook in Razorpay (not the key secret)."
+  },
+  {
+   "fieldname": "links_section",
+   "fieldtype": "Section Break",
+   "label": "Payment Links"
+  },
+  {
+   "fieldname": "link_expiry_hours",
+   "fieldtype": "Int",
+   "label": "Link Expiry (Hours)",
+   "default": "72",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "callback_url",
+   "fieldtype": "Data",
+   "label": "Callback URL",
+   "options": "URL",
+   "description": "Optional: where the retailer is sent after paying."
+  },
+  {
+   "fieldname": "col_break_links",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "notify_sms",
+   "fieldtype": "Check",
+   "label": "Send Link by SMS",
+   "default": "1"
+  },
+  {
+   "fieldname": "notify_email",
+   "fieldtype": "Check",
+   "label": "Send Link by Email",
+   "default": "1"
+  }
+ ],
+ "in_create": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-10-21 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Field Sales Woocommerce",
+ "name": "Razorpay Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 0,
+   "email": 0,
+   "export": 0,
+   "print": 0,
+   "report": 0,
+   "share": 0
+  },
+  {
+   "role": "Sales Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 0,
+   "email": 0,
+   "export": 0,
+   "print": 0,
+   "report": 0,
+   "share": 0
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

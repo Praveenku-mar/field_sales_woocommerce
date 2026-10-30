@@ -1,0 +1,47 @@
+{
+ "actions": [],
+ "creation": "2026-10-14 10:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "location_id",
+  "location_name",
+  "sell_from"
+ ],
+ "fields": [
+  {
+   "fieldname": "location_id",
+   "fieldtype": "Data",
+   "label": "Location ID",
+   "reqd": 1,
+   "in_list_view": 1,
+   "columns": 3
+  },
+  {
+   "fieldname": "location_name",
+   "fieldtype": "Data",
+   "label": "Location Name",
+   "in_list_view": 1,
+   "columns": 4
+  },
+  {
+   "fieldname": "sell_from",
+   "fieldtype": "Check",
+   "label": "Sell from here",
+   "default": "1",
+   "in_list_view": 1,
+   "columns": 2,
+   "description": "Reps can pick this location on an order, and its stock is kept in sync"
+  }
+ ],
+ "istable": 1,
+ "links": [],
+ "modified": "2026-10-14 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Field Sales Woocommerce",
+ "name": "Store Location",
+ "owner": "Administrator",
+ "sort_field": "modified",
+ "sort_order": "DESC"
+}

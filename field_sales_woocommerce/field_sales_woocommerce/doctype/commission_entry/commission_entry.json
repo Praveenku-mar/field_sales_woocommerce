@@ -1,0 +1,322 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "naming_series:",
+ "creation": "2026-10-15 10:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "entry_type",
+  "beneficiary_type",
+  "sales_rep",
+  "source_rep",
+  "col_break_main",
+  "status",
+  "posting_date",
+  "earned_on",
+  "commission_statement",
+  "order_section",
+  "source_order",
+  "field_order_item",
+  "platform_order",
+  "col_break_order",
+  "product",
+  "qty",
+  "commission_plan",
+  "amount_section",
+  "currency",
+  "base_amount",
+  "discount_pct",
+  "col_break_amount",
+  "base_rate",
+  "effective_rate",
+  "amount",
+  "reversed_amount",
+  "calculation_note",
+  "adjustment_section",
+  "adjustment_reason",
+  "adjusts_entry",
+  "dedupe_key"
+ ],
+ "fields": [
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Naming Series",
+   "options": "CE-.YYYY.-.#####",
+   "default": "CE-.YYYY.-.#####",
+   "hidden": 1,
+   "reqd": 1,
+   "print_hide": 1
+  },
+  {
+   "fieldname": "entry_type",
+   "fieldtype": "Select",
+   "label": "Entry Type",
+   "options": "Order\nAdjustment",
+   "default": "Order",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "beneficiary_type",
+   "fieldtype": "Select",
+   "label": "Beneficiary",
+   "options": "Rep\nManager Override",
+   "default": "Rep",
+   "reqd": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "sales_rep",
+   "fieldtype": "Link",
+   "label": "Sales Rep",
+   "options": "Sales Rep",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "source_rep",
+   "fieldtype": "Link",
+   "label": "Source Rep",
+   "options": "Sales Rep",
+   "depends_on": "eval:doc.beneficiary_type==\"Manager Override\"",
+   "description": "The rep whose sale earned this override"
+  },
+  {
+   "fieldname": "col_break_main",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "Pending\nEarned\nReversed\nCancelled",
+   "default": "Pending",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "posting_date",
+   "fieldtype": "Date",
+   "label": "Posting Date",
+   "reqd": 1,
+   "default": "Today",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "earned_on",
+   "fieldtype": "Date",
+   "label": "Earned On",
+   "read_only": 1,
+   "description": "The date this entry became Earned"
+  },
+  {
+   "fieldname": "commission_statement",
+   "fieldtype": "Link",
+   "label": "Commission Statement",
+   "options": "Commission Statement",
+   "read_only": 1,
+   "in_standard_filter": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "order_section",
+   "fieldtype": "Section Break",
+   "label": "Order"
+  },
+  {
+   "fieldname": "source_order",
+   "fieldtype": "Link",
+   "label": "Field Order",
+   "options": "Field Order",
+   "search_index": 1
+  },
+  {
+   "fieldname": "field_order_item",
+   "fieldtype": "Data",
+   "label": "Field Order Item",
+   "read_only": 1,
+   "description": "Row name of the Field Order Item"
+  },
+  {
+   "fieldname": "platform_order",
+   "fieldtype": "Data",
+   "label": "Platform Order",
+   "read_only": 1,
+   "search_index": 1,
+   "description": "External order ID in the store"
+  },
+  {
+   "fieldname": "col_break_order",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "product",
+   "fieldtype": "Link",
+   "label": "Product",
+   "options": "Platform Product"
+  },
+  {
+   "fieldname": "qty",
+   "fieldtype": "Float",
+   "label": "Qty",
+   "read_only": 1
+  },
+  {
+   "fieldname": "commission_plan",
+   "fieldtype": "Link",
+   "label": "Commission Plan",
+   "options": "Commission Plan",
+   "read_only": 1
+  },
+  {
+   "fieldname": "amount_section",
+   "fieldtype": "Section Break",
+   "label": "Amount"
+  },
+  {
+   "fieldname": "currency",
+   "fieldtype": "Link",
+   "label": "Currency",
+   "options": "Currency",
+   "reqd": 1
+  },
+  {
+   "fieldname": "base_amount",
+   "fieldtype": "Currency",
+   "label": "Base Amount",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "discount_pct",
+   "fieldtype": "Percent",
+   "label": "Discount %",
+   "read_only": 1
+  },
+  {
+   "fieldname": "col_break_amount",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "base_rate",
+   "fieldtype": "Percent",
+   "label": "Base Rate %",
+   "read_only": 1
+  },
+  {
+   "fieldname": "effective_rate",
+   "fieldtype": "Percent",
+   "label": "Effective Rate %",
+   "read_only": 1
+  },
+  {
+   "fieldname": "amount",
+   "fieldtype": "Currency",
+   "label": "Amount",
+   "options": "currency",
+   "in_list_view": 1,
+   "read_only_depends_on": "eval:doc.entry_type==\"Order\"",
+   "description": "Negative for a deduction"
+  },
+  {
+   "fieldname": "reversed_amount",
+   "fieldtype": "Currency",
+   "label": "Reversed Amount",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "calculation_note",
+   "fieldtype": "Small Text",
+   "label": "Calculation",
+   "read_only": 1
+  },
+  {
+   "fieldname": "adjustment_section",
+   "fieldtype": "Section Break",
+   "label": "Adjustment",
+   "depends_on": "eval:doc.entry_type==\"Adjustment\""
+  },
+  {
+   "fieldname": "adjustment_reason",
+   "fieldtype": "Small Text",
+   "label": "Adjustment Reason",
+   "mandatory_depends_on": "eval:doc.entry_type==\"Adjustment\""
+  },
+  {
+   "fieldname": "adjusts_entry",
+   "fieldtype": "Link",
+   "label": "Adjusts Entry",
+   "options": "Commission Entry",
+   "read_only_depends_on": "eval:!doc.__islocal"
+  },
+  {
+   "fieldname": "dedupe_key",
+   "fieldtype": "Data",
+   "label": "Dedupe Key",
+   "hidden": 1,
+   "unique": 1,
+   "read_only": 1,
+   "no_copy": 1,
+   "print_hide": 1
+  }
+ ],
+ "links": [],
+ "modified": "2026-10-15 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Field Sales Woocommerce",
+ "name": "Commission Entry",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "share": 1,
+   "write": 1,
+   "role": "System Manager"
+  },
+  {
+   "create": 1,
+   "delete": 0,
+   "email": 0,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "share": 0,
+   "write": 1,
+   "role": "Sales Manager"
+  },
+  {
+   "create": 0,
+   "delete": 0,
+   "email": 0,
+   "export": 0,
+   "print": 0,
+   "read": 1,
+   "report": 1,
+   "share": 0,
+   "write": 0,
+   "role": "Field Sales Rep"
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "title_field": "sales_rep",
+ "track_changes": 1,
+ "search_fields": "sales_rep,platform_order"
+}

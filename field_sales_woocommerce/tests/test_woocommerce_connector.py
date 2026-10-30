@@ -12,7 +12,7 @@ import json
 import frappe
 from frappe.tests import IntegrationTestCase
 
-from field_sales_woocommerce.connector import (
+from field_sales_woocommerce.connectors.woocommerce import (
 	STOCK_LOCATION_ID,
 	WooCommerceConnector,
 	_variation_title,

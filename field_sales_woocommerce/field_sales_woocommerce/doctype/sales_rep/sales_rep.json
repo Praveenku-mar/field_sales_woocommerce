@@ -1,0 +1,164 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "field:user",
+ "creation": "2026-10-09 10:50:16.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "user",
+  "full_name",
+  "mobile",
+  "col_break_main",
+  "territory",
+  "monthly_target",
+  "max_discount_pct",
+  "reports_to",
+  "active",
+  "commission_section",
+  "commission_plan",
+  "col_break_commission",
+  "commission_active"
+ ],
+ "fields": [
+  {
+   "fieldname": "user",
+   "fieldtype": "Link",
+   "label": "User",
+   "options": "User",
+   "reqd": 1,
+   "unique": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "full_name",
+   "fieldtype": "Data",
+   "label": "Full Name",
+   "fetch_from": "user.full_name",
+   "fetch_if_empty": 0,
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "mobile",
+   "fieldtype": "Data",
+   "label": "Mobile",
+   "options": "Phone",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "col_break_main",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "territory",
+   "fieldtype": "Data",
+   "label": "Territory",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "description": "e.g. Coimbatore South"
+  },
+  {
+   "fieldname": "monthly_target",
+   "fieldtype": "Currency",
+   "label": "Monthly Target",
+   "description": "Order value expected per calendar month; Rep Performance prorates it over the selected period"
+  },
+  {
+   "fieldname": "max_discount_pct",
+   "fieldtype": "Percent",
+   "label": "Max Discount % per Order",
+   "description": "Highest discount this rep can give on one order. Empty = no discount."
+  },
+  {
+   "fieldname": "reports_to",
+   "fieldtype": "Link",
+   "label": "Reports To",
+   "options": "Sales Rep"
+  },
+  {
+   "fieldname": "active",
+   "fieldtype": "Check",
+   "label": "Active",
+   "default": "1",
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "commission_section",
+   "fieldtype": "Section Break",
+   "label": "Commission"
+  },
+  {
+   "fieldname": "commission_plan",
+   "fieldtype": "Link",
+   "label": "Commission Plan",
+   "options": "Commission Plan",
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "col_break_commission",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "commission_active",
+   "fieldtype": "Check",
+   "label": "Commission Active",
+   "default": "0",
+   "description": "Earn commission on orders. Needs a Commission Plan."
+  }
+ ],
+ "in_create": 0,
+ "issingle": 0,
+ "links": [],
+ "modified": "2026-10-10 17:40:00.000000",
+ "modified_by": "Administrator",
+ "module": "Field Sales Woocommerce",
+ "name": "Sales Rep",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Sales Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 0,
+   "delete": 0,
+   "email": 0,
+   "export": 0,
+   "if_owner": 0,
+   "print": 0,
+   "read": 1,
+   "report": 0,
+   "role": "Field Sales Rep",
+   "share": 0,
+   "write": 0
+  }
+ ],
+ "sort_field": "full_name",
+ "sort_order": "ASC",
+ "title_field": "full_name",
+ "track_changes": 1,
+ "show_title_field_in_link": 1,
+ "search_fields": "full_name,territory"
+}
