@@ -20,15 +20,19 @@
         required
         :placeholder="fallbackEmail || 'customer@example.com'"
       />
-      <FormControl v-model="sendInvite" type="checkbox" label="Email an invite to set a password" />
-      <Button
-        variant="solid"
-        label="Send Invite"
-        icon-left="lucide-mail-plus"
-        :loading="inviting"
-        :disabled="!EMAIL.test(email)"
-        @click="invite"
-      />
+      <div>
+        <Checkbox v-model="sendInvite" label="Email an invite to set a password" />
+      </div>
+      <div>
+        <Button
+          variant="solid"
+          label="Send Invite"
+          icon-left="lucide-mail-plus"
+          :loading="inviting"
+          :disabled="!EMAIL.test(email)"
+          @click="invite"
+        />
+      </div>
     </div>
 
     <div v-else-if="loginData.user" class="space-y-1">
@@ -60,7 +64,7 @@
 
 <script setup>
 import { computed, ref } from 'vue'
-import { Button, Dialog, FormControl, TextInput, createResource, toast } from 'frappe-ui'
+import { Button, Checkbox, Dialog, TextInput, createResource, toast } from 'frappe-ui'
 import SectionCard from '@/components/SectionCard.vue'
 import StatusPill from '@/components/StatusPill.vue'
 import { callMethod } from '@/utils/api'
