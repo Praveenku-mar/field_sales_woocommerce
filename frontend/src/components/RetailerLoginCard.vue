@@ -9,7 +9,7 @@
       </span>
     </template>
 
-    <div v-if="!loginData.user && !login.loading" class="space-y-3">
+    <div v-if="!loginData.user && !login.loading" class="flex flex-col gap-3">
       <p class="text-sm text-ink-gray-6">
         Give this customer a sign-in to see their own orders in the app.
       </p>
@@ -20,10 +20,10 @@
         required
         :placeholder="fallbackEmail || 'customer@example.com'"
       />
-      <div>
+      <div class="block w-full">
         <Checkbox v-model="sendInvite" label="Email an invite to set a password" />
       </div>
-      <div>
+      <div class="pt-1 flex">
         <Button
           variant="solid"
           label="Send Invite"
