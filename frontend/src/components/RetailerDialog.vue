@@ -1,11 +1,11 @@
 <template>
-  <Dialog v-model="open" :title="isEdit ? 'Edit Customer' : 'New Customer'" size="3xl" @after-leave="resetForm">
+  <Dialog v-model="open" :title="isEdit ? 'Edit Shop' : 'New Shop'" size="3xl" @after-leave="resetForm">
     <!-- Screenshot style: no section headers, groups separated by whitespace. -->
     <div class="space-y-12">
       <!-- Details -->
       <section>
         <div class="grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-3">
-          <TextInput v-model="form.retailer_name" size="lg" label="Customer Name" required placeholder="Kovai Mart" />
+          <TextInput v-model="form.retailer_name" size="lg" label="Shop Name" required placeholder="Kovai Mart" />
           <TextInput
             v-model="form.phone"
             size="lg"
@@ -17,7 +17,7 @@
           />
           <TextInput v-model="form.email" size="lg" label="Email" type="email" />
           <TextInput v-model="form.owner_name" size="lg" label="Owner Name" />
-          <Select v-model="form.retailer_type" size="lg" :options="RETAILER_TYPES" label="Customer Type" placeholder="Select type" />
+          <Select v-model="form.retailer_type" size="lg" :options="RETAILER_TYPES" label="Shop Type" placeholder="Select type" />
           <!-- Indian GST number: only for retailers in India -->
           <TextInput v-if="isIndia" v-model="form.gstin" size="lg" label="GSTIN" />
         </div>
@@ -91,7 +91,7 @@
             label="Sales Rep"
             placeholder="Select sales rep"
             empty-text="No sales reps found"
-            description="Customers are visible through their Sales Rep"
+            description="Shops are visible through their Sales Rep"
           />
         </div>
       </section>
@@ -323,7 +323,7 @@ async function createRetailer() {
     if (value !== '' && value != null) doc[field] = value
   }
   const inserted = await callMethod('frappe.client.insert', { doc })
-  toast.success(`Customer ${inserted.name} created`)
+  toast.success(`Shop ${inserted.name} created`)
   open.value = false
   router.push({ name: 'Retailer', params: { name: inserted.name } })
 }
@@ -345,7 +345,7 @@ async function saveChanges() {
     name: props.retailer,
     fieldname,
   })
-  toast.success(`Customer ${saved.name || props.retailer} updated`)
+  toast.success(`Shop ${saved.name || props.retailer} updated`)
   open.value = false
   loaded.value = { ...form }
   emit('updated')

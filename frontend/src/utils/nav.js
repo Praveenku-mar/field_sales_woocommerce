@@ -11,7 +11,7 @@ export const STAFF = ['System Manager', 'Sales Manager', 'Field Sales Rep']
 
 export const NAV_ITEMS = [
   { label: 'Dashboard', route: 'Dashboard', icon: 'lucide-layout-dashboard', roles: STAFF },
-  { label: 'Customers', route: 'Retailers', icon: 'lucide-store', count: 'retailers', roles: STAFF },
+  { label: 'Shops', route: 'Retailers', icon: 'lucide-store', count: 'retailers', roles: STAFF },
   { label: 'Visits', route: 'Visits', icon: 'lucide-map-pin-check', roles: STAFF },
   {
     label: 'Orders',
@@ -40,7 +40,7 @@ export const TAB_ITEMS = [
   { label: 'Dashboard', route: 'Dashboard', icon: 'lucide-layout-dashboard', roles: STAFF },
   { label: 'Visits', route: 'Visits', icon: 'lucide-map-pin-check', roles: STAFF },
   { label: 'Orders', route: 'Orders', icon: 'lucide-shopping-cart', roles: STAFF },
-  { label: 'Customers', route: 'Retailers', icon: 'lucide-store', roles: STAFF },
+  { label: 'Shops', route: 'Retailers', icon: 'lucide-store', roles: STAFF },
   { label: 'My Orders', route: 'MyOrders', icon: 'lucide-shopping-cart', retailerOnly: true },
 ]
 

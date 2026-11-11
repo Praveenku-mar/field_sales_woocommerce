@@ -28,7 +28,7 @@
       <!-- Order -->
       <div class="fs-card">
         <div class="grid grid-cols-1 gap-4 border-b border-desk-border p-5 sm:grid-cols-2 lg:grid-cols-4">
-          <Field label="Customer" required>
+          <Field label="Shop" required>
             <LinkField
               v-if="editable"
               v-model="form.retailer"
@@ -38,7 +38,7 @@
               :search-fields="['name', 'retailer_name', 'city', 'phone']"
               :filters="{ status: 'Active' }"
               :label="form.retailer_name"
-              placeholder="Select customer"
+              placeholder="Select shop"
               @select="onRetailer"
             />
             <ReadOnly v-else :value="form.retailer_name || form.retailer" :aside="retailerCity.data?.city" :route="{ name: 'Retailer', params: { name: form.retailer } }" />
@@ -946,7 +946,7 @@ const saving = ref(false)
 function validateForm() {
   const f = form.value
   const problem =
-    (!f.retailer && 'Select a customer') ||
+    (!f.retailer && 'Select a shop') ||
     (!f.order_date && 'Set the order date') ||
     (!f.items.length && 'Add at least one item') ||
     (f.items.some((r) => !r.product) && 'Select a product in every row, or delete the empty rows') ||

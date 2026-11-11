@@ -9,7 +9,7 @@
     <div v-if="session.isManager" class="shrink-0 px-5 pb-3"><TabButtons v-model="pageTab" :options="pageTabs" /></div>
     <VisitImport v-if="pageTab === 'import'" />
     <div v-show="pageTab === 'visits'" class="flex min-h-0 flex-1 flex-col gap-3 px-5 pb-5">
-      <ListFilters v-model="model" search-placeholder="Search customer" :tabs="tabs" :fields="fields">
+      <ListFilters v-model="model" search-placeholder="Search shop" :tabs="tabs" :fields="fields">
         <PresetChip :label="presetLabel" />
       </ListFilters>
       <DataTable
@@ -81,7 +81,7 @@ const tabs = [
 ]
 const fields = [{ fieldname: 'status', label: 'Status', options: ['', 'Planned', 'In Progress', 'Completed', 'Cancelled'] }]
 const columns = [
-  { key: 'retailer_name', label: 'Customer' },
+  { key: 'retailer_name', label: 'Shop' },
   { key: 'sales_rep_name', label: 'Sales Rep' },
   { key: 'visit_date', label: 'Date', format: formatDate },
   { key: 'check_in_time', label: 'Check-in', format: (v) => (v ? formatTime(v) : '—') },

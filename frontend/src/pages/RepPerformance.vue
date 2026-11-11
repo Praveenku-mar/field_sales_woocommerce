@@ -42,7 +42,7 @@
           <FormControl v-model="filters.city" type="select" label="City" placeholder="All" :options="cities.data || []" />
         </div>
         <div class="w-40">
-          <FormControl v-model="filters.retailer_type" type="select" label="Customer Type" placeholder="All" :options="RETAILER_TYPES" />
+          <FormControl v-model="filters.retailer_type" type="select" label="Shop Type" placeholder="All" :options="RETAILER_TYPES" />
         </div>
         <div class="flex h-7 items-center">
           <FormControl v-model="filters.show_only_below_target" type="checkbox" label="Only below target" />

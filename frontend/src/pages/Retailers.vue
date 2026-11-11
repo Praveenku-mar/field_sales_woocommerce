@@ -1,7 +1,7 @@
 <template>
   <!-- Full height: the table fills what is left and scrolls inside its card -->
   <div class="flex h-full flex-col">
-    <PageHeader title="Customers">
+    <PageHeader title="Shops">
       <template #actions>
         <Button
           v-if="session.isManager"
@@ -10,7 +10,7 @@
           :loading="importing"
           @click="importCustomers"
         />
-        <Button label="New Customer" icon-left="lucide-plus" variant="solid" @click="newRetailerOpen = true" />
+        <Button label="New Shop" icon-left="lucide-plus" variant="solid" @click="newRetailerOpen = true" />
       </template>
     </PageHeader>
     <div class="flex min-h-0 flex-1 flex-col gap-3 px-5 pb-5">
@@ -26,7 +26,7 @@
         v-model:page-length="pageSize"
         :row-route="(row) => ({ name: 'Retailer', params: { name: row.name } })"
         empty-icon="lucide-store"
-        empty-title="No customers found"
+        empty-title="No shops found"
         @load-more="list.next()"
       >
         <template #cell-retailer_name="{ row }">
@@ -72,7 +72,7 @@ const fields = [
   { fieldname: 'sync_status', label: 'Sync', options: ['', 'Draft', 'Pending', 'Synced', 'Failed'] },
 ]
 const columns = [
-  { key: 'retailer_name', label: 'Customer' },
+  { key: 'retailer_name', label: 'Shop' },
   { key: 'retailer_type', label: 'Type' },
   { key: 'sales_rep_name', label: 'Sales Rep' },
   { key: 'phone', label: 'Phone' },
@@ -157,11 +157,11 @@ function finishImport(log) {
   importing.value = false
   if (log.status === 'Success') {
     const s = JSON.parse(log.response_payload || '{}')
-    const text = `Customer import done: ${s.created ?? 0} created, ${s.linked ?? 0} linked, ${s.updated ?? 0} updated, ${s.unchanged ?? 0} unchanged, ${s.skipped ?? 0} skipped`
+    const text = `Import from store done: ${s.created ?? 0} created, ${s.linked ?? 0} linked, ${s.updated ?? 0} updated, ${s.unchanged ?? 0} unchanged, ${s.skipped ?? 0} skipped`
     if (s.failed) toast.warning(`${text}, ${s.failed} failed (see Sync Log)`)
     else toast.success(text)
   } else {
-    toast.error(`Customer import failed: ${log.error_message || 'see Sync Log'}`)
+    toast.error(`Import from store failed: ${log.error_message || 'see Sync Log'}`)
   }
   refresh()
 }

@@ -15,7 +15,7 @@
         <Checkbox
           v-model="d.send_order_confirmation"
           label="Send order confirmation"
-          description="Email the customer a tax invoice (PDF) once the store confirms the order. Needs the customer's email and an outgoing email account."
+          description="Email the shop a tax invoice (PDF) once the store confirms the order. Needs the shop's email and an outgoing email account."
         />
       </div>
     </section>
@@ -31,7 +31,7 @@
         <TextInput
           v-model="d.company_state"
           label="State"
-          description="Same state as the customer: CGST + SGST. Otherwise: IGST."
+          description="Same state as the shop: CGST + SGST. Otherwise: IGST."
         />
         <TextInput v-model="d.company_phone" label="Phone" />
         <TextInput v-model="d.company_email" label="Email" type="email" />
