@@ -1353,6 +1353,7 @@ MOBILE_CAPABILITIES = (
 	"razorpay_payments",
 	"visit_import",
 	"retailer_logins",
+	"push_notifications",
 )
 
 
@@ -1374,3 +1375,54 @@ def get_mobile_manifest() -> dict:
 		"active": owner == __name__.split(".", 1)[0],
 		"capabilities": list(MOBILE_CAPABILITIES),
 	}
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# 13. Push notifications (device registration)
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+def _require_staff_user() -> str:
+	user = frappe.session.user
+	if user == "Guest" or is_retailer_user():
+		frappe.throw(_("Push notifications are for Field Sales staff."), frappe.PermissionError)
+	return user
+
+
+@frappe.whitelist(methods=["POST"])
+@rate_limit(limit=30, seconds=60)
+def register_device(token: str, platform: str, app_version: str | None = None) -> dict:
+	"""
+	Save this phone's Firebase token so the signed-in user's notifications reach it.
+	Called after sign-in and whenever Firebase gives the app a new token.
+
+	:return: ``{"enabled": bool, "push_configured": bool}``: whether this device gets pushes,
+		and whether the site has push switched on at all.
+	"""
+	from field_sales_woocommerce.push import devices
+
+	from field_sales_woocommerce.push.fcm import push_enabled
+
+	result = devices.register(_require_staff_user(), token, platform, app_version)
+	return {**result, "push_configured": push_enabled()}
+
+
+@frappe.whitelist(methods=["POST"])
+@rate_limit(limit=30, seconds=60)
+def unregister_device(token: str) -> dict:
+	"""Forget this phone (on sign-out). :return: ``{"removed": bool}``"""
+	from field_sales_woocommerce.push import devices
+
+	user = frappe.session.user
+	if user == "Guest":
+		frappe.throw(_("Not signed in."), frappe.PermissionError)
+	return {"removed": devices.unregister(user, token)}
+
+
+@frappe.whitelist(methods=["POST"])
+@rate_limit(limit=30, seconds=60)
+def set_device_push_enabled(token: str, enabled: bool | int | str) -> dict:
+	"""Turn pushes to this phone on or off (Profile switch). :return: ``{"enabled": bool}``"""
+	from field_sales_woocommerce.push import devices
+
+	return {"enabled": devices.set_enabled(_require_staff_user(), token, str(enabled).strip().lower() in ("1", "true", "yes", "on"))}

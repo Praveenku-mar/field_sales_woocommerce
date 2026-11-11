@@ -24,6 +24,7 @@ from field_sales_woocommerce.connectors.base import (
 )
 from field_sales_woocommerce.field_sales_woocommerce.doctype.sync_log.sync_log import log_sync, log_sync_durable
 from field_sales_woocommerce.sync.products import _archive, sync_one_product
+from field_sales_woocommerce.push.events import crossed_low_stock, notify_low_stock
 from field_sales_woocommerce.sync.stock import get_sell_locations, set_location_stock
 
 REALTIME_EVENT = "stock_updated"
@@ -88,7 +89,7 @@ def _process_stock(conn, platform: str, event: dict) -> dict:
 	products = frappe.get_all(
 		"Platform Product",
 		filters={"platform": platform, "external_inventory_id": stock["external_inventory_id"], "track_inventory": 1},
-		fields=["name", "stock_updated_at"],
+		fields=["name", "stock_updated_at", "available_qty"],
 	)
 	if not products:
 		return {"note": "Ignored: no matching product"}
@@ -123,6 +124,16 @@ def _process_stock(conn, platform: str, event: dict) -> dict:
 
 	if not updated:
 		return {"note": "Ignored: older than stored stock"}
+
+	# Platform Product.available_qty is the default location's stock.
+	if location["is_default"]:
+		notify_low_stock(
+			[
+				(p.name, stock["available"])
+				for p in products
+				if p.name in updated and crossed_low_stock(p.available_qty, stock["available"])
+			]
+		)
 
 	frappe.publish_realtime(
 		REALTIME_EVENT,

@@ -7,7 +7,6 @@ import re
 
 import frappe
 from frappe import _
-from frappe.desk.doctype.notification_log.notification_log import enqueue_create_notification
 from frappe.model.document import Document
 from frappe.utils import flt, formatdate, get_datetime, get_fullname, getdate
 
@@ -95,16 +94,16 @@ class Visit(Document):
 				formatdate(self.visit_date),
 				frappe.utils.escape_html(get_fullname(frappe.session.user)),
 			)
-		enqueue_create_notification(
+		from field_sales_woocommerce.push.notify import notify_users
+
+		notify_users(
 			[user],
-			{
-				"type": "Alert",
-				"document_type": "Visit",
-				"document_name": self.name,
-				"from_user": frappe.session.user,
-				"subject": subject,
-				"email_content": subject,
-			},
+			"visit_rescheduled" if rescheduled else "visit_assigned",
+			"Visit",
+			self.name,
+			subject,
+			from_user=frappe.session.user,
+			params={"date": str(self.visit_date)},
 			dedupe_on=["document_type", "document_name", "subject"],
 		)
 

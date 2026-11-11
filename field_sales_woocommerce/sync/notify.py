@@ -5,7 +5,8 @@
 
 import frappe
 from frappe import _
-from frappe.desk.doctype.notification_log.notification_log import enqueue_create_notification
+
+from field_sales_woocommerce.push.notify import notify_users
 
 # Roles that can open the Sync Failures page.
 MONITOR_ROLES = ("Sales Manager", "System Manager")
@@ -124,16 +125,14 @@ def notify_order_sync_failure(doc) -> None:
 		attempts,
 		error_label,
 	)
-	enqueue_create_notification(
+	notify_users(
 		[recipient],
-		{
-			"type": "Alert",
-			"document_type": "Field Order",
-			"document_name": doc.name,
-			"from_user": doc.owner or "Administrator",
-			"subject": subject,
-			"email_content": email_content,
-		},
+		"order_sync_failed",
+		"Field Order",
+		doc.name,
+		subject,
+		email_content=email_content,
+		from_user=doc.owner or "Administrator",
 		dedupe_on=["document_type", "document_name", "subject"],
 	)
 
@@ -153,15 +152,12 @@ def notify_customer_sync_failure(doc) -> None:
 	email_content = _(
 		'<p>Customer <a href="{0}">{1}</a> failed to sync to the store.</p><p><b>Error:</b> {2}</p>'
 	).format(customer_url, frappe.utils.escape_html(customer_label), error_label)
-	enqueue_create_notification(
+	notify_users(
 		recipients,
-		{
-			"type": "Alert",
-			"document_type": "Retailer",
-			"document_name": doc.name,
-			"from_user": "Administrator",
-			"subject": subject,
-			"email_content": email_content,
-		},
+		"shop_sync_failed",
+		"Retailer",
+		doc.name,
+		subject,
+		email_content=email_content,
 		dedupe_on=["document_type", "document_name", "subject"],
 	)

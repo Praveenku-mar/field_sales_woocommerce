@@ -33,6 +33,7 @@ SHARED_CAPABILITIES = {
 	"razorpay_payments",
 	"visit_import",
 	"retailer_logins",
+	"push_notifications",
 }
 
 PAGE_KEYS = {"items", "has_more", "next_cursor", "limit"}
@@ -307,3 +308,22 @@ class TestMobileContract(IntegrationTestCase):
 		self.assertIsNone(
 			self.as_user(self.rep_user, mobile.find_visit_by_client_temp_id, "contract-visit-1")
 		)
+
+	# -- push devices ------------------------------------------------------
+
+	def test_push_device_endpoints(self):
+		token = "contract-fcm-token-0123456789abcdef"
+		registered = self.as_user(self.rep_user, mobile.register_device, token, "android", "1.0.0")
+		self.assertEqual(set(registered), {"enabled", "push_configured"})
+		self.assertTrue(registered["enabled"])
+
+		toggled = self.as_user(self.rep_user, mobile.set_device_push_enabled, token, "false")
+		self.assertEqual(toggled, {"enabled": False})
+
+		removed = self.as_user(self.rep_user, mobile.unregister_device, token)
+		self.assertEqual(removed, {"removed": True})
+		self.assertFalse(frappe.db.exists("Mobile Device", {"fcm_token": token}))
+
+	def test_guest_cannot_register_a_device(self):
+		with self.assertRaises(frappe.PermissionError):
+			self.as_user("Guest", mobile.register_device, "contract-fcm-token-guest-000000", "android")
