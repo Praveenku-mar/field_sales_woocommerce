@@ -4,6 +4,7 @@
 """Whitelisted endpoints used by the Store Connection, Retailer, Visit and Field Order forms and the Platform Product view."""
 
 
+from typing import NoReturn
 from urllib.parse import urlsplit
 
 import frappe
@@ -989,3 +990,88 @@ def _is_rep_or_their_manager(sales_rep: str) -> bool:
 	return is_admin() or bool(
 		VISIT_MANAGER_ROLES & set(frappe.get_roles()) and sales_rep in get_allowed_reps()
 	)
+
+
+# Failed mobile logins per user before the account is locked out of the app login.
+LOGIN_MAX_FAILURES = 5
+LOGIN_LOCKOUT_SECONDS = 10 * 60
+LOGIN_FAILED_MESSAGE = "Invalid login credentials"
+
+
+def _login_failure_key(usr: str) -> str:
+	return frappe.cache.make_key(f"field_sales:mobile_login_failures:{usr}")
+
+
+def _login_lockout_id(usr: str) -> str:
+	"""
+	The identity a failed login counts against: the matching User's name when there is one.
+
+	The database compares user names case- and accent-insensitively, so ``USER@x.com`` and
+	``úser@x.com`` sign in as ``user@x.com``. Keying the lockout on the typed text would give
+	each such variant its own five tries; keying on the User's name gives them one shared count.
+	"""
+	name = frappe.db.get_value("User", {"name": usr}, "name")
+	return (name or usr).lower()
+
+
+def _login_failed(usr: str) -> NoReturn:
+	"""Count a failed login for ``usr`` (kept for the lockout window) and refuse it."""
+	key = _login_failure_key(usr)
+	failures = frappe.cache.incr(key)
+	if failures == 1:
+		frappe.cache.expire(key, LOGIN_LOCKOUT_SECONDS)
+	frappe.throw(_(LOGIN_FAILED_MESSAGE), frappe.AuthenticationError)
+
+
+@frappe.whitelist(allow_guest=True, methods=["POST"])
+@rate_limit(limit=10, seconds=10 * 60, ip_based=True)
+def mobile_login(usr: str, pwd: str) -> dict:
+	"""
+	Mobile & Web App Authentication endpoint.
+	Validates credentials, verifies Field Sales app access, and returns API credentials.
+
+	- Rate limited per IP, and locked per user after ``LOGIN_MAX_FAILURES`` failures for
+	  ``LOGIN_LOCKOUT_SECONDS`` (counted in the cache, so a rolled-back request still counts).
+	- Wrong password, unknown user, locked, disabled or no Field Sales role all get the same
+	  "Invalid login credentials", so the answer does not tell which accounts exist.
+	- The first login of a user creates their API key and secret; later logins return the
+	  same pair (a password change or "sign out everywhere" rotates the secret).
+	"""
+	from field_sales_woocommerce.utils.credentials import issue_api_secret
+	from field_sales_woocommerce.www.fieldsales import has_app_access
+
+	usr = (usr or "").strip()
+	if not usr or not pwd:
+		frappe.throw(_("Username and password are required"), frappe.AuthenticationError)
+	if len(usr) > 140 or len(pwd) > MAX_PASSWORD_SIZE:
+		frappe.throw(_(LOGIN_FAILED_MESSAGE), frappe.AuthenticationError)
+
+	usr_key = _login_lockout_id(usr)
+	if frappe.utils.cint(frappe.cache.get(_login_failure_key(usr_key))) >= LOGIN_MAX_FAILURES:
+		frappe.throw(_(LOGIN_FAILED_MESSAGE), frappe.AuthenticationError)
+
+	try:
+		user_name = check_password(usr, pwd)
+	except frappe.AuthenticationError:
+		_login_failed(usr_key)
+
+	user = frappe.db.get_value("User", user_name, ["name", "full_name", "enabled", "api_key"], as_dict=True)
+	if not user or not user.enabled or user.name == "Guest" or not has_app_access(user.name):
+		_login_failed(usr_key)
+
+	frappe.cache.delete(_login_failure_key(usr_key))
+	api_key = user.api_key
+	api_secret = frappe.utils.password.get_decrypted_password(
+		"User", user.name, "api_secret", raise_exception=False
+	)
+	if not api_key or not api_secret:
+		# A POST commits at the end of the request.
+		api_key, api_secret = issue_api_secret(user.name)
+
+	return {
+		"message": "Logged In",
+		"user": user.name,
+		"full_name": user.full_name,
+		"api_key": api_key,
+		"api_secret": api_secret,
+	}
