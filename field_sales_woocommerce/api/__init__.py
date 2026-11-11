@@ -172,8 +172,8 @@ def create_sales_rep(
 	mobile: str | None = None,
 	territory: str | None = None,
 	reports_to: str | None = None,
-	monthly_target: float | None = None,
-	max_discount_pct: float | None = None,
+	monthly_target: float | str | None = None,
+	max_discount_pct: float | str | None = None,
 	send_welcome_email: int = 1,
 ) -> dict:
 	"""
