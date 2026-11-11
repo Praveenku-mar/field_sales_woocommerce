@@ -33,6 +33,7 @@
   "notes_tab",
   "notes_section",
   "remarks",
+  "client_temp_id",
   "sync_tab",
   "platform_sync_section",
   "platform",
@@ -216,6 +217,15 @@
    "fieldname": "remarks",
    "fieldtype": "Small Text",
    "label": "Remarks"
+  },
+  {
+   "fieldname": "client_temp_id",
+   "fieldtype": "Data",
+   "label": "Client Temp ID",
+   "read_only": 1,
+   "no_copy": 1,
+   "search_index": 1,
+   "description": "Set by the mobile app when it creates the order, so a retry after a timeout finds it instead of creating a duplicate."
   },
   {
    "fieldname": "sync_tab",
@@ -459,7 +469,7 @@
  "is_submittable": 1,
  "issingle": 0,
  "links": [],
- "modified": "2026-10-28 12:00:00.000000",
+ "modified": "2026-11-11 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Field Sales Woocommerce",
  "name": "Field Order",
