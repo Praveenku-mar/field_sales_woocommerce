@@ -16,6 +16,7 @@ field_sales_woocommerce.patches.v1_0.set_shopify_auth_mode
 field_sales_woocommerce.patches.v1_0.retailer_country_india
 field_sales_woocommerce.patches.v1_0.data_retention_defaults
 field_sales_woocommerce.patches.v1_0.retailer_role
+field_sales_woocommerce.patches.v1_0.backfill_sales_rep_role_flags
 
 [post_fixture_sync]
 # Patches added in this section will be executed after fixtures and customizations

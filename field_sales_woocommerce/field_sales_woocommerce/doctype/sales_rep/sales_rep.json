@@ -16,6 +16,9 @@
   "max_discount_pct",
   "reports_to",
   "active",
+  "roles_section",
+  "sales_manager",
+  "sales_rep",
   "commission_section",
   "commission_plan",
   "col_break_commission",
@@ -85,6 +88,27 @@
    "in_standard_filter": 1
   },
   {
+   "fieldname": "roles_section",
+   "fieldtype": "Section Break",
+   "label": "Roles"
+  },
+  {
+   "default": "0",
+   "fieldname": "sales_manager",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Sales Manager"
+  },
+  {
+   "default": "1",
+   "fieldname": "sales_rep",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Sales Rep"
+  },
+  {
    "fieldname": "commission_section",
    "fieldtype": "Section Break",
    "label": "Commission"
@@ -111,7 +135,7 @@
  "in_create": 0,
  "issingle": 0,
  "links": [],
- "modified": "2026-10-10 17:40:00.000000",
+ "modified": "2026-11-11 15:00:00.000000",
  "modified_by": "Administrator",
  "module": "Field Sales Woocommerce",
  "name": "Sales Rep",

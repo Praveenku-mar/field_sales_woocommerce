@@ -103,6 +103,16 @@
           description="Empty = no discount"
         />
         <div class="space-y-1.5 sm:col-span-2">
+          <div class="text-sm text-ink-gray-6">Roles</div>
+          <div class="flex flex-wrap gap-6 pt-1">
+            <Checkbox v-model="edit.sales_rep" label="Sales Rep" />
+            <Checkbox v-model="edit.sales_manager" label="Sales Manager" />
+          </div>
+          <p v-if="!edit.sales_rep && !edit.sales_manager" class="text-xs text-ink-red-5">
+            Select at least one role: Sales Rep or Sales Manager.
+          </p>
+        </div>
+        <div class="space-y-1.5 sm:col-span-2">
           <div class="text-sm text-ink-gray-6">Reports To</div>
           <LinkField
             v-model="edit.reports_to"
@@ -268,8 +278,16 @@ watch(
   { immediate: true },
 )
 
+const rolesLabel = computed(() => {
+  const r = []
+  if (d.value.sales_rep) r.push('Sales Rep')
+  if (d.value.sales_manager) r.push('Sales Manager')
+  return r.join(', ') || '—'
+})
+
 const details = computed(() => [
   { label: 'Email', value: d.value.user, href: d.value.user && `mailto:${d.value.user}` },
+  { label: 'Roles', value: rolesLabel.value },
   { label: 'Mobile', value: d.value.mobile, href: d.value.mobile && `tel:${d.value.mobile}` },
   { label: 'Territory', value: d.value.territory },
   {
@@ -377,20 +395,42 @@ const moreActions = computed(() => [
 const editOpen = ref(false)
 const edit = reactive({})
 // full_name is fetched from the User, so it is not editable here.
-const EDIT_FIELDS = ['mobile', 'territory', 'monthly_target', 'max_discount_pct', 'reports_to', 'active', 'commission_plan', 'commission_active']
+const EDIT_FIELDS = [
+  'mobile',
+  'territory',
+  'monthly_target',
+  'max_discount_pct',
+  'reports_to',
+  'active',
+  'sales_manager',
+  'sales_rep',
+  'commission_plan',
+  'commission_active',
+]
 
 function openEdit() {
   EDIT_FIELDS.forEach((f) => (edit[f] = d.value[f] ?? null))
   edit.active = !!d.value.active
+  edit.sales_manager = !!d.value.sales_manager
+  edit.sales_rep = !!d.value.sales_rep
   edit.commission_active = !!d.value.commission_active
   editOpen.value = true
 }
 
 async function saveEdit() {
+  if (!edit.sales_manager && !edit.sales_rep) {
+    toast.error('Select at least one role: Sales Rep or Sales Manager')
+    return
+  }
   try {
     // The plan is saved through its own method, which checks it is an active plan.
     const { commission_plan, commission_active, ...rest } = edit
-    await doc.setValue.submit({ ...rest, active: edit.active ? 1 : 0, monthly_target: edit.monthly_target || 0,
+    await doc.setValue.submit({
+      ...rest,
+      active: edit.active ? 1 : 0,
+      sales_manager: edit.sales_manager ? 1 : 0,
+      sales_rep: edit.sales_rep ? 1 : 0,
+      monthly_target: edit.monthly_target || 0,
       max_discount_pct: edit.max_discount_pct === '' || edit.max_discount_pct == null ? null : edit.max_discount_pct,
     })
     if ((commission_plan || null) !== (d.value.commission_plan || null) || !!commission_active !== !!d.value.commission_active) {
