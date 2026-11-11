@@ -1304,6 +1304,31 @@ def find_order_by_client_temp_id(client_temp_id: str) -> dict | None:
 	return {"name": rows[0].name, "docstatus": rows[0].docstatus} if rows else None
 
 
+@frappe.whitelist(methods=["GET", "POST"])
+def find_visit_by_client_temp_id(client_temp_id: str) -> dict | None:
+	"""
+	The Visit the app created with this ``client_temp_id`` (Visit.client_temp_id), so after a
+	timeout it can tell whether the visit was saved before creating it again.
+
+	Scoped by ``frappe.get_list``: a visit the user may not read is not found. Cancelled
+	visits are left out (a cancelled visit may be planned again).
+
+	:return: ``{"name", "status"}``, or ``None`` when there is no such visit.
+	"""
+	_check_access()
+	client_temp_id = (client_temp_id or "").strip()
+	if not client_temp_id or len(client_temp_id) > 140:
+		frappe.throw(_("Client Temp ID is required"), frappe.ValidationError)
+	rows = frappe.get_list(
+		"Visit",
+		filters={"client_temp_id": client_temp_id, "status": ("!=", "Cancelled")},
+		fields=["name", "status"],
+		order_by="creation asc",
+		limit=1,
+	)
+	return {"name": rows[0].name, "status": rows[0].status} if rows else None
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # 12. Mobile manifest (edition discovery)
 # ──────────────────────────────────────────────────────────────────────────────
