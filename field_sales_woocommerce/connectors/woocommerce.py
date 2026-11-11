@@ -55,6 +55,7 @@ class WooCommerceConnector(BaseConnector):
 		super().__init__(settings)
 		self.base_url = self.normalize_store_url(settings.store_url).rstrip("/")
 		api_version = (settings.woo_api_version or "wc/v3").strip("/")
+		self.api_version = api_version
 		self.api_url = f"{self.base_url}/wp-json/{api_version}"
 		# The loaded single holds the masked dummy for a saved secret; get_password
 		# returns the stored one.
@@ -105,6 +106,37 @@ class WooCommerceConnector(BaseConnector):
 				code="NETWORK_ERROR",
 			) from e
 
+		# Some WordPress hosts fail to route pretty REST URLs through /wp-json.
+		# WordPress exposes the same routes through ?rest_route=, which bypasses
+		# that rewrite layer. Retry only an HTML 404 so WooCommerce JSON errors
+		# retain their existing behavior.
+		if response.status_code == 404 and _is_html_response(response):
+			fallback_params = dict(params or {})
+			fallback_params["rest_route"] = f"/{self.api_version}{path}"
+			try:
+				response = requests.request(
+					method,
+					f"{self.base_url}/",
+					auth=self.auth,
+					params=fallback_params,
+					json=json_body,
+					timeout=TIMEOUT,
+				)
+			except requests.exceptions.RequestException as e:
+				self._write_log(
+					operation,
+					ref,
+					status="Failed",
+					duration_ms=_elapsed_ms(start),
+					error_code="NETWORK_ERROR",
+					error_message=str(e)[:500],
+					request_payload=_safe_payload(params or json_body),
+				)
+				raise ConnectorError(
+					_("Could not reach the WooCommerce store at {0}").format(self.base_url),
+					code="NETWORK_ERROR",
+				) from e
+
 		if response.status_code in (401, 403):
 			self._log_failed(operation, ref, start, response, params or json_body)
 			raise ConnectorError(
@@ -125,6 +157,28 @@ class WooCommerceConnector(BaseConnector):
 				http_status=response.status_code,
 			)
 
+		if not response.content:
+			self._write_log(
+				operation,
+				ref,
+				status="Success",
+				duration_ms=_elapsed_ms(start),
+				http_status=response.status_code,
+				request_payload=_safe_payload(params or json_body),
+				response_payload=_truncate(response.text),
+			)
+			return {}
+		try:
+			data = response.json()
+		except requests.exceptions.JSONDecodeError as e:
+			self._log_failed(operation, ref, start, response, params or json_body)
+			raise ConnectorError(
+				_("WooCommerce {0} {1} returned a non-JSON response (HTTP {2}). Check that the Store URL points to the WordPress site root and that the WooCommerce REST API route is reachable.").format(
+					method, path, response.status_code
+				),
+				code="INVALID_RESPONSE",
+				http_status=response.status_code,
+			) from e
 		self._write_log(
 			operation,
 			ref,
@@ -134,9 +188,7 @@ class WooCommerceConnector(BaseConnector):
 			request_payload=_safe_payload(params or json_body),
 			response_payload=_truncate(response.text),
 		)
-		if not response.content:
-			return {}
-		return response.json()
+		return data
 
 	def _log_failed(self, operation, ref, start, response, payload) -> None:
 		self._write_log(
@@ -162,7 +214,12 @@ class WooCommerceConnector(BaseConnector):
 			frappe.throw(_("Store URL is required on Store Connection"))
 		if not url.startswith(("http://", "https://")):
 			url = f"https://{url}"
-		return url.rstrip("/")
+		url = url.rstrip("/")
+		# Users sometimes paste the wp-admin address instead of the WordPress
+		# site root. REST routes are rooted at the site URL, alongside wp-admin.
+		if url.lower().endswith("/wp-admin"):
+			url = url[: -len("/wp-admin")]
+		return url
 
 	def test_connection(self) -> dict:
 		try:
@@ -689,6 +746,13 @@ def _safe_payload(payload) -> str | None:
 
 def _truncate(text: str) -> str:
 	return (text or "")[:5000]
+
+
+def _is_html_response(response) -> bool:
+	content_type = (response.headers.get("Content-Type") or "").lower()
+	if "text/html" in content_type:
+		return True
+	return response.text.lstrip().lower().startswith(("<!doctype html", "<html"))
 
 
 def _elapsed_ms(start: float) -> int:
