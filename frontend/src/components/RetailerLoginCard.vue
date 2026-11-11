@@ -68,7 +68,6 @@ import { Button, Checkbox, Dialog, TextInput, createResource, toast } from 'frap
 import SectionCard from '@/components/SectionCard.vue'
 import StatusPill from '@/components/StatusPill.vue'
 import { callMethod } from '@/utils/api'
-import { APP_BASE } from '@/utils/base'
 
 const props = defineProps({
   /** The Retailer whose login this card manages. */
@@ -79,7 +78,7 @@ const props = defineProps({
 const emit = defineEmits(['updated'])
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-const appLoginUrl = `${window.location.origin}${APP_BASE}/login`
+const appLoginUrl = `${window.location.origin}/login`
 
 const login = createResource({
   url: 'field_sales_woocommerce.api.get_retailer_login',

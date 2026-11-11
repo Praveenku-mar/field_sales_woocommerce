@@ -10,7 +10,7 @@ export const APP_ROLES = ['System Manager', 'Sales Manager', 'Field Sales Rep', 
 
 export function redirectToLogin() {
   const target = window.location.pathname + window.location.search
-  window.location.href = `${APP_BASE}/login?redirect-to=${encodeURIComponent(
+  window.location.href = `/login?redirect-to=${encodeURIComponent(
     target || window.default_route || APP_BASE,
   )}`
 }
@@ -117,7 +117,7 @@ export const useSessionStore = defineStore('session', () => {
     return createResource({ url: 'logout' })
       .fetch()
       .finally(() => {
-        window.location.href = `${APP_BASE}/login`
+        window.location.href = `/login?redirect-to=${encodeURIComponent(APP_BASE)}`
       })
   }
 

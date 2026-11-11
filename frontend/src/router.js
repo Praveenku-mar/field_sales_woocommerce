@@ -13,15 +13,9 @@ const MANAGERS = ['System Manager', 'Sales Manager']
 const RETAILER_ROUTES = ['MyOrders', 'MyOrder']
 
 // meta.title: page title and last breadcrumb; meta.parent: breadcrumb parent route name;
-// meta.public: no session needed (the login page itself).
+// meta.public: no session needed (no route uses it now: sign-in is Frappe's /login).
 const routes = [
   { path: '/', redirect: { name: 'Dashboard' } },
-  {
-    path: '/login',
-    name: 'Login',
-    component: () => import('@/pages/Login.vue'),
-    meta: { public: true, title: 'Log in' },
-  },
   {
     path: '/my-orders',
     name: 'MyOrders',

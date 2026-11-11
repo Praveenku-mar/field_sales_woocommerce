@@ -25,14 +25,12 @@ def get_context(context):
 
 	path = frappe.request.path if frappe.request else ""
 	if _is_login_page(path):
-		# The app's own login screen: guests and signed-in users alike may load the
-		# shell (a signed-in user without an app role can sign in as someone who has one).
-		frappe.db.commit()
-		context.boot = get_boot()
-		return context
+		# The app has no login screen of its own any more: old links (bookmarks, invite
+		# emails) go to Frappe's login, which returns a signed-in user to the app.
+		_redirect(login_url(_app_base()))
 
 	if frappe.session.user == "Guest":
-		_redirect(f"{_app_base()}/login?redirect-to={quote(path or '/fieldsales')}")
+		_redirect(login_url(path or "/fieldsales"))
 
 	if not has_app_access():
 		frappe.throw(_("You do not have access to Field Sales"), frappe.PermissionError)
@@ -104,8 +102,13 @@ def _app_base() -> str:
 	return "/fs" if path == "/fs" or path.startswith("/fs/") else "/fieldsales"
 
 
+def login_url(target: str = "/fieldsales") -> str:
+	"""Frappe's login page, returning to ``target`` (a path on this site) after sign-in."""
+	return f"/login?redirect-to={quote(target)}"
+
+
 def _is_login_page(path: str) -> bool:
-	"""Whether this request is for the app's own login screen (either base path)."""
+	"""Whether this request is for the app's former login screen (either base path)."""
 	return path.rstrip("/") in ("/fieldsales/login", "/fs/login")
 
 

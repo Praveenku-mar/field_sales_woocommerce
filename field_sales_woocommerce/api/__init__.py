@@ -528,7 +528,7 @@ def _send_retailer_invite(user: str, retailer: str) -> None:
 			"store_name": store,
 			"user": user,
 			"link": link,
-			"login_url": get_url("/fieldsales/login"),
+			"login_url": get_url("/login?redirect-to=%2Ffieldsales"),
 		},
 	)
 
