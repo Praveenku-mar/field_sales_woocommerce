@@ -86,7 +86,7 @@ import { APP_BASE } from '@/utils/base'
 
 const route = useRoute()
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-const LOGO = '/assets/field_sales/images/logo.svg'
+const LOGO = '/assets/field_sales_woocommerce/images/logo.svg'
 
 const signedInAs = cookieUser()
 const continueHref = window.default_route || APP_BASE

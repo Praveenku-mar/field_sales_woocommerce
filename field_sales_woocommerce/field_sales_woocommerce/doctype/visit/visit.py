@@ -11,7 +11,7 @@ from frappe.utils import flt, formatdate, get_datetime, get_fullname, getdate
 
 from field_sales_woocommerce.utils.geo import DEFAULT_GEOFENCE_RADIUS_M, has_coords, haversine_m
 
-# Written only by field_sales.api.check_in / check_out, never taken from the client.
+# Written only by field_sales_woocommerce.api.check_in / check_out, never taken from the client.
 CHECK_IN_FIELDS = ("check_in_time", "check_out_time", "latitude", "longitude", "location_accuracy_m")
 CHECK_IN_STATUSES = ("In Progress", "Completed")
 RETAILER_POSITION_FIELDS = ("retailer_latitude", "retailer_longitude")
