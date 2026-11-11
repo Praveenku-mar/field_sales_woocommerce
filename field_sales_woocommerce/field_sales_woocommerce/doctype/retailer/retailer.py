@@ -35,7 +35,8 @@ class Retailer(Document):
 	def before_insert(self):
 		# Retailers are only visible through their Sales Rep, so one created
 		# without a rep would vanish for its creator: assign it to them.
-		if not self.sales_rep and not is_admin():
+		# A store import (flags.ignore_sync) leaves the rep for a manager to assign.
+		if not self.sales_rep and not is_admin() and not self.flags.ignore_sync:
 			self.sales_rep = get_own_rep()
 
 	def validate(self):

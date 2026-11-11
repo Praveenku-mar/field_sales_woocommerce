@@ -20,7 +20,7 @@ from frappe.utils.password import check_password
 from field_sales_woocommerce.connectors import ConnectorError, get_connector
 from field_sales_woocommerce.field_sales_woocommerce.doctype.visit.visit import get_geofence_radius
 from field_sales_woocommerce.permissions import RETAILER_ROLE, STAFF_ROLES, get_allowed_reps, hierarchy_filters, is_admin
-from field_sales_woocommerce.sync.customers import push_retailers
+from field_sales_woocommerce.sync.customers import enqueue_import, push_retailers
 from field_sales_woocommerce.sync.notify import MONITOR_ROLES
 from field_sales_woocommerce.sync.orders import enqueue_push_order
 from field_sales_woocommerce.sync.products import enqueue_sync
@@ -106,6 +106,17 @@ def enqueue_product_sync() -> dict:
 	if enqueue_sync():
 		return {"queued": True, "message": _("Sync started")}
 	return {"queued": False, "message": _("A product sync is already running")}
+
+
+@frappe.whitelist(methods=["POST"])
+def enqueue_customer_import() -> dict:
+	"""Queue an import of the store's customers as Retailers (``sync.customers.import_customers``)."""
+	frappe.only_for(["System Manager", "Sales Manager"])
+
+	get_connector()  # fails fast if Store Connection is disabled
+	if enqueue_import():
+		return {"queued": True, "message": _("Customer import started")}
+	return {"queued": False, "message": _("A customer import is already running")}
 
 
 @frappe.whitelist(methods=["POST"])

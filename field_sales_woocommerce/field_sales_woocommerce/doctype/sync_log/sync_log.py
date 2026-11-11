@@ -49,6 +49,10 @@ _PERSONAL_KEYS: frozenset[str] = frozenset(
 		"address1",
 		"address2",
 		"zip",
+		# WooCommerce's address keys.
+		"address_1",
+		"address_2",
+		"postcode",
 	}
 )
 _PERSONAL_MASK = '"[redacted]"'

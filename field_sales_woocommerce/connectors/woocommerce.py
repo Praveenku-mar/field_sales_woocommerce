@@ -273,6 +273,18 @@ class WooCommerceConnector(BaseConnector):
 		next_cursor = str(page + 1) if len(data) == PAGE_SIZE else None
 		return {"items": items, "next_cursor": next_cursor}
 
+	def get_customers(self, cursor: str | None = None) -> dict:
+		page = int(cursor or 1)
+		data = self._request(
+			"GET",
+			"/customers",
+			operation="Customer Sync",
+			# role=customer (the API default) leaves out shop staff and admins.
+			params={"per_page": PAGE_SIZE, "page": page, "role": "customer", "orderby": "id", "order": "asc"},
+		)
+		next_cursor = str(page + 1) if len(data) == PAGE_SIZE else None
+		return {"items": [_normalize_customer(c) for c in data], "next_cursor": next_cursor}
+
 	def get_product(self, external_product_id: str) -> list[dict]:
 		try:
 			product = self._request("GET", f"/products/{external_product_id}", operation="Product Sync")
@@ -554,6 +566,32 @@ def _customer_body(retailer: Document) -> dict:
 		"last_name": _split_name(retailer)[1],
 		"billing": _retailer_address(retailer),
 		"shipping": _retailer_address(retailer),
+	}
+
+
+def _normalize_customer(customer: dict) -> dict:
+	"""A Woo customer as the connector's normalized customer dict (billing address first)."""
+	billing = customer.get("billing") or {}
+	shipping = customer.get("shipping") or {}
+	# Use the billing address when it has a street, else the shipping one.
+	address = billing if (billing.get("address_1") or "").strip() else shipping
+
+	def clean(value) -> str | None:
+		return (value or "").strip() or None
+
+	return {
+		"external_customer_id": str(customer.get("id")),
+		"email": clean(customer.get("email") or billing.get("email")),
+		"first_name": clean(customer.get("first_name") or billing.get("first_name")) or "",
+		"last_name": clean(customer.get("last_name") or billing.get("last_name")) or "",
+		"company": clean(billing.get("company") or shipping.get("company")),
+		"phone": clean(billing.get("phone") or shipping.get("phone")),
+		"address_line1": clean(address.get("address_1")),
+		"address_line2": clean(address.get("address_2")),
+		"city": clean(address.get("city")),
+		"state": clean(address.get("state")),
+		"pincode": clean(address.get("postcode")),
+		"country_code": (clean(address.get("country")) or "").upper() or None,
 	}
 
 
