@@ -9,7 +9,10 @@ import hashlib
 import hmac
 import json
 
+from unittest.mock import MagicMock, patch
+
 import frappe
+import requests
 from frappe.tests import IntegrationTestCase
 
 from field_sales_woocommerce.connectors.woocommerce import (
@@ -183,6 +186,44 @@ class TestNormalizeOrder(IntegrationTestCase):
 		self.assertTrue(order["cancelled"])
 		order = _normalize_order({"id": 1, "status": "completed", "line_items": []})
 		self.assertEqual(order["fulfillment_status"], "fulfilled")
+
+
+class TestStoreTimezone(IntegrationTestCase):
+	"""The store's zone comes from WordPress settings, not PHP's default (always UTC)."""
+
+	def index(self, payload, status=200, html=False):
+		response = MagicMock(ok=status < 400, status_code=status)
+		response.headers = {"Content-Type": "text/html" if html else "application/json"}
+		response.text = "<html></html>" if html else json.dumps(payload)
+		response.json.return_value = payload
+		return response
+
+	def zone(self, *responses, fallback="UTC"):
+		with patch("field_sales_woocommerce.connectors.woocommerce.requests.get", side_effect=list(responses)) as get:
+			result = make_connector()._store_timezone(fallback)
+		return result, get
+
+	def test_named_zone_wins(self):
+		result, get = self.zone(self.index({"timezone_string": "Asia/Kolkata", "gmt_offset": 5.5}))
+		self.assertEqual(result, "Asia/Kolkata")
+		self.assertEqual(get.call_args.args[0], "http://store.example/wp-json/")
+		self.assertNotIn("auth", get.call_args.kwargs)  # public index, no credentials sent
+
+	def test_whole_hour_offset_maps_to_an_etc_zone(self):
+		self.assertEqual(self.zone(self.index({"timezone_string": "", "gmt_offset": 4}))[0], "Etc/GMT-4")
+		self.assertEqual(self.zone(self.index({"timezone_string": "", "gmt_offset": "-3"}))[0], "Etc/GMT+3")
+		self.assertEqual(self.zone(self.index({"timezone_string": "", "gmt_offset": 0}))[0], "UTC")
+
+	def test_fractional_offset_or_failure_keeps_the_fallback(self):
+		self.assertEqual(self.zone(self.index({"timezone_string": "", "gmt_offset": 5.5}))[0], "UTC")
+		self.assertEqual(
+			self.zone(requests.exceptions.ConnectionError(), requests.exceptions.ConnectionError())[0], "UTC"
+		)
+
+	def test_html_index_falls_back_to_rest_route(self):
+		result, get = self.zone(self.index({}, html=True), self.index({"timezone_string": "Europe/Paris"}))
+		self.assertEqual(result, "Europe/Paris")
+		self.assertEqual(get.call_args.kwargs["params"], {"rest_route": "/"})
 
 
 class TestHelpers(IntegrationTestCase):
