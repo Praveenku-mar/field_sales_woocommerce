@@ -96,7 +96,7 @@ export const useSessionStore = defineStore('session', () => {
       error.value = {
         noAccess,
         embedded,
-        title: noAccess ? 'No access to Field Sales' : 'Could not load Field Sales',
+        title: noAccess ? 'No access to Agamsale' : 'Could not load Agamsale',
         message: noAccess
           ? e?.messages?.[0] || 'Your account needs a Field Sales role.'
           : e?.messages?.[0] || e?.message || 'Unknown error',

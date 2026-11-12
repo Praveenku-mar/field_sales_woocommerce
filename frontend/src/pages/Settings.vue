@@ -41,8 +41,9 @@
     </PageHeader>
     <div class="px-5 pb-5">
       
-      <!-- Sales Managers may also edit Razorpay; the other tabs are System Manager only -->
-      <RazorpaySettings v-if="tab === 'razorpay' && canEdit" ref="razorpayForm" />
+      <MobilePushSettings v-if="tab === 'mobile-push' && canEdit" ref="mobilePushForm" />
+      <!-- Sales Managers may also edit Razorpay; push is System Manager only -->
+      <RazorpaySettings v-else-if="tab === 'razorpay' && canEdit" ref="razorpayForm" />
       <!-- Inside the Shopify admin the store's managers edit these (merchant fields only) -->
       <template v-else-if="canEditStore">
         <!-- v-show keeps unsaved Store Connection edits while another tab is open -->
@@ -75,6 +76,7 @@ import InvoiceSettings from '@/components/InvoiceSettings.vue'
 import CommissionSettings from '@/components/CommissionSettings.vue'
 import EmailAccountSettings from '@/components/EmailAccountSettings.vue'
 import RazorpaySettings from '@/components/RazorpaySettings.vue'
+import MobilePushSettings from '@/components/MobilePushSettings.vue'
 import { useSessionStore } from '@/stores/session'
 import { isEmbedded } from '@/shopify/embedded'
 
@@ -84,6 +86,7 @@ const storeForm = ref(null)
 const invoiceForm = ref(null)
 const commissionForm = ref(null)
 const razorpayForm = ref(null)
+const mobilePushForm = ref(null)
 
 const TABS = [
   { label: 'Store Connection', value: 'store' },
@@ -91,6 +94,7 @@ const TABS = [
   { label: 'Commission', value: 'commission' },
   { label: 'Email Account', value: 'email' },
   { label: 'Razorpay', value: 'razorpay' },
+  { label: 'Notification', value: 'mobile-push' },
 ]
 const NOT_ADMIN = {
   store: { icon: 'lucide-store', title: 'Store Connection', what: 'the store connection' },
@@ -98,14 +102,15 @@ const NOT_ADMIN = {
   commission: { icon: 'lucide-wallet', title: 'Commission', what: 'the commission settings' },
   email: { icon: 'lucide-mail', title: 'Email Account', what: 'the email account' },
   razorpay: { icon: 'lucide-credit-card', title: 'Razorpay', what: 'the Razorpay settings', who: 'Sales Manager or System Manager' },
+  'mobile-push': { icon: 'lucide-bell', title: 'Notification', what: 'the notification settings' },
 }
 // The form whose Save / Discard the header shows (the Email tab saves in its own dialog).
-const FORMS = { store: storeForm, invoice: invoiceForm, commission: commissionForm, razorpay: razorpayForm }
+const FORMS = { store: storeForm, invoice: invoiceForm, commission: commissionForm, razorpay: razorpayForm, 'mobile-push': mobilePushForm }
 const activeForm = computed(() => FORMS[tab.value]?.value || null)
 // Inside the Shopify admin the store's managers set the store up (merchant fields only, see
 // shopify/merchantSettings.js); elsewhere it stays System Manager only.
 const canEditStore = computed(() => session.isAdmin || (embedded && session.isManager))
-const canEdit = computed(() => (tab.value === 'razorpay' ? session.isManager : canEditStore.value))
+const canEdit = computed(() => tab.value === 'mobile-push' ? session.isAdmin : tab.value === 'razorpay' ? session.isManager : canEditStore.value)
 
 // These forms all edit the Store Connection document: after an Invoice or Commission save, the Store form
 // reloads so its next save is not refused as out of date (unless it holds unsaved edits).

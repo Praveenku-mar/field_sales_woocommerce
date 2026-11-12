@@ -1,9 +1,9 @@
 <template>
   <Sidebar v-model:collapsed="collapsed" width="224px" class="border-r border-outline-gray-2">
     <SidebarHeader
-      title="Field Sales"
+      title="Agamsale"
       :subtitle="session.store.name || 'No store connected'"
-      logo="/assets/field_sales_woocommerce/images/logo.svg"
+      logo="/assets/field_sales_woocommerce/images/agamsale-logo.png"
       class="px-2"
     />
 

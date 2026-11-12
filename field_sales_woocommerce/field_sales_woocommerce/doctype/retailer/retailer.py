@@ -151,7 +151,7 @@ class Retailer(Document):
 		if self.user in ("Administrator", "Guest"):
 			frappe.throw(_("This user cannot be a retailer login"), frappe.PermissionError)
 		if STAFF_ROLES & set(frappe.get_roles(self.user)):
-			frappe.throw(_("{0} works in Field Sales and cannot be a retailer login").format(self.user))
+			frappe.throw(_("{0} works in Agamsale and cannot be a retailer login").format(self.user))
 		other = frappe.db.get_value("Retailer", {"user": self.user, "name": ("!=", self.name)}, "name")
 		if other:
 			frappe.throw(

@@ -3,7 +3,7 @@ name = "field_sales_woocommerce"
 authors = [
     { name = "Agamnxt Technologies", email = "praveenkumar@agamnxt.com"}
 ]
-description = "WooCommerce Connector for Field Sales"
+description = "WooCommerce Connector for Agamsale"
 requires-python = ">=3.14"
 readme = "README.md"
 dynamic = ["version"]

@@ -1040,7 +1040,7 @@ const moreActions = computed(() => {
       onClick: () =>
         ask({
           title: 'Cancel order?',
-          message: `${props.name} stays in Field Sales as cancelled. An order already created in the store is not cancelled there.`,
+          message: `${props.name} stays in Agamsale as cancelled. An order already created in the store is not cancelled there.`,
           label: 'Cancel Order',
           icon: 'lucide-circle-x',
           theme: 'red',

@@ -1385,7 +1385,7 @@ def get_mobile_manifest() -> dict:
 def _require_staff_user() -> str:
 	user = frappe.session.user
 	if user == "Guest" or is_retailer_user():
-		frappe.throw(_("Push notifications are for Field Sales staff."), frappe.PermissionError)
+		frappe.throw(_("Push notifications are for Agamsale staff."), frappe.PermissionError)
 	return user
 
 

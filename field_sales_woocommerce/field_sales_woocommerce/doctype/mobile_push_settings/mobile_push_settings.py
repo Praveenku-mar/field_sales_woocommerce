@@ -73,6 +73,21 @@ class MobilePushSettings(Document):
 
 
 @frappe.whitelist(methods=["GET"])
+def get_push_status() -> dict:
+	"""Safe settings summary for the SPA; never return the service-account key."""
+	frappe.only_for("System Manager")
+	from field_sales_woocommerce.push.fcm import get_config
+
+	config = get_config()
+	return {
+		"configured": bool(config),
+		"source": config["source"] if config else None,
+		"project_id": config["project_id"] if config else None,
+		"registered_phones": frappe.db.count("Mobile Device", {"enabled": 1}),
+	}
+
+
+@frappe.whitelist(methods=["GET"])
 def users_with_phones() -> list[dict]:
 	"""Users who have a phone registered for push: ``[{"user", "full_name", "phones"}]``, you first."""
 	frappe.only_for("System Manager")
@@ -103,7 +118,7 @@ def send_test_notification(user: str | None = None) -> dict:
 		)
 	if not frappe.db.exists("Mobile Device", {"user": user, "enabled": 1}):
 		frappe.throw(
-			_("{0} has no phone registered. Sign in to the Field Sales mobile app as {0} and allow notifications first.").format(
+			_("{0} has no phone registered. Sign in to the Agamsale mobile app as {0} and allow notifications first.").format(
 				user
 			)
 		)

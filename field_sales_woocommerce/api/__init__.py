@@ -412,7 +412,7 @@ def _check_retailer_login_user(user: str) -> None:
 		frappe.throw(_("The account {0} cannot be a retailer login").format(user), frappe.PermissionError)
 	roles = set(frappe.get_roles(user))
 	if STAFF_ROLES & roles:
-		frappe.throw(_("{0} works in Field Sales and cannot be a retailer login").format(user))
+		frappe.throw(_("{0} works in Agamsale and cannot be a retailer login").format(user))
 	if roles - RETAILER_LOGIN_ROLES:
 		frappe.throw(
 			_("{0} has roles beyond Field Sales Retailer and cannot be a retailer login").format(user),
