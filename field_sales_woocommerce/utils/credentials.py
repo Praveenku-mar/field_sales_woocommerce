@@ -38,6 +38,10 @@ def rotate_api_secret(user: str) -> str | None:
 	"""
 	if not user or user == "Guest":
 		return None
+	from field_sales_woocommerce.push.devices import remove_all
+
+	# Phones signed in with the old secret must stop getting this user's notifications too.
+	remove_all(user)
 	if not frappe.db.get_value("User", user, "api_key"):
 		return None
 	return issue_api_secret(user)[1]

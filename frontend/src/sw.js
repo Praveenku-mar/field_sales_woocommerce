@@ -1,8 +1,8 @@
 import { cleanupOutdatedCaches, precacheAndRoute } from 'workbox-precaching'
 import { clientsClaim } from 'workbox-core'
 
-// Registered at /assets/field_sales/frontend/sw.js, so its scope is
-// /assets/field_sales/frontend/ (same as Frappe HR). That is enough to precache the
+// Registered at /assets/field_sales_woocommerce/frontend/sw.js, so its scope is
+// /assets/field_sales_woocommerce/frontend/ (same as Frappe HR). That is enough to precache the
 // built JS/CSS/fonts/icons and to make the app installable; it does not control /fieldsales.
 //
 // Only the build output is precached. The HTML is rendered by Frappe per user with boot

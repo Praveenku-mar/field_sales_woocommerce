@@ -1,0 +1,85 @@
+{
+ "actions": [],
+ "creation": "2026-11-11 12:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "issingle": 1,
+ "field_order": [
+  "enabled",
+  "service_account_file",
+  "column_break_1",
+  "firebase_project_id",
+  "service_account_json",
+  "help_section",
+  "setup_help"
+ ],
+ "fields": [
+  {
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "label": "Enabled",
+   "description": "Send bell notifications to the Field Sales mobile app as push notifications"
+  },
+  {
+   "fieldname": "service_account_file",
+   "fieldtype": "Attach",
+   "label": "Service Account Key File (.json)",
+   "description": "Firebase console → Project settings → Service accounts → Generate new private key, then upload the downloaded file here. It is stored encrypted and the uploaded copy is deleted."
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "firebase_project_id",
+   "fieldtype": "Data",
+   "label": "Firebase Project ID",
+   "description": "Taken from the uploaded key file",
+   "read_only": 1
+  },
+  {
+   "fieldname": "service_account_json",
+   "fieldtype": "Password",
+   "label": "Service Account Key (stored)",
+   "length": 5000,
+   "description": "The uploaded key, stored encrypted.",
+   "hidden": 1
+  },
+  {
+   "fieldname": "help_section",
+   "fieldtype": "Section Break",
+   "label": "Setup",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "setup_help",
+   "fieldtype": "HTML",
+   "options": "<ol><li>In the Firebase console, open the project the mobile app uses (the one its google-services.json came from).</li><li>Project settings &rarr; Service accounts &rarr; <b>Generate new private key</b>.</li><li>Upload the downloaded file above, tick Enabled and save.</li><li>Use <b>Send Test Notification</b> to push to your own signed-in phones.</li></ol>"
+  }
+ ],
+ "links": [],
+ "modified": "2026-11-11 18:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Field Sales Woocommerce",
+ "name": "Mobile Push Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 0,
+   "email": 0,
+   "export": 0,
+   "print": 0,
+   "report": 0,
+   "share": 0
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

@@ -48,7 +48,7 @@ function registerServiceWorker() {
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     if (hadController) toast.success('App updated')
   })
-  navigator.serviceWorker.register('/assets/field_sales/frontend/sw.js').catch((error) => {
+  navigator.serviceWorker.register('/assets/field_sales_woocommerce/frontend/sw.js').catch((error) => {
     console.error('Service worker registration failed', error)
   })
 }

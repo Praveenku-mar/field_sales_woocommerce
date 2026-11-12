@@ -3,7 +3,7 @@
     <SidebarHeader
       title="Field Sales"
       :subtitle="session.store.name || 'No store connected'"
-      logo="/assets/field_sales/images/logo.svg"
+      logo="/assets/field_sales_woocommerce/images/logo.svg"
       class="px-2"
     />
 

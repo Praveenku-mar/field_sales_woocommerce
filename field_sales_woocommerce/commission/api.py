@@ -24,6 +24,7 @@ from field_sales_woocommerce.commission.statements import (
 	build_statement,
 )
 from field_sales_woocommerce.permissions import get_allowed_reps, get_own_rep, is_admin
+from field_sales_woocommerce.push.events import notify_statement
 
 PERIODS = ("this_month", "last_month", "this_year", "all")
 MAX_PAGE_LENGTH = 2500
@@ -216,6 +217,7 @@ def approve_statement(name: str) -> dict:
 		frappe.throw(_("Only a Draft Commission Statement can be approved."))
 	doc.submit()
 	doc.reload()
+	notify_statement(doc, "statement_approved")
 	return {"name": doc.name, "status": doc.status, "net_payable": doc.net_payable}
 
 

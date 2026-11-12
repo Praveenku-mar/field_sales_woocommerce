@@ -33,6 +33,7 @@ SHARED_CAPABILITIES = {
 	"razorpay_payments",
 	"visit_import",
 	"retailer_logins",
+	"push_notifications",
 }
 
 PAGE_KEYS = {"items", "has_more", "next_cursor", "limit"}
@@ -281,3 +282,48 @@ class TestMobileContract(IntegrationTestCase):
 		visit = self.as_user(self.rep_user, mobile.get_visit_detail, self.visit.name)
 		self.assertEqual(set(visit), VISIT_DETAIL_KEYS)
 		self.assertEqual(visit["name"], self.visit.name)
+
+	def test_visit_client_temp_id(self):
+		"""The app's id finds the visit it created; a retry is refused, and the id never changes."""
+		values = {
+			"doctype": "Visit",
+			"retailer": self.retailer,
+			"sales_rep": self.rep,
+			"visit_date": nowdate(),
+			"status": "Planned",
+			"client_temp_id": "contract-visit-1",
+		}
+		visit = frappe.get_doc(values).insert(ignore_permissions=True)
+		found = self.as_user(self.rep_user, mobile.find_visit_by_client_temp_id, "contract-visit-1")
+		self.assertEqual(found, {"name": visit.name, "status": "Planned"})
+
+		with self.assertRaises(frappe.DuplicateEntryError):
+			frappe.get_doc(values).insert(ignore_permissions=True)
+
+		visit.client_temp_id = "changed"
+		visit.save(ignore_permissions=True)
+		self.assertEqual(visit.client_temp_id, "contract-visit-1")
+
+		visit.db_set("status", "Cancelled")
+		self.assertIsNone(
+			self.as_user(self.rep_user, mobile.find_visit_by_client_temp_id, "contract-visit-1")
+		)
+
+	# -- push devices ------------------------------------------------------
+
+	def test_push_device_endpoints(self):
+		token = "contract-fcm-token-0123456789abcdef"
+		registered = self.as_user(self.rep_user, mobile.register_device, token, "android", "1.0.0")
+		self.assertEqual(set(registered), {"enabled", "push_configured"})
+		self.assertTrue(registered["enabled"])
+
+		toggled = self.as_user(self.rep_user, mobile.set_device_push_enabled, token, "false")
+		self.assertEqual(toggled, {"enabled": False})
+
+		removed = self.as_user(self.rep_user, mobile.unregister_device, token)
+		self.assertEqual(removed, {"removed": True})
+		self.assertFalse(frappe.db.exists("Mobile Device", {"fcm_token": token}))
+
+	def test_guest_cannot_register_a_device(self):
+		with self.assertRaises(frappe.PermissionError):
+			self.as_user("Guest", mobile.register_device, "contract-fcm-token-guest-000000", "android")

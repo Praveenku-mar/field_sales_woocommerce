@@ -3,28 +3,58 @@
 
 import math
 
+import re
+
 import frappe
 from frappe import _
-from frappe.desk.doctype.notification_log.notification_log import enqueue_create_notification
 from frappe.model.document import Document
 from frappe.utils import flt, formatdate, get_datetime, get_fullname, getdate
 
 from field_sales_woocommerce.utils.geo import DEFAULT_GEOFENCE_RADIUS_M, has_coords, haversine_m
 
-# Written only by field_sales.api.check_in / check_out, never taken from the client.
+# Written only by field_sales_woocommerce.api.check_in / check_out, never taken from the client.
 CHECK_IN_FIELDS = ("check_in_time", "check_out_time", "latitude", "longitude", "location_accuracy_m")
 CHECK_IN_STATUSES = ("In Progress", "Completed")
 RETAILER_POSITION_FIELDS = ("retailer_latitude", "retailer_longitude")
 
 
+# Same rule as Field Order.client_temp_id.
+CLIENT_TEMP_ID = re.compile(r"[A-Za-z0-9._:-]{1,140}")
+
+
 class Visit(Document):
 	def validate(self):
+		self._validate_client_temp_id()
 		self._guard_check_in_fields()
 		self._validate_checkout_after_checkin()
 		self._validate_completed_requires_checkin()
 		self._compute_time_on_site()
 		self._compute_distance_and_geofence()
 		self._set_order_outcome()
+
+	def _validate_client_temp_id(self):
+		"""
+		The app's id for a visit it created, set once on insert: a retry after a timeout
+		finds the visit (``find_visit_by_client_temp_id``) or is refused as a duplicate here,
+		instead of creating a second visit. A cancelled visit may be planned again.
+		"""
+		if not self.is_new():
+			before = self.get_doc_before_save()
+			if before:
+				self.client_temp_id = before.client_temp_id
+			return
+		self.client_temp_id = (self.client_temp_id or "").strip() or None
+		if not self.client_temp_id:
+			return
+		if not CLIENT_TEMP_ID.fullmatch(self.client_temp_id):
+			frappe.throw(_("Client Temp ID may hold only letters, digits and . _ : -"))
+		existing = frappe.db.get_value(
+			"Visit", {"client_temp_id": self.client_temp_id, "status": ("!=", "Cancelled")}, "name"
+		)
+		if existing:
+			frappe.throw(
+				_("This visit was already created as {0}").format(existing), frappe.DuplicateEntryError
+			)
 
 	def after_insert(self):
 		self._notify_rep()
@@ -64,16 +94,16 @@ class Visit(Document):
 				formatdate(self.visit_date),
 				frappe.utils.escape_html(get_fullname(frappe.session.user)),
 			)
-		enqueue_create_notification(
+		from field_sales_woocommerce.push.notify import notify_users
+
+		notify_users(
 			[user],
-			{
-				"type": "Alert",
-				"document_type": "Visit",
-				"document_name": self.name,
-				"from_user": frappe.session.user,
-				"subject": subject,
-				"email_content": subject,
-			},
+			"visit_rescheduled" if rescheduled else "visit_assigned",
+			"Visit",
+			self.name,
+			subject,
+			from_user=frappe.session.user,
+			params={"date": str(self.visit_date)},
 			dedupe_on=["document_type", "document_name", "subject"],
 		)
 

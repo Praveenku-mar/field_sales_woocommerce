@@ -25,6 +25,7 @@ from collections import defaultdict, deque
 import frappe
 
 ADMIN_ROLES = {"System Manager"}
+MANAGER_ROLES = {"Sales Manager", "System Manager"}
 
 # Permission types that only look at a record (any retailer may be seen).
 READ_ONLY_PTYPES = {"read", "select", "print", "email", "report", "export"}
@@ -49,6 +50,12 @@ RETAILER_ROLE = "Field Sales Retailer"
 def is_admin(user: str | None = None) -> bool:
 	user = user or frappe.session.user
 	return user == "Administrator" or bool(ADMIN_ROLES & set(frappe.get_roles(user)))
+
+
+def is_manager_or_admin(user: str | None = None) -> bool:
+	"""True for Administrator, System Manager, or Sales Manager."""
+	user = user or frappe.session.user
+	return user == "Administrator" or bool(MANAGER_ROLES & set(frappe.get_roles(user)))
 
 
 def get_own_rep(user: str | None = None) -> str | None:

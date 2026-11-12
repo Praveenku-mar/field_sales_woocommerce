@@ -19,8 +19,16 @@ from frappe.utils.password import check_password
 
 from field_sales_woocommerce.connectors import ConnectorError, get_connector
 from field_sales_woocommerce.field_sales_woocommerce.doctype.visit.visit import get_geofence_radius
-from field_sales_woocommerce.permissions import RETAILER_ROLE, STAFF_ROLES, get_allowed_reps, hierarchy_filters, is_admin
-from field_sales_woocommerce.sync.customers import push_retailers
+from field_sales_woocommerce.field_sales_woocommerce.doctype.sales_rep.sales_rep import sync_sales_rep_roles
+from field_sales_woocommerce.permissions import (
+	RETAILER_ROLE,
+	STAFF_ROLES,
+	get_allowed_reps,
+	hierarchy_filters,
+	is_admin,
+	is_manager_or_admin,
+)
+from field_sales_woocommerce.sync.customers import enqueue_import, push_retailers
 from field_sales_woocommerce.sync.notify import MONITOR_ROLES
 from field_sales_woocommerce.sync.orders import enqueue_push_order
 from field_sales_woocommerce.sync.products import enqueue_sync
@@ -109,6 +117,17 @@ def enqueue_product_sync() -> dict:
 
 
 @frappe.whitelist(methods=["POST"])
+def enqueue_customer_import() -> dict:
+	"""Queue an import of the store's customers as Retailers (``sync.customers.import_customers``)."""
+	frappe.only_for(["System Manager", "Sales Manager"])
+
+	get_connector()  # fails fast if Store Connection is disabled
+	if enqueue_import():
+		return {"queued": True, "message": _("Customer import started")}
+	return {"queued": False, "message": _("A customer import is already running")}
+
+
+@frappe.whitelist(methods=["POST"])
 def create_order(
 	retailer: str, sales_rep: str, order_date: str, visit: str | None = None, location_id: str | None = None
 ) -> dict:
@@ -142,15 +161,22 @@ def get_user_for_sales_rep(email: str) -> dict:
 	"""
 	Whether ``email`` is already a user (and already a Sales Rep), for the app's New Sales Rep dialog.
 
-	:return: ``{"exists", "full_name", "sales_rep"}``
+	:return: ``{"exists", "full_name", "sales_rep", "roles"}``
 	"""
+	if not is_manager_or_admin():
+		frappe.throw(
+			_("Only Administrator and Sales Manager can assign roles."),
+			frappe.PermissionError,
+		)
 	frappe.has_permission("Sales Rep", "create", throw=True)
 	email = (email or "").strip().lower()
 	user = frappe.db.get_value("User", email, ["name", "full_name"], as_dict=True)
+	user_roles = [r for r in frappe.get_roles(email) if r in ("Sales Manager", "Field Sales Rep", "Sales Rep")] if user else []
 	return {
 		"exists": bool(user),
 		"full_name": user.full_name if user else None,
 		"sales_rep": frappe.db.exists("Sales Rep", email) if user else None,
+		"roles": user_roles,
 	}
 
 
@@ -161,20 +187,27 @@ def create_sales_rep(
 	mobile: str | None = None,
 	territory: str | None = None,
 	reports_to: str | None = None,
-	monthly_target: float | None = None,
-	max_discount_pct: float | None = None,
+	monthly_target: float | str | None = None,
+	max_discount_pct: float | str | None = None,
+	sales_manager: int = 0,
+	sales_rep: int = 1,
 	send_welcome_email: int = 1,
 ) -> dict:
 	"""
 	Create a Sales Rep from the app, creating its User first when ``user`` is a new email.
 
-	A new user gets only the Field Sales Rep role. Sales Managers cannot create users in the
-	desk, so that insert skips User permissions; it runs only for someone who may create a
-	Sales Rep, and never changes an existing user. Both inserts share the request's
+	Assigns the selected roles ("Sales Manager" and/or "Field Sales Rep") to the user.
+	Sales Managers cannot create users in the desk, so that insert skips User permissions;
+	it runs only for someone who may create a Sales Rep. Both inserts share the request's
 	transaction: if the Sales Rep fails, the user is rolled back too.
 
 	:return: ``{"name", "user_created"}``
 	"""
+	if not is_manager_or_admin():
+		frappe.throw(
+			_("Only Administrator and Sales Manager can assign roles."),
+			frappe.PermissionError,
+		)
 	frappe.has_permission("Sales Rep", "create", throw=True)
 	check_limit(SALES_REPS)
 
@@ -182,6 +215,11 @@ def create_sales_rep(
 	frappe.utils.validate_email_address(user, throw=True)
 	if frappe.db.exists("Sales Rep", user):
 		frappe.throw(_("{0} is already a Sales Rep").format(user), frappe.DuplicateEntryError)
+
+	is_mgr = bool(frappe.utils.cint(sales_manager))
+	is_rep = bool(frappe.utils.cint(sales_rep))
+	if not is_mgr and not is_rep:
+		frappe.throw(_("Select at least one role: Sales Manager or Sales Rep."))
 
 	# new_doc, not get_doc: the hierarchy hook below must see a new document.
 	rep = frappe.new_doc("Sales Rep")
@@ -194,6 +232,8 @@ def create_sales_rep(
 			"reports_to": reports_to or None,
 			"monthly_target": flt(monthly_target) if monthly_target not in (None, "") else None,
 			"max_discount_pct": flt(max_discount_pct) if max_discount_pct not in (None, "") else None,
+			"sales_manager": 1 if is_mgr else 0,
+			"sales_rep": 1 if is_rep else 0,
 			"active": 1,
 		}
 	)
@@ -210,6 +250,12 @@ def create_sales_rep(
 		if not (full_name or "").strip():
 			frappe.throw(_("Full Name is required to create the user {0}").format(user))
 		first_name, _sep, last_name = full_name.strip().partition(" ")
+		roles = []
+		if is_rep and frappe.db.exists("Role", "Field Sales Rep"):
+			roles.append({"role": "Field Sales Rep"})
+		if is_mgr and frappe.db.exists("Role", "Sales Manager"):
+			roles.append({"role": "Sales Manager"})
+
 		new_user = frappe.get_doc(
 			{
 				"doctype": "User",
@@ -219,11 +265,21 @@ def create_sales_rep(
 				"mobile_no": mobile or None,
 				"user_type": "System User",
 				"send_welcome_email": frappe.utils.cint(send_welcome_email),
-				"roles": [{"role": "Field Sales Rep"}],
+				"roles": roles,
 			}
 		)
 		new_user.insert(ignore_permissions=True)
 		user_created = True
+	else:
+		# An existing user becomes a rep: never a System Manager or a retailer login (their
+		# roles would be widened by a manager), unless a System Manager does it.
+		held = set(frappe.get_roles(user))
+		if not is_admin() and ({"System Manager", RETAILER_ROLE} & held or user in ("Administrator", "Guest")):
+			frappe.throw(
+				_("{0} cannot be made a Sales Rep here. Ask a System Manager.").format(user),
+				frappe.PermissionError,
+			)
+		sync_sales_rep_roles(user, is_mgr, is_rep)
 
 	rep.insert()
 	return {"name": rep.name, "user_created": user_created}
@@ -472,7 +528,7 @@ def _send_retailer_invite(user: str, retailer: str) -> None:
 			"store_name": store,
 			"user": user,
 			"link": link,
-			"login_url": get_url("/fieldsales/login"),
+			"login_url": get_url("/login?redirect-to=%2Ffieldsales"),
 		},
 	)
 

@@ -8,10 +8,10 @@
             v-model="form.retailer"
             :options="customerOptions"
             trigger="button"
-            label="Customer"
+            label="Shop"
             required
-            placeholder="Select customer"
-            empty-text="No customers found"
+            placeholder="Select shop"
+            empty-text="No shops found"
             :disabled="!!visit"
           />
           <Combobox
@@ -33,7 +33,7 @@
           />
         </div>
         <p v-if="visit" class="mt-3 text-sm text-ink-gray-5">
-          The order is attached to this visit; its customer is fixed.
+          The order is attached to this visit; its shop is fixed.
         </p>
       </section>
 

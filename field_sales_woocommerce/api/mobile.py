@@ -1304,6 +1304,31 @@ def find_order_by_client_temp_id(client_temp_id: str) -> dict | None:
 	return {"name": rows[0].name, "docstatus": rows[0].docstatus} if rows else None
 
 
+@frappe.whitelist(methods=["GET", "POST"])
+def find_visit_by_client_temp_id(client_temp_id: str) -> dict | None:
+	"""
+	The Visit the app created with this ``client_temp_id`` (Visit.client_temp_id), so after a
+	timeout it can tell whether the visit was saved before creating it again.
+
+	Scoped by ``frappe.get_list``: a visit the user may not read is not found. Cancelled
+	visits are left out (a cancelled visit may be planned again).
+
+	:return: ``{"name", "status"}``, or ``None`` when there is no such visit.
+	"""
+	_check_access()
+	client_temp_id = (client_temp_id or "").strip()
+	if not client_temp_id or len(client_temp_id) > 140:
+		frappe.throw(_("Client Temp ID is required"), frappe.ValidationError)
+	rows = frappe.get_list(
+		"Visit",
+		filters={"client_temp_id": client_temp_id, "status": ("!=", "Cancelled")},
+		fields=["name", "status"],
+		order_by="creation asc",
+		limit=1,
+	)
+	return {"name": rows[0].name, "status": rows[0].status} if rows else None
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # 12. Mobile manifest (edition discovery)
 # ──────────────────────────────────────────────────────────────────────────────
@@ -1328,6 +1353,7 @@ MOBILE_CAPABILITIES = (
 	"razorpay_payments",
 	"visit_import",
 	"retailer_logins",
+	"push_notifications",
 )
 
 
@@ -1349,3 +1375,54 @@ def get_mobile_manifest() -> dict:
 		"active": owner == __name__.split(".", 1)[0],
 		"capabilities": list(MOBILE_CAPABILITIES),
 	}
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# 13. Push notifications (device registration)
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+def _require_staff_user() -> str:
+	user = frappe.session.user
+	if user == "Guest" or is_retailer_user():
+		frappe.throw(_("Push notifications are for Field Sales staff."), frappe.PermissionError)
+	return user
+
+
+@frappe.whitelist(methods=["POST"])
+@rate_limit(limit=30, seconds=60)
+def register_device(token: str, platform: str, app_version: str | None = None) -> dict:
+	"""
+	Save this phone's Firebase token so the signed-in user's notifications reach it.
+	Called after sign-in and whenever Firebase gives the app a new token.
+
+	:return: ``{"enabled": bool, "push_configured": bool}``: whether this device gets pushes,
+		and whether the site has push switched on at all.
+	"""
+	from field_sales_woocommerce.push import devices
+
+	from field_sales_woocommerce.push.fcm import push_enabled
+
+	result = devices.register(_require_staff_user(), token, platform, app_version)
+	return {**result, "push_configured": push_enabled()}
+
+
+@frappe.whitelist(methods=["POST"])
+@rate_limit(limit=30, seconds=60)
+def unregister_device(token: str) -> dict:
+	"""Forget this phone (on sign-out). :return: ``{"removed": bool}``"""
+	from field_sales_woocommerce.push import devices
+
+	user = frappe.session.user
+	if user == "Guest":
+		frappe.throw(_("Not signed in."), frappe.PermissionError)
+	return {"removed": devices.unregister(user, token)}
+
+
+@frappe.whitelist(methods=["POST"])
+@rate_limit(limit=30, seconds=60)
+def set_device_push_enabled(token: str, enabled: bool | int | str) -> dict:
+	"""Turn pushes to this phone on or off (Profile switch). :return: ``{"enabled": bool}``"""
+	from field_sales_woocommerce.push import devices
+
+	return {"enabled": devices.set_enabled(_require_staff_user(), token, str(enabled).strip().lower() in ("1", "true", "yes", "on"))}

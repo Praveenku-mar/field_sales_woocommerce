@@ -11,14 +11,14 @@
 
     <div v-if="!loginData.user && !login.loading" class="flex flex-col gap-3">
       <p class="text-sm text-ink-gray-6">
-        Give this customer a sign-in to see their own orders in the app.
+        Give this shop a sign-in to see its own orders in the app.
       </p>
       <TextInput
         v-model="email"
         label="Email"
         type="email"
         required
-        :placeholder="fallbackEmail || 'customer@example.com'"
+        :placeholder="fallbackEmail || 'shop@example.com'"
       />
       <div class="block w-full">
         <Checkbox v-model="sendInvite" label="Email an invite to set a password" />
@@ -40,7 +40,7 @@
         <span class="min-w-0 truncate text-ink-gray-8">{{ loginData.user }}</span>
         <span class="shrink-0"><StatusPill :status="loginData.enabled ? 'Active' : 'Inactive'" /></span>
       </div>
-      <p class="pt-1 text-xs text-ink-gray-5">Signs in at {{ appLoginUrl }} to see this customer's orders.</p>
+      <p class="pt-1 text-xs text-ink-gray-5">Signs in at {{ appLoginUrl }} to see this shop's orders.</p>
       <div class="flex flex-wrap gap-2 pt-3">
         <Button label="Send reset link" size="sm" icon-left="lucide-key-round" :loading="resetting" @click="sendReset" />
         <Button label="Remove access" size="sm" icon-left="lucide-user-round-x" @click="confirmOpen = true" />
@@ -50,7 +50,7 @@
 
   <Dialog v-model="confirmOpen" title="Remove login access" size="sm">
     <p class="text-p-base text-ink-gray-7">
-      {{ loginData.user }} will be signed out everywhere and can no longer log in. The customer's record
+      {{ loginData.user }} will be signed out everywhere and can no longer log in. The shop's record
       and orders stay untouched.
     </p>
     <template #actions>
@@ -68,7 +68,6 @@ import { Button, Checkbox, Dialog, TextInput, createResource, toast } from 'frap
 import SectionCard from '@/components/SectionCard.vue'
 import StatusPill from '@/components/StatusPill.vue'
 import { callMethod } from '@/utils/api'
-import { APP_BASE } from '@/utils/base'
 
 const props = defineProps({
   /** The Retailer whose login this card manages. */
@@ -79,7 +78,7 @@ const props = defineProps({
 const emit = defineEmits(['updated'])
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-const appLoginUrl = `${window.location.origin}${APP_BASE}/login`
+const appLoginUrl = `${window.location.origin}/login`
 
 const login = createResource({
   url: 'field_sales_woocommerce.api.get_retailer_login',

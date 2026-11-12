@@ -35,7 +35,7 @@
         </DataTable>
       </SectionCard>
 
-      <SectionCard :title="`Customers (${retailers.count.data ?? '…'})`" flush>
+      <SectionCard :title="`Shops (${retailers.count.data ?? '…'})`" flush>
         <DataTable
           class="max-h-[60vh]"
           :columns="retailerColumns"
@@ -46,7 +46,7 @@
           v-model:page-length="retailers.pageSize.value"
           :row-route="(r) => ({ name: 'Retailer', params: { name: r.name } })"
           empty-icon="lucide-circle-check"
-          empty-title="No failed customers"
+          empty-title="No failed shops"
           @load-more="retailers.list.next()"
         >
           <template #cell-retailer_name="{ row }">
@@ -97,7 +97,7 @@ const common = [
   { key: 'actions', label: '', align: 'right' },
 ]
 const orderColumns = [{ key: 'retailer_name', label: 'Order' }, ...common]
-const retailerColumns = [{ key: 'retailer_name', label: 'Customer' }, ...common]
+const retailerColumns = [{ key: 'retailer_name', label: 'Shop' }, ...common]
 
 function refresh() {
   orders.refresh()

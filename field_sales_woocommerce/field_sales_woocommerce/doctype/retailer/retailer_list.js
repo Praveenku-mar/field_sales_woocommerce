@@ -5,6 +5,19 @@ frappe.listview_settings["Retailer"] = {
 	add_fields: ["sync_status", "status", "last_visit"],
 
 	onload(listview) {
+		if (frappe.user.has_role(["System Manager", "Sales Manager"])) {
+			listview.page.add_inner_button(__("Import from Store"), () => {
+				frappe
+					.call({ method: "field_sales_woocommerce.api.enqueue_customer_import", freeze: true })
+					.then(({ message: r }) => {
+						frappe.show_alert({
+							message: `${r.message}. ${__("Refresh the list when it finishes; the result is in Sync Log.")}`,
+							indicator: r.queued ? "blue" : "orange",
+						});
+					});
+			});
+		}
+
 		listview.page.add_actions_menu_item(__("Sync to Store"), () => {
 			const names = listview.get_checked_items(true);
 			if (!names.length) return;

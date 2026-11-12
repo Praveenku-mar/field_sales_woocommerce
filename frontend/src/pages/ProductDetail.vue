@@ -162,7 +162,7 @@ const locationColumns = [
 ]
 const orderColumns = [
   { key: 'name', label: 'Order' },
-  { key: 'retailer_name', label: 'Customer' },
+  { key: 'retailer_name', label: 'Shop' },
   { key: 'order_date', label: 'Date', format: formatDate },
   { key: 'qty', label: 'Qty', align: 'right', format: (v) => formatNumber(v) },
   { key: 'amount', label: 'Amount', align: 'right', format: (v) => formatCurrency(v) },

@@ -47,7 +47,7 @@
           <Checkbox
             v-model="d.enabled"
             label="Enabled"
-            description="Sync Field Orders and Customers to the store"
+            description="Sync Field Orders and Shops to the store"
           />
         </div>
       </section>

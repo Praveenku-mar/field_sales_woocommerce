@@ -49,6 +49,10 @@ _PERSONAL_KEYS: frozenset[str] = frozenset(
 		"address1",
 		"address2",
 		"zip",
+		# WooCommerce's address keys.
+		"address_1",
+		"address_2",
+		"postcode",
 	}
 )
 _PERSONAL_MASK = '"[redacted]"'
@@ -214,7 +218,7 @@ def clear_old_logs() -> None:
 
 	Called via::
 
-	    field_sales.field_sales.doctype.sync_log.sync_log.clear_old_logs
+	    field_sales_woocommerce.field_sales_woocommerce.doctype.sync_log.sync_log.clear_old_logs
 
 	Registered in hooks.py under ``scheduler_events["daily"]``.
 	"""

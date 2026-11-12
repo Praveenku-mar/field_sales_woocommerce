@@ -27,7 +27,7 @@
       <SectionCard title="1. Download the template">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p class="text-sm text-ink-gray-6">
-            Fill in one visit per row. The Lists sheet shows the sales reps, customers and purposes you can use.
+            Fill in one visit per row. The Lists sheet shows the sales reps, shops and purposes you can use.
           </p>
           <Button class="shrink-0" label="Download Template" icon-left="lucide-download" @click="downloadTemplate" />
         </div>
@@ -83,7 +83,7 @@
               <tr>
                 <th class="px-3 py-2 font-medium">Row</th>
                 <th class="px-3 py-2 font-medium">Sales Rep</th>
-                <th class="px-3 py-2 font-medium">Customer</th>
+                <th class="px-3 py-2 font-medium">Shop</th>
                 <th class="px-3 py-2 font-medium">Date</th>
                 <th class="px-3 py-2 font-medium">Purpose</th>
                 <th class="px-3 py-2 font-medium">Notes</th>

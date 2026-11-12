@@ -17,6 +17,13 @@ add_to_apps_screen = [
 	}
 ]
 
+# Serve the Vue app shell for frontend routes and its short alias.
+website_route_rules = [
+	{"from_route": "/fieldsales/<path:app_path>", "to_route": "fieldsales"},
+	{"from_route": "/fs", "to_route": "fieldsales"},
+	{"from_route": "/fs/<path:app_path>", "to_route": "fieldsales"},
+]
+
 permission_query_conditions = {
 	"Visit": "field_sales_woocommerce.permissions.visit_query",
 	"Sales Rep": "field_sales_woocommerce.permissions.sales_rep_query",
@@ -39,3 +46,8 @@ after_request = ["field_sales_woocommerce.utils.guards.after_request"]
 fixtures = [
 	{"dt": "Print Format", "filters": [["name", "in", ["Field Sales Order", "Field Sales Invoice"]]]},
 ]
+
+doc_events = {
+	# Push bell notifications made by push.notify.notify_users to the mobile app.
+	"Notification Log": {"after_insert": "field_sales_woocommerce.push.notify.on_notification_log_insert"},
+}

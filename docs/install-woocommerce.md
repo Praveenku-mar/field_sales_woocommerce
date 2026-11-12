@@ -7,9 +7,9 @@ over the WooCommerce REST API; nothing is installed inside WordPress.
 
 ```bash
 # in your bench (Frappe v17)
-bench get-app https://github.com/<your-org>/field_sales   # or a local path
+bench get-app https://github.com/<your-org>/field_sales_woocommerce   # or a local path
 bench new-site sales.example.com
-bench --site sales.example.com install-app field_sales
+bench --site sales.example.com install-app field_sales_woocommerce
 bench --site sales.example.com migrate          # doctypes + fixtures (print format)
 bench --site sales.example.com enable-scheduler # product sync runs on a schedule
 ```
@@ -66,7 +66,7 @@ webhooks are optional. For push updates, create them in WooCommerce → Settings
 Advanced → **Webhooks** pointing at:
 
 ```
-https://sales.example.com/api/method/field_sales.api.webhooks.receive
+https://sales.example.com/api/method/field_sales_woocommerce.api.webhooks.receive
 ```
 
 | Woo topic | Effect |

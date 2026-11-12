@@ -7,7 +7,7 @@
           ref="input"
           v-model="query"
           class="h-11 flex-1 border-0 bg-transparent p-0 text-base focus:ring-0"
-          placeholder="Jump to a customer or order…"
+          placeholder="Jump to a shop or order…"
           @keydown.down.prevent="move(1)"
           @keydown.up.prevent="move(-1)"
           @keydown.enter.prevent="go(results[active])"
@@ -17,7 +17,7 @@
 
       <div class="max-h-96 overflow-y-auto p-1.5">
         <div v-if="!query.trim()" class="px-3 py-6 text-center text-ink-gray-5">
-          Type a customer name, city, phone or order number
+          Type a shop name, city, phone or order number
         </div>
         <div v-else-if="!results.length && !search.loading" class="px-3 py-6 text-center text-ink-gray-5">
           No matches for “{{ query }}”
@@ -77,7 +77,7 @@ watch(open, async (isOpen) => {
 const grouped = computed(() => {
   const data = search.data || {}
   return {
-    Customers: (data.retailers || []).map((r) => ({
+    Shops: (data.retailers || []).map((r) => ({
       key: 'r:' + r.name,
       icon: 'lucide-store',
       title: r.retailer_name,

@@ -207,6 +207,28 @@ class BaseConnector:
 		"""
 		raise NotImplementedError
 
+	def get_customers(self, cursor: str | None = None) -> dict:
+		"""
+		Fetch one page of store customers, for importing them as Retailers.
+
+		Normalized customer dict::
+
+			{
+				"external_customer_id": str,
+				"email": str | None,
+				"first_name": str, "last_name": str,
+				"company": str | None,
+				"phone": str | None,
+				"address_line1": str | None, "address_line2": str | None,
+				"city": str | None, "state": str | None, "pincode": str | None,
+				"country_code": str | None,   # ISO alpha-2, upper case
+			}
+
+		:param cursor: Opaque cursor from the previous page's ``next_cursor``; ``None`` for the first page.
+		:return: ``{"items": [normalized customer, ...], "next_cursor": str | None}``
+		"""
+		raise NotImplementedError
+
 	def get_stock(self, inventory_ids: list, location_id: str) -> dict:
 		"""
 		Get available quantity per inventory item at one location.

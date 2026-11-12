@@ -40,6 +40,16 @@
             max="100"
             placeholder="Empty = no discount"
           />
+          <div class="space-y-1.5 md:col-span-2">
+            <span class="block text-xs text-ink-gray-5">Roles</span>
+            <div class="flex flex-wrap gap-6 pt-1">
+              <Checkbox v-model="form.sales_rep" label="Sales Rep" />
+              <Checkbox v-model="form.sales_manager" label="Sales Manager" />
+            </div>
+            <p v-if="!form.sales_rep && !form.sales_manager" class="text-xs text-ink-red-5" aria-live="polite">
+              Select at least one role: Sales Rep or Sales Manager.
+            </p>
+          </div>
           <FormControl
             v-if="isNewUser"
             v-model="form.send_welcome_email"
@@ -63,7 +73,7 @@
 <script setup>
 import { computed, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { Button, Combobox, Dialog, FormControl, TextInput, createListResource, createResource, debounce, toast } from 'frappe-ui'
+import { Button, Checkbox, Combobox, Dialog, FormControl, TextInput, createListResource, createResource, debounce, toast } from 'frappe-ui'
 import { callMethod } from '@/utils/api'
 
 const open = defineModel({ type: Boolean, default: false })
@@ -89,6 +99,8 @@ const emptyForm = () => ({
   monthly_target: '',
   max_discount_pct: '',
   send_welcome_email: true,
+  sales_rep: true,
+  sales_manager: false,
 })
 const form = reactive(emptyForm())
 
@@ -111,23 +123,48 @@ watch(email, debounce(() => checkUser(), 400))
 
 const known = computed(() => (lookup.data?.email === email.value ? lookup.data : null))
 const isNewUser = computed(() => known.value?.exists === false)
+
+watch(known, (val) => {
+  if (val?.exists && Array.isArray(val.roles)) {
+    form.sales_manager = val.roles.includes('Sales Manager')
+    form.sales_rep = val.roles.includes('Field Sales Rep') || val.roles.includes('Sales Rep') || !val.roles.includes('Sales Manager')
+  }
+})
+
+const selectedRolesText = computed(() => {
+  const r = []
+  if (form.sales_rep) r.push('Sales Rep')
+  if (form.sales_manager) r.push('Sales Manager')
+  return r.join(' and ') || 'no roles'
+})
+
 const userHint = computed(() => {
   if (email.value && !EMAIL.test(email.value)) return { text: 'Enter a valid email address.', class: 'text-ink-red-5' }
   if (lookup.loading) return { text: 'Checking…', class: 'text-ink-gray-5' }
   if (!known.value) return { text: 'An existing user, or a new email to create one.', class: 'text-ink-gray-5' }
   if (known.value.sales_rep) return { text: 'This user is already a Sales Rep.', class: 'text-ink-red-5' }
-  if (known.value.exists) return { text: `Existing user: ${known.value.full_name || email.value}`, class: 'text-ink-green-7' }
-  return { text: 'New user: an account with the Field Sales Rep role will be created.', class: 'text-ink-amber-7' }
+  if (known.value.exists) return { text: `Existing user: ${known.value.full_name || email.value}. Role(s) to assign: ${selectedRolesText.value}.`, class: 'text-ink-green-7' }
+  return { text: `New user: an account with ${selectedRolesText.value} role will be created.`, class: 'text-ink-amber-7' }
 })
 const canCreate = computed(
-  () => EMAIL.test(email.value) && !known.value?.sales_rep && !(isNewUser.value && !form.full_name.trim()),
+  () =>
+    EMAIL.test(email.value) &&
+    !known.value?.sales_rep &&
+    !(isNewUser.value && !form.full_name.trim()) &&
+    (form.sales_rep || form.sales_manager),
 )
 
 const creating = ref(false)
 async function create() {
   creating.value = true
   try {
-    const params = { ...form, user: email.value, send_welcome_email: form.send_welcome_email ? 1 : 0 }
+    const params = {
+      ...form,
+      user: email.value,
+      sales_rep: form.sales_rep ? 1 : 0,
+      sales_manager: form.sales_manager ? 1 : 0,
+      send_welcome_email: form.send_welcome_email ? 1 : 0,
+    }
     const inserted = await callMethod('field_sales_woocommerce.api.create_sales_rep', params)
     toast.success(inserted.user_created ? `User and Sales Rep ${inserted.name} created` : `Sales Rep ${inserted.name} created`)
     open.value = false

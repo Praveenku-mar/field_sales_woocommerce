@@ -18,6 +18,7 @@ from frappe.utils import add_to_date, get_datetime, now_datetime
 
 from field_sales_woocommerce.connectors import get_connector
 from field_sales_woocommerce.field_sales_woocommerce.doctype.sync_log.sync_log import log_sync
+from field_sales_woocommerce.push.events import crossed_low_stock, notify_low_stock
 from field_sales_woocommerce.sync.stock import get_sell_locations, set_location_stock
 
 JOB_ID = "field_sales:product_sync"
@@ -100,6 +101,7 @@ def sync_products() -> dict:
 
 	summary = {"created": 0, "updated": 0, "unchanged": 0, "archived": 0}
 	seen: set[str] = set()
+	low_stock: list[tuple[str, float]] = []
 	start = time.monotonic()
 
 	try:
@@ -111,7 +113,7 @@ def sync_products() -> dict:
 			tracked = [i["external_inventory_id"] for i in items if i["track_inventory"] and i["external_inventory_id"]]
 			stock = conn.get_stock(tracked, location_id) if tracked else {}
 
-			names = _upsert_page(platform, location_id, items, stock, seen, summary)
+			names = _upsert_page(platform, location_id, items, stock, seen, summary, low_stock)
 			_save_location_stock(conn, location_id, items, names, stock)
 			frappe.db.commit()
 
@@ -147,6 +149,7 @@ def sync_products() -> dict:
 		duration_ms=_elapsed_ms(start),
 		response_payload=frappe.as_json(summary),
 	)
+	notify_low_stock(low_stock, digest=True)
 	frappe.db.commit()
 	frappe.publish_realtime(REALTIME_EVENT, {"ok": True, **summary}, doctype="Platform Product")
 	return summary
@@ -176,22 +179,33 @@ def sync_one_product(conn, external_product_id: str) -> dict:
 
 	summary = {"created": 0, "updated": 0, "unchanged": 0, "archived": 0}
 	seen: set[str] = set()
+	low_stock: list[tuple[str, float]] = []
 	if items:
-		names = _upsert_page(platform, location_id, items, stock, seen, summary)
+		names = _upsert_page(platform, location_id, items, stock, seen, summary, low_stock)
 		_save_location_stock(conn, location_id, items, names, stock)
 
 	filters = {"platform": platform, "external_product_id": external_product_id, "status": ("!=", "Archived")}
 	if seen:
 		filters["name"] = ("not in", list(seen))
 	summary["archived"] = _archive(frappe.get_all("Platform Product", filters=filters, pluck="name"))
+	notify_low_stock(low_stock)
 	return summary
 
 
 def _upsert_page(
-	platform: str, location_id: str, items: list[dict], stock: dict, seen: set, summary: dict
+	platform: str,
+	location_id: str,
+	items: list[dict],
+	stock: dict,
+	seen: set,
+	summary: dict,
+	low_stock: list | None = None,
 ) -> dict[str, str]:
 	"""
 	Create or update the Platform Products for one page of normalized items.
+
+	Tracked products whose stock just fell to the low-stock level are appended to ``low_stock``
+	as ``(name, qty)``.
 
 	:return: ``{external_variant_id: Platform Product name}`` for every item on the page, changed or not.
 	"""
@@ -201,7 +215,7 @@ def _upsert_page(
 		for r in frappe.get_all(
 			"Platform Product",
 			filters={"platform": platform, "external_variant_id": ("in", variant_ids)},
-			fields=["name", "external_variant_id", "sync_hash"],
+			fields=["name", "external_variant_id", "sync_hash", "available_qty", "track_inventory"],
 		)
 	} if variant_ids else {}
 	now = now_datetime()
@@ -227,6 +241,14 @@ def _upsert_page(
 				continue
 
 		values.update(sync_hash=sync_hash, last_synced=now)
+		if (
+			row is not None
+			and low_stock is not None
+			and row.track_inventory
+			and item["track_inventory"]
+			and crossed_low_stock(row.available_qty, values["available_qty"])
+		):
+			low_stock.append((row.name, values["available_qty"]))
 		if row:
 			doc = frappe.get_doc("Platform Product", row.name)
 			doc.update(values)

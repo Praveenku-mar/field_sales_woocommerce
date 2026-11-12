@@ -8,10 +8,10 @@
             v-model="form.retailer"
             :options="customerOptions"
             trigger="button"
-            label="Customer"
+            label="Shop"
             required
-            placeholder="Select customer"
-            empty-text="No customers found"
+            placeholder="Select shop"
+            empty-text="No shops found"
             :disabled="started"
           />
           <Combobox
@@ -29,7 +29,7 @@
           <Select v-model="form.visit_purpose" :options="PURPOSES" label="Visit Purpose" placeholder="Select purpose" />
         </div>
         <p v-if="started" class="mt-3 text-sm text-ink-gray-5">
-          The customer and sales rep can no longer be changed: the visit has started and its check-in was measured against them.
+          The shop and sales rep can no longer be changed: the visit has started and its check-in was measured against them.
         </p>
       </section>
 
@@ -39,7 +39,7 @@
           <Textarea v-model="form.notes" placeholder="Anything the rep should know before the visit" :rows="3" />
         </div>
         <p v-if="!isEdit" class="mt-4 text-sm text-ink-gray-5">
-          The visit is planned; check in from the visit page when the rep reaches the customer.
+          The visit is planned; check in from the visit page when the rep reaches the shop.
         </p>
       </section>
     </div>

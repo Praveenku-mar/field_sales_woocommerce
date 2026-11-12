@@ -18,6 +18,7 @@ from frappe.utils import add_to_date, cint, now_datetime
 from field_sales_woocommerce.commission.engine import enqueue_create_entries
 from field_sales_woocommerce.connectors import ConnectorError, get_connector
 from field_sales_woocommerce.field_sales_woocommerce.doctype.sync_log.sync_log import log_sync
+from field_sales_woocommerce.push.events import notify_order_synced
 from field_sales_woocommerce.sync.confirmation import enqueue_order_confirmation
 from field_sales_woocommerce.sync.customers import push_retailer
 from field_sales_woocommerce.sync.notify import notify_order_sync_failure, notify_sync_result
@@ -140,6 +141,7 @@ def push_order(field_order: str):
 	if result.get("order_id"):
 		enqueue_create_entries(field_order)
 		enqueue_order_confirmation(field_order)
+		notify_order_synced(field_order)
 		if doc.payment_status == "Paid":  # paid on Razorpay before the push finished
 			enqueue_mark_store_paid(field_order)
 	frappe.db.commit()
@@ -305,6 +307,7 @@ def link_completed_drafts():
 			status="Success",
 			external_id=order_id,
 		)
+		notify_order_synced(d.name)
 		frappe.db.commit()
 		notify_sync_result("field_order_synced", "Field Order", d.name, "Synced")
 
