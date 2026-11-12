@@ -476,6 +476,21 @@
 
     <BarcodeScanner v-model="scanOpen" @scanned="onScanned" />
 
+    <Dialog v-model="manualCopyOpen" title="Copy link">
+      <p class="mb-3 text-sm text-ink-gray-6">Your browser blocked automatic copying. Select the link below and copy it.</p>
+      <input
+        ref="manualCopyField"
+        :value="manualCopyText"
+        readonly
+        class="w-full rounded border border-desk-border bg-white px-3 py-2 text-sm text-ink-gray-9"
+        aria-label="Payment link"
+        @focus="$event.target.select()"
+      />
+      <template #actions>
+        <Button label="Close" @click="manualCopyOpen = false" />
+      </template>
+    </Dialog>
+
     <!-- Confirmations -->
     <Dialog v-model="confirm.open" :title="confirm.title" :message="confirm.message" :icon="confirm.icon" :theme="confirm.theme">
       <template #actions>
@@ -519,6 +534,7 @@ import { useSessionStore } from '@/stores/session'
 import { useSellLocations } from '@/composables/useSellLocations'
 import { onDocEvent, onDoctypeEvent } from '@/composables/useRealtime'
 import { callMethod, findProductByBarcode } from '@/utils/api'
+import { copyText } from '@/utils/clipboard'
 import { formatCurrency, formatDate, formatNumber, formatTime, orderStatus, relativeDay } from '@/utils/format'
 
 const props = defineProps({ name: { type: String, required: true } })
@@ -1216,11 +1232,11 @@ function openStoreCheckout() {
 }
 
 async function copyStoreCheckout() {
-  try {
-    await navigator.clipboard.writeText(pay.value.store_checkout_url || '')
+  const url = pay.value.store_checkout_url || ''
+  if (await copyText(url)) {
     toast.success('Checkout link copied')
-  } catch {
-    toast.error('Could not copy to clipboard')
+  } else {
+    showManualCopy(url)
   }
 }
 
@@ -1269,12 +1285,22 @@ async function refreshPayment() {
 }
 
 async function copyPaymentLink() {
-  try {
-    await navigator.clipboard.writeText(pay.value.razorpay_payment_link_url || '')
+  const url = pay.value.razorpay_payment_link_url || ''
+  if (await copyText(url)) {
     toast.success('Payment link copied')
-  } catch {
-    toast.error('Could not copy to clipboard')
+  } else {
+    showManualCopy(url)
   }
+}
+
+const manualCopyOpen = ref(false)
+const manualCopyText = ref('')
+const manualCopyField = ref(null)
+
+function showManualCopy(url) {
+  manualCopyText.value = url
+  manualCopyOpen.value = true
+  nextTick(() => manualCopyField.value?.select())
 }
 
 function shareOnWhatsApp() {
