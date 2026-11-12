@@ -90,12 +90,12 @@ Secret already configured — no extra setup.
 
 ## 7. Optional: the app inside wp-admin
 
-`wordpress-plugin/field-sales.php` is a small WordPress plugin that adds a
-**Field Sales** item to wp-admin embedding the app:
+`wordpress-plugin/field-sales.php` is a small WordPress plugin that adds an
+**Agamsale** item to wp-admin embedding the app:
 
 1. Copy `wordpress-plugin/` to the store's `wp-content/plugins/` (or zip it and
    upload under Plugins → Add New).
-2. Activate **Field Sales**, then set your app URL on Settings → Field Sales.
+2. Activate **Agamsale**, then set your app URL on Settings → Agamsale.
 3. The app page allows framing from the connected store's origin automatically.
 
 If the browser asks you to sign in repeatedly inside the frame, use the page's

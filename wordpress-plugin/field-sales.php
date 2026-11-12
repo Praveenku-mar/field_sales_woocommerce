@@ -1,9 +1,9 @@
 <?php
 /**
- * Plugin Name: Field Sales
- * Description: Run the Field Sales app (visits, orders, customers) inside WooCommerce. Connect it once on Settings → Field Sales.
+ * Plugin Name: Agamsale
+ * Description: Run the Agamsale app (visits, orders, customers) inside WooCommerce. Connect it once on Settings → Agamsale.
  * Version: 1.0.0
- * Author: Field Sales
+ * Author: Agamsale
  * Requires at least: 6.0
  * Requires PHP: 7.4
  */
@@ -26,8 +26,8 @@ function field_sales_configured(): bool {
 
 add_action('admin_menu', function () {
 	add_menu_page(
-		'Field Sales',
-		'Field Sales',
+		'Agamsale',
+		'Agamsale',
 		FIELD_SALES_CAP,
 		'field-sales',
 		'field_sales_render_page',
@@ -35,8 +35,8 @@ add_action('admin_menu', function () {
 		56
 	);
 	add_options_page(
-		'Field Sales',
-		'Field Sales',
+		'Agamsale',
+		'Agamsale',
 		'manage_options',
 		'field-sales-settings',
 		'field_sales_render_settings'
@@ -64,8 +64,8 @@ function field_sales_sanitize_url($url) {
 function field_sales_render_settings() {
 	?>
 	<div class="wrap">
-		<h1>Field Sales</h1>
-		<p>Embed the Field Sales app in your WooCommerce admin.</p>
+		<h1>Agamsale</h1>
+		<p>Embed the Agamsale app in your WooCommerce admin.</p>
 		<form method="post" action="options.php">
 			<?php settings_fields('field_sales'); ?>
 			<table class="form-table" role="presentation">
@@ -77,8 +77,8 @@ function field_sales_render_settings() {
 							value="<?php echo esc_attr(field_sales_url()); ?>"
 							placeholder="https://sales.example.com/fieldsales" />
 						<p class="description">
-							Where your Field Sales app is served, including <code>/fieldsales</code>.
-							Sign in with your Field Sales user (Sales Rep, Sales Manager or System Manager).
+							Where your Agamsale app is served, including <code>/fieldsales</code>.
+							Sign in with your Agamsale user (Sales Rep, Sales Manager or System Manager).
 						</p>
 					</td>
 				</tr>
@@ -89,7 +89,7 @@ function field_sales_render_settings() {
 		<p>So the app can read products and push orders, give it API keys:</p>
 		<ol>
 			<li>WooCommerce → Settings → Advanced → <strong>REST API</strong> → Add key (permissions <strong>Read/Write</strong>).</li>
-			<li>In the Field Sales app, open <strong>Store Connection</strong>: Platform <em>WooCommerce</em>, this store's
+			<li>In the Agamsale app, open <strong>Store Connection</strong>: Platform <em>WooCommerce</em>, this store's
 				address, the Consumer Key and Secret, then Save and <strong>Test Connection</strong>.</li>
 		</ol>
 	</div>
@@ -101,9 +101,9 @@ function field_sales_render_page() {
 	if (!$url) {
 		?>
 		<div class="wrap">
-			<h1>Field Sales</h1>
+			<h1>Agamsale</h1>
 			<div class="notice notice-warning"><p>
-				Set the app URL on <a href="<?php echo esc_url(admin_url('options-general.php?page=field-sales-settings')); ?>">Settings → Field Sales</a> first.
+				Set the app URL on <a href="<?php echo esc_url(admin_url('options-general.php?page=field-sales-settings')); ?>">Settings → Agamsale</a> first.
 			</p></div>
 		</div>
 		<?php
@@ -111,7 +111,7 @@ function field_sales_render_page() {
 	}
 	?>
 	<div class="wrap" style="margin-right:0;">
-		<h1 class="screen-reader-text">Field Sales</h1>
+		<h1 class="screen-reader-text">Agamsale</h1>
 		<p style="display:flex;gap:8px;align-items:center;margin:8px 0;">
 			<span><?php echo esc_html(parse_url($url, PHP_URL_HOST)); ?></span>
 			<a class="button button-small" href="<?php echo esc_url($url); ?>" target="_blank" rel="noopener">
@@ -122,7 +122,7 @@ function field_sales_render_page() {
 		</p>
 		<iframe id="field-sales-frame" src="<?php echo esc_url($url); ?>"
 			style="width:100%;height:calc(100vh - 120px);border:1px solid #c3c4c7;border-radius:4px;background:#fff;"
-			title="Field Sales"></iframe>
+			title="Agamsale"></iframe>
 	</div>
 	<?php
 }
