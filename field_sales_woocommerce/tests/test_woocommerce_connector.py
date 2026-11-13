@@ -5,6 +5,7 @@
 (normalization, URL handling, webhook verification, topic mapping, event
 handlers). No network: the HTTP layer is never called."""
 
+import base64
 import hashlib
 import hmac
 import json
@@ -17,6 +18,7 @@ from frappe.tests import IntegrationTestCase
 
 from field_sales_woocommerce.connectors.woocommerce import (
 	STOCK_LOCATION_ID,
+	WEBHOOK_TOPICS,
 	WooCommerceConnector,
 	_variation_title,
 	_map_topic,
@@ -97,34 +99,60 @@ class TestGetStock(IntegrationTestCase):
 		self.assertEqual(conn.get_stock(["12"], STOCK_LOCATION_ID), {"12": 97})
 
 
+def wc_signature(body: bytes, secret: bytes = b"cs_secret") -> str:
+	"""As WooCommerce signs a delivery: base64 of the raw HMAC-SHA256 of the body."""
+	return base64.b64encode(hmac.new(secret, body, hashlib.sha256).digest()).decode()
+
+
 class TestWebhookVerification(IntegrationTestCase):
-	def test_valid_signature_hex(self):
-		conn = make_connector()
+	def test_signature_from_woocommerce_verifies(self):
+		# Made by WooCommerce's own formula, in PHP: base64_encode(hash_hmac("sha256", $body, $secret, true)).
+		body = b'{"id": 12}'
+		signature = "N4S3fTig5LmIFDpC4GDdPnpD4/MF9V77h/1vtg+ManA="
+		self.assertEqual(wc_signature(body), signature)
+		self.assertTrue(make_connector().verify_webhook({"X-WC-Webhook-Signature": signature}, body))
+
+	def test_hex_digest_is_not_a_woocommerce_signature(self):
 		body = json.dumps({"id": 12}).encode()
 		signature = hmac.new(b"cs_secret", body, hashlib.sha256).hexdigest()
-		self.assertTrue(conn.verify_webhook({"X-WC-Webhook-Signature": signature}, body))
+		self.assertFalse(make_connector().verify_webhook({"X-WC-Webhook-Signature": signature}, body))
 
 	def test_tampered_body_or_wrong_secret_fails(self):
 		conn = make_connector()
 		body = json.dumps({"id": 12}).encode()
-		signature = hmac.new(b"other", body, hashlib.sha256).hexdigest()
-		self.assertFalse(conn.verify_webhook({"X-WC-Webhook-Signature": signature}, body))
-		self.assertFalse(conn.verify_webhook({"X-WC-Webhook-Signature": signature}, body + b"x"))
+		self.assertFalse(conn.verify_webhook({"X-WC-Webhook-Signature": wc_signature(body, b"other")}, body))
+		self.assertFalse(conn.verify_webhook({"X-WC-Webhook-Signature": wc_signature(body)}, body + b"x"))
 
 	def test_missing_signature_fails(self):
 		self.assertFalse(make_connector().verify_webhook({}, b"{}"))
 
+	def test_ping_is_the_unsigned_webhook_id_post(self):
+		conn = make_connector()
+		self.assertTrue(conn.is_ping({}, b"webhook_id=14"))
+		self.assertFalse(conn.is_ping({"X-WC-Webhook-Signature": "x"}, b"webhook_id=14"))
+		self.assertFalse(conn.is_ping({}, b'{"id": 14}'))
+		self.assertFalse(conn.is_ping({}, b"webhook_id=14&x=1"))
+
 
 class TestParseWebhook(IntegrationTestCase):
-	def _parse(self, topic: str, payload: dict) -> dict:
+	def _parse(self, topic: str, payload: dict, delivery_id: str | None = "d-1") -> dict:
 		conn = make_connector()
 		body = json.dumps(payload).encode()
 		headers = {
-			"X-WC-Webhook-Signature": hmac.new(b"cs_secret", body, hashlib.sha256).hexdigest(),
+			"X-WC-Webhook-Signature": wc_signature(body),
 			"X-WC-Webhook-Topic": topic,
 			"X-WC-Webhook-ID": "7",
 		}
+		if delivery_id:
+			headers["X-WC-Webhook-Delivery-ID"] = delivery_id
 		return conn.parse_webhook(headers, body)
+
+	def test_event_id_is_the_delivery_not_the_webhook(self):
+		# X-WC-Webhook-ID is the same on every delivery of a webhook: as the dedup key it
+		# dropped every delivery after the first for 48 hours.
+		self.assertEqual(self._parse("product.updated", {"id": 1}, "d-1")["event_id"], "d-1")
+		self.assertEqual(self._parse("product.updated", {"id": 1}, "d-2")["event_id"], "d-2")
+		self.assertIsNone(self._parse("product.updated", {"id": 1}, None)["event_id"])
 
 	def test_topics_map(self):
 		cases = [
@@ -140,7 +168,7 @@ class TestParseWebhook(IntegrationTestCase):
 				event = self._parse(topic, payload)
 				self.assertEqual(event["topic"], expected)
 				self.assertEqual(event["platform_topic"], topic)
-				self.assertEqual(event["event_id"], "7")
+				self.assertEqual(event["event_id"], "d-1")
 
 	def test_stock_event(self):
 		stock = make_connector().handle_stock_event({"id": 29, "variation_id": 31, "stock_quantity": 3})
@@ -231,3 +259,114 @@ class TestHelpers(IntegrationTestCase):
 		self.assertEqual(_variation_title({"attributes": [{"option": "S"}, {"option": "Red"}]}), "S / Red")
 		self.assertIsNone(_variation_title(None))
 		self.assertIsNone(_variation_title({"attributes": []}))
+
+
+class TestEnsureWebhooks(IntegrationTestCase):
+	URL = "https://sales.example/api/method/field_sales_woocommerce.api.webhooks.receive"
+
+	def run_with(self, existing: list[dict]):
+		conn = make_connector()
+		calls = []
+
+		def fake_request(method, path, operation, params=None, json_body=None, ref=None):
+			calls.append((method, path, json_body))
+			if method == "GET":
+				return existing if (params or {}).get("page", 1) == 1 else []
+			return {"id": 99}
+
+		with patch.object(conn, "_request", side_effect=fake_request):
+			result = conn.ensure_webhooks(self.URL)
+		return result, calls
+
+	def test_creates_every_topic_signed_with_the_consumer_secret(self):
+		result, calls = self.run_with([])
+		self.assertEqual(result, {topic: "created" for topic in WEBHOOK_TOPICS})
+		posts = [c for c in calls if c[0] == "POST"]
+		self.assertEqual([c[2]["topic"] for c in posts], list(WEBHOOK_TOPICS))
+		for _method, path, body in posts:
+			self.assertEqual(path, "/webhooks")
+			self.assertEqual(body["delivery_url"], self.URL)
+			self.assertEqual(body["secret"], "cs_secret")
+			self.assertEqual(body["status"], "active")
+
+	def test_reuses_this_sites_webhooks_and_leaves_others_alone(self):
+		existing = [
+			{"id": 1, "topic": "product.updated", "delivery_url": self.URL + "/", "status": "disabled"},
+			{"id": 2, "topic": "order.updated", "delivery_url": self.URL.upper(), "status": "active"},
+			{"id": 3, "topic": "product.deleted", "delivery_url": "https://other.example/hook", "status": "active"},
+		]
+		result, calls = self.run_with(existing)
+		self.assertEqual(result["product.updated"], "reactivated")
+		self.assertEqual(result["order.updated"], "updated")
+		self.assertEqual(result["product.deleted"], "created")
+		puts = {c[1]: c[2] for c in calls if c[0] == "PUT"}
+		self.assertEqual(set(puts), {"/webhooks/1", "/webhooks/2"})
+		for body in puts.values():
+			self.assertEqual(body, {"status": "active", "secret": "cs_secret"})
+		self.assertNotIn("/webhooks/3", {c[1] for c in calls})
+
+	def test_lists_every_page(self):
+		conn = make_connector()
+		pages = {1: [{"id": i, "topic": "x", "delivery_url": "u"} for i in range(100)], 2: [{"id": 100}]}
+		with patch.object(conn, "_request", side_effect=lambda m, p, operation, params=None, **k: pages.get(params["page"], [])):
+			self.assertEqual(len(conn._list_webhooks()), 101)
+
+
+class TestWebhookEndpoint(IntegrationTestCase):
+	"""api.webhooks.receive and the registration Test Connection runs."""
+
+	def setUp(self):
+		frappe.set_user("Administrator")
+
+	def tearDown(self):
+		frappe.db.rollback()
+
+	def receive(self, body: bytes, headers: dict):
+		from field_sales_woocommerce.api import webhooks
+
+		conn = make_connector()
+		conn.settings.enabled = 1
+		request = MagicMock()
+		request.get_data.return_value = body
+		request.headers = headers
+		with (
+			patch.object(webhooks, "get_connector", return_value=conn),
+			patch.object(frappe, "request", request, create=True),
+			patch.object(webhooks, "_log_invalid_signature") as logged,
+			patch.object(webhooks.frappe, "enqueue") as enqueue,
+		):
+			result = webhooks.receive()
+		return frappe.local.response.http_status_code, result, logged, enqueue
+
+	def test_ping_is_answered_without_logging(self):
+		status, result, logged, enqueue = self.receive(b"webhook_id=14", {})
+		self.assertEqual((status, result["message"]), (200, "ping"))
+		logged.assert_not_called()
+		enqueue.assert_not_called()
+
+	def test_signed_deliveries_are_each_queued(self):
+		body = json.dumps({"id": 29}).encode()
+		for delivery in (f"d-{frappe.generate_hash(length=8)}", f"d-{frappe.generate_hash(length=8)}"):
+			headers = {
+				"X-WC-Webhook-Signature": wc_signature(body),
+				"X-WC-Webhook-Topic": "product.updated",
+				"X-WC-Webhook-ID": "7",
+				"X-WC-Webhook-Delivery-ID": delivery,
+			}
+			status, result, _logged, enqueue = self.receive(body, headers)
+			self.assertEqual((status, result["message"]), (200, "ok"))
+			enqueue.assert_called_once()
+
+	def test_register_webhooks_reports_failure_without_raising(self):
+		from field_sales_woocommerce import api
+		from field_sales_woocommerce.connectors import ConnectorError
+
+		conn = make_connector()
+		with patch.object(conn, "ensure_webhooks", side_effect=ConnectorError("Forbidden", code="AUTH")):
+			result = api._register_webhooks(conn)
+		self.assertFalse(result["ok"])
+		self.assertEqual(result["message"], "Forbidden")
+		self.assertTrue(result["delivery_url"].endswith(api.WEBHOOK_PATH))
+		with patch.object(conn, "ensure_webhooks", return_value={"product.updated": "created"}):
+			result = api._register_webhooks(conn)
+		self.assertEqual(result["topics"], {"product.updated": "created"})

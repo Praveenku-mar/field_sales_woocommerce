@@ -332,6 +332,10 @@ class BaseConnector:
 		"""
 		return None
 
+	def is_ping(self, headers, raw_body: bytes) -> bool:
+		"""Whether the request is the store's unsigned test delivery for a new webhook (answered 200)."""
+		return False
+
 	def verify_webhook(self, headers, raw_body: bytes) -> bool:
 		"""
 		Check that a webhook request really comes from the configured store.
