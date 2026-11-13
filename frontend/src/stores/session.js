@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { createResource } from 'frappe-ui'
-import { isEmbedded } from '@/shopify/embedded'
+import { isTokenSession } from '@/wordpress/embed'
 import { APP_BASE } from '@/utils/base'
 
 // Roles that may open the app at all (checked again on the server). Field Sales
@@ -77,9 +77,10 @@ export const useSessionStore = defineStore('session', () => {
    */
   async function load() {
     if (ready.value) return !!user.value
-    // Inside the Shopify admin the session token signs requests in; there is no login page
-    // to go to (it can't set cookies in the admin's iframe), so failures show a message.
-    const embedded = isEmbedded()
+    // Inside a store admin's frame (Shopify, or wp-admin with the Agamsale plugin) a token signs
+    // requests in; there is no login page to go to (it can't set cookies in the admin's iframe),
+    // so failures show a message.
+    const embedded = isTokenSession()
     if (!embedded && !cookieUser()) {
       redirectToLogin()
       return false

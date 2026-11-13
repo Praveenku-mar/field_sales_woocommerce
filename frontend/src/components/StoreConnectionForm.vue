@@ -75,6 +75,14 @@
             <template #suffix><SecretToggle field="woo_consumer_secret" /></template>
           </TextInput>
           <TextInput v-model="d.woo_api_version" label="API Version" placeholder="wc/v3" />
+          <TextInput
+            v-model="d.wp_shared_secret"
+            :type="secretsShown.wp_shared_secret ? 'text' : 'password'"
+            label="WordPress Plugin Secret"
+            description="Optional. From wp-admin → Settings → Agamsale: signs WordPress users in to the app inside wp-admin (same email)"
+          >
+            <template #suffix><SecretToggle field="wp_shared_secret" /></template>
+          </TextInput>
         </div>
 
         <div class="mt-6 flex flex-wrap items-center gap-x-3 gap-y-2">

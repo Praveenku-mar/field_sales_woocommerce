@@ -17,6 +17,8 @@
   "col_break_woo",
   "woo_consumer_secret",
   "woo_api_version",
+  "wordpress_section",
+  "wp_shared_secret",
   "defaults_section",
   "default_location_id",
   "col_break_defaults",
@@ -111,6 +113,19 @@
    "fieldtype": "Data",
    "label": "API Version",
    "default": "wc/v3"
+  },
+  {
+   "fieldname": "wordpress_section",
+   "fieldtype": "Section Break",
+   "label": "WordPress Admin",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "wp_shared_secret",
+   "fieldtype": "Password",
+   "label": "Plugin Secret",
+   "length": 140,
+   "description": "Copy from wp-admin → Settings → Agamsale. Signs WordPress users in to the app inside wp-admin (at least 32 characters)."
   },
   {
    "fieldname": "defaults_section",
@@ -288,7 +303,7 @@
  "in_create": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-10-25 12:00:00.000000",
+ "modified": "2026-11-13 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Field Sales Woocommerce",
  "name": "Store Connection",

@@ -13,8 +13,8 @@ const isIos =
   /iphone|ipad|ipod/i.test(ua) || (/macintosh/i.test(ua) && navigator.maxTouchPoints > 1)
 const isIosSafari = isIos && /safari/i.test(ua) && !/crios|fxios|edgios|opios/i.test(ua)
 
-// Not inside the Shopify admin (embedded; see shopify/embedded.js): no install prompt there.
-if (typeof window !== 'undefined' && window.embedded !== true) {
+// Not inside a store admin's frame (shopify/embedded.js, wordpress/embed.js): no install prompt there.
+if (typeof window !== 'undefined' && window.embedded !== true && window.wp_embedded !== true) {
   window.addEventListener('beforeinstallprompt', (event) => {
     event.preventDefault()
     deferredPrompt.value = event

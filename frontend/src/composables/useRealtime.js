@@ -1,12 +1,12 @@
 import { onBeforeUnmount } from 'vue'
 import { io } from 'socket.io-client'
-import { isEmbedded } from '@/shopify/embedded'
+import { isTokenSession } from '@/wordpress/embed'
 
 // One socket.io connection to Frappe's realtime server, opened on first use and
 // shared by every page. Same host as the page; on a dev server (bench start / yarn dev)
 // the socket server listens on its own port (socketio_port), in production nginx
 // proxies /socket.io on the page's own origin. Signed in through the sid cookie.
-// Inside the Shopify admin there is no sid cookie for the socket to sign in with: no socket
+// Inside a store admin's frame (Shopify or wp-admin) there is no sid cookie for the socket to sign in with: no socket
 // there. Document events are polled instead (POLL_MS); doctype-wide events are skipped (their
 // payloads can't be rebuilt by polling; the server re-checks prices and stock on save/submit).
 const POLL_MS = 30000
@@ -34,7 +34,7 @@ function getSocket() {
  * while the calling component is mounted.
  */
 export function onDoctypeEvent(doctype, event, handler) {
-  if (isEmbedded()) return
+  if (isTokenSession()) return
   const s = getSocket()
   if (!subscribedDoctypes.has(doctype)) {
     subscribedDoctypes.add(doctype)
@@ -50,7 +50,7 @@ export function onDoctypeEvent(doctype, event, handler) {
  * The handler only gets messages whose `name` is `docname`.
  */
 export function onDocEvent(doctype, docname, event, handler) {
-  if (isEmbedded()) {
+  if (isTokenSession()) {
     // Polled: the handler gets `{ name, polled: true }` instead of the event's payload.
     const timer = setInterval(() => handler({ name: docname, polled: true }), POLL_MS)
     onBeforeUnmount(() => clearInterval(timer))

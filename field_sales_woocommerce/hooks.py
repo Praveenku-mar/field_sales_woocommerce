@@ -43,6 +43,11 @@ has_permission = {
 }
 after_request = ["field_sales_woocommerce.utils.guards.after_request"]
 
+# The app inside wp-admin (Agamsale WordPress plugin): the page boots without a login
+# redirect and API calls sign in with the plugin's token (wordpress_embed.py).
+field_sales_embedded_page = ["field_sales_woocommerce.wordpress_embed.page_context"]
+auth_hooks = ["field_sales_woocommerce.wordpress_embed.authenticate"]
+
 fixtures = [
 	{"dt": "Print Format", "filters": [["name", "in", ["Field Sales Order", "Field Sales Invoice"]]]},
 ]

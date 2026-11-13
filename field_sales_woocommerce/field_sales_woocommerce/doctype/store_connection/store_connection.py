@@ -12,6 +12,7 @@ class StoreConnection(Document):
 	def validate(self):
 		self._normalize_store_url()
 		self._validate_locations()
+		self._validate_wp_shared_secret()
 		self.flags.secret_entered = bool(self.woo_consumer_secret) and not self.is_dummy_password(
 			self.woo_consumer_secret
 		)
@@ -40,6 +41,20 @@ class StoreConnection(Document):
 			deduplicate=True,
 			notify_user=frappe.session.user,
 		)
+
+	def _validate_wp_shared_secret(self):
+		from field_sales_woocommerce.wordpress_embed import MIN_SECRET_LENGTH
+
+		secret = (self.wp_shared_secret or "").strip()
+		if not secret or self.is_dummy_password(secret):
+			return
+		self.wp_shared_secret = secret
+		if len(secret) < MIN_SECRET_LENGTH:
+			frappe.throw(
+				_("Plugin Secret must be at least {0} characters: copy it from wp-admin → Settings → Agamsale").format(
+					MIN_SECRET_LENGTH
+				)
+			)
 
 	def _validate_locations(self):
 		seen = set()

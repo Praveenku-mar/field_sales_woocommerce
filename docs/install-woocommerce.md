@@ -96,8 +96,28 @@ Secret already configured — no extra setup.
 1. Copy `wordpress-plugin/` to the store's `wp-content/plugins/` (or zip it and
    upload under Plugins → Add New).
 2. Activate **Agamsale**, then set your app URL on Settings → Agamsale.
-3. The app page allows framing from the connected store's origin automatically.
+3. Copy the **secret** shown on Settings → Agamsale and paste it in the app under
+   Settings → Store Connection → **WordPress Plugin Secret**, then Save.
+4. The app page allows framing from the connected store's origin automatically
+   (Store Connection → Store URL must be this WordPress site).
 
-If the browser asks you to sign in repeatedly inside the frame, use the page's
-*Open in a new tab* button — browsers can restrict sign-in inside cross-site
-frames. Over HTTPS with third-party cookies allowed the frame keeps you signed in.
+**Sign-in.** Inside wp-admin the app signs you in as the Agamsale user with the
+**same email** as your WordPress account; that user needs a Field Sales role
+(Sales Rep, Sales Manager or System Manager). The plugin hands the app a 5-minute
+token signed with the shared secret, so no cookies are needed and it works in
+every browser, including Safari and with third-party cookies blocked. A WordPress
+user with no matching Agamsale user sees "no Agamsale access". *Regenerate secret*
+on the plugin page invalidates the old one: paste the new one in the app.
+
+**Same site alternative.** Serving the app on a subdomain of the store (e.g.
+`sales.shop.com` for `shop.com`) makes the app's own sign-in cookie work in the
+frame too; the settings page says which case you are in. If you are already
+signed in to the app in that browser, that sign-in is used instead of the token.
+
+**Location, camera, clipboard.** The plugin's frame allows them, so check-in
+location and the barcode scanner work inside wp-admin (the browser still asks
+for permission). Both sites must be on HTTPS (plain `http://localhost` works for
+local testing).
+
+Not in the frame: live updates (pages poll every 30 s instead) and installing
+the app — use *Open in a new tab* for those.
