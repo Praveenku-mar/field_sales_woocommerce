@@ -97,7 +97,8 @@ def send_order_confirmation(field_order: str, resend: bool = False) -> str:
 def resend_order_confirmation(name: str) -> dict:
 
 	doc = frappe.get_doc("Field Order", name)
-	doc.check_permission("read")
+	# Sends an email to the retailer: for the order's rep and their managers, not read-only users.
+	doc.check_permission("write")
 	if doc.docstatus != 1 or not doc.external_order_id:
 		frappe.throw(_("The confirmation can only be sent once the store has confirmed the order"))
 

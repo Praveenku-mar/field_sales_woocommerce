@@ -1,6 +1,8 @@
 # Copyright (c) 2026, Your Company and contributors
 # For license information, please see license.txt
 
+import re
+
 import frappe
 from frappe import _
 from frappe.model.document import Document
@@ -9,8 +11,14 @@ from frappe.utils import flt
 from field_sales_woocommerce.connectors import ConnectorError
 from field_sales_woocommerce.field_sales_woocommerce.doctype.visit.visit import update_order_taken
 from field_sales_woocommerce.payments.razorpay import cancel_link_for_cancelled_order
+from field_sales_woocommerce.permissions import get_allowed_reps, is_admin
 from field_sales_woocommerce.sync.orders import enqueue_push_order
-from field_sales_woocommerce.sync.stock import fetch_live_stock, get_location_stock, get_sell_locations, live_stock_enabled
+from field_sales_woocommerce.sync.stock import (
+	fetch_live_stock,
+	get_location_stock,
+	get_sell_locations,
+	live_stock_enabled,
+)
 from field_sales_woocommerce.utils.guards import is_system_manager, keep_server_fields
 from field_sales_woocommerce.utils.limits import ORDERS_PER_MONTH, check_limit
 from field_sales_woocommerce.utils.money import site_currency
@@ -29,6 +37,10 @@ SYNC_FIELDS = (
 	"last_sync_attempt",
 	"sync_error",
 )
+# GST slabs the app offers; the order's tax is sent to the store as its tax line.
+TAX_SLABS = (0, 5, 12, 18, 28)
+# The app's own id for an order it created (UUID-based): letters, digits and . _ : -
+CLIENT_TEMP_ID = re.compile(r"[A-Za-z0-9._:-]{1,140}")
 # Payment state is written only by server code (db_set), even on submitted orders where
 # allow_on_submit would otherwise let any writer set it; no exception for System Managers.
 PAYMENT_FIELDS = (
@@ -52,6 +64,7 @@ class FieldOrder(Document):
 	def validate(self):
 		self._keep_sync_fields()
 		keep_server_fields(self, PAYMENT_FIELDS)
+		self._validate_client_temp_id()
 		self._validate_visit()
 		self._validate_location()
 		self._set_row_stock()
@@ -114,8 +127,36 @@ class FieldOrder(Document):
 		if self.is_new() or not is_system_manager():
 			keep_server_fields(self, SYNC_FIELDS)
 
+	def _validate_client_temp_id(self):
+		"""
+		The app's id for an order it created, set once on insert: a retry after a timeout
+		finds the order (``find_order_by_client_temp_id``) or is refused as a duplicate here,
+		instead of creating a second order.
+		"""
+		if not self.is_new():
+			before = self.get_doc_before_save()
+			if before:
+				self.client_temp_id = before.client_temp_id
+			return
+		self.client_temp_id = (self.client_temp_id or "").strip() or None
+		if not self.client_temp_id:
+			return
+		if not CLIENT_TEMP_ID.fullmatch(self.client_temp_id):
+			frappe.throw(_("Client Temp ID may hold only letters, digits and . _ : -"))
+		existing = frappe.db.get_value(
+			"Field Order", {"client_temp_id": self.client_temp_id, "docstatus": ("!=", 2)}, "name"
+		)
+		if existing:
+			frappe.throw(
+				_("This order was already created as {0}").format(existing), frappe.DuplicateEntryError
+			)
+
 	def _validate_visit(self):
-		"""The visit must be to the same retailer; the order defaults to the visit's rep."""
+		"""
+		The visit must be to the same retailer, and belong to the user's own rep or someone in
+		their team: an order cannot be booked on another team's visit. The order defaults to
+		the visit's rep.
+		"""
 		if not self.visit:
 			return
 		visit = frappe.db.get_value("Visit", self.visit, ["retailer", "sales_rep", "status"], as_dict=True)
@@ -131,6 +172,15 @@ class FieldOrder(Document):
 			frappe.throw(_("Visit {0} is cancelled; an order cannot be taken on it.").format(self.visit))
 		if not self.sales_rep:
 			self.sales_rep = visit.sales_rep
+		if is_admin() or not (self.has_value_changed("visit") or self.has_value_changed("sales_rep")):
+			return
+		if visit.sales_rep not in get_allowed_reps():
+			frappe.throw(
+				_("Visit {0} belongs to another sales rep. Pick one of your own visits or clear the Visit.").format(
+					self.visit
+				),
+				frappe.PermissionError,
+			)
 
 	def _validate_location(self):
 		"""
@@ -340,6 +390,10 @@ class FieldOrder(Document):
 		"""Bounds on what is sent to the store as the order's tax and discount."""
 		if not 0 <= flt(self.tax_percent) <= 100:
 			frappe.throw(_("Tax % must be between 0 and 100."))
+		if (self.docstatus == 0 or self.get("_action") == "submit") and flt(self.tax_percent) not in TAX_SLABS:
+			frappe.throw(
+				_("Tax % must be one of {0}.").format(", ".join(f"{slab}%" for slab in TAX_SLABS))
+			)
 		if flt(self.discount_amount) < 0:
 			frappe.throw(_("Discount cannot be negative."))
 		if flt(self.discount_amount) > flt(self.net_total) + flt(self.tax_amount):

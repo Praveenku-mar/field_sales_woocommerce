@@ -6,9 +6,14 @@ import hashlib
 import frappe
 from frappe import _
 from frappe.model.document import Document
+from frappe.utils import flt
+
+from field_sales_woocommerce.permissions import get_own_rep, is_admin
 
 MANAGER_ROLES = {"Sales Manager", "System Manager"}
 LOCKED_STATEMENT_STATUSES = ("Approved", "Paid")
+# What a commission line pays and to whom; changed by hand only as set out in _validate_manual_edit.
+MONEY_FIELDS = ("amount", "status", "sales_rep", "beneficiary_type", "entry_type", "reversed_amount")
 
 
 class CommissionEntry(Document):
@@ -20,6 +25,7 @@ class CommissionEntry(Document):
 
 	def validate(self):
 		self._validate_adjustment()
+		self._validate_manual_edit()
 		self._validate_statement_lock()
 		self._set_dedupe_key()
 
@@ -30,6 +36,43 @@ class CommissionEntry(Document):
 			frappe.throw(_("Adjustment Reason is required for an Adjustment."))
 		if not self.flags.from_engine and not self._is_manager():
 			frappe.throw(_("Only a Sales Manager or System Manager can create an Adjustment."), frappe.PermissionError)
+
+	def _validate_manual_edit(self):
+		"""
+		Separation of duties for hand edits (desk / REST), which the engine never makes:
+
+		- nobody but a System Manager adds or changes an entry of their own Sales Rep;
+		- a manager may change what an entry pays only on an Adjustment they added for
+		  someone else that is not on a statement yet. Order entries follow the store.
+		"""
+		if self.flags.from_engine or is_admin():
+			return
+		own = get_own_rep()
+		if self.is_new():
+			if own and self.sales_rep == own:
+				frappe.throw(_("You cannot add commission for yourself."), frappe.PermissionError)
+			return
+		before = self.get_doc_before_save()
+		if not before:
+			return
+		changed = [
+			f for f in MONEY_FIELDS
+			if (flt(before.get(f)) != flt(self.get(f)) if f in ("amount", "reversed_amount") else before.get(f) != self.get(f))
+		]
+		if not changed:
+			return
+		if own and own in (self.sales_rep, before.sales_rep):
+			frappe.throw(_("You cannot change your own commission."), frappe.PermissionError)
+		if not (
+			before.entry_type == "Adjustment"
+			and self.owner == frappe.session.user
+			and not before.commission_statement
+			and set(changed) <= {"amount", "status"}
+		):
+			frappe.throw(
+				_("Only a draft Adjustment you added can be changed. Add an Adjustment instead."),
+				frappe.PermissionError,
+			)
 
 	@staticmethod
 	def _is_manager() -> bool:

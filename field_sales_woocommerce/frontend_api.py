@@ -6,6 +6,7 @@ frappe.get_list, so the Sales Rep hierarchy rules apply as they do in the desk."
 
 import frappe
 from frappe import _
+from frappe.rate_limiter import rate_limit
 from frappe.utils import add_days, cint, flt, get_first_day, nowdate, strip_html
 
 from field_sales_woocommerce.commission import commission_enabled
@@ -14,6 +15,7 @@ from field_sales_woocommerce.payments.razorpay import PAYMENT_FIELDS, payment_li
 from field_sales_woocommerce.permissions import hierarchy_filters, is_retailer_user
 from field_sales_woocommerce.sync.orders import MAX_AUTO_ATTEMPTS
 from field_sales_woocommerce.utils.phone import whatsapp_digits
+from field_sales_woocommerce.utils.search import escape_like
 from field_sales_woocommerce.www.fieldsales import APP_ROLES, has_app_access
 
 SEARCH_LIMIT = 6
@@ -188,6 +190,7 @@ def get_notifications(limit: int = 50) -> list[dict]:
 
 
 @frappe.whitelist()
+@rate_limit(limit=120, seconds=60, user_based=True, ip_based=False)
 def search(txt: str) -> dict:
 	"""Command palette: retailers and orders matching ``txt``."""
 	_check_access()
@@ -195,7 +198,7 @@ def search(txt: str) -> dict:
 	if not txt:
 		return {"retailers": [], "orders": []}
 
-	like = f"%{txt}%"
+	like = f"%{escape_like(txt)}%"
 	retailers = frappe.get_list(
 		"Retailer",
 		or_filters={"name": ("like", like), "retailer_name": ("like", like), "city": ("like", like), "phone": ("like", like)},

@@ -10,7 +10,13 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.utils import flt, formatdate, get_datetime, get_fullname, getdate
 
-from field_sales_woocommerce.utils.geo import DEFAULT_GEOFENCE_RADIUS_M, has_coords, haversine_m
+from field_sales_woocommerce.utils.geo import (
+	DEFAULT_GEOFENCE_RADIUS_M,
+	has_coords,
+	haversine_m,
+	is_valid_coords,
+	parse_accuracy,
+)
 
 # Written only by field_sales_woocommerce.api.check_in / check_out, never taken from the client.
 CHECK_IN_FIELDS = ("check_in_time", "check_out_time", "latitude", "longitude", "location_accuracy_m")
@@ -26,6 +32,7 @@ class Visit(Document):
 	def validate(self):
 		self._validate_client_temp_id()
 		self._guard_check_in_fields()
+		self._validate_position()
 		self._validate_checkout_after_checkin()
 		self._validate_completed_requires_checkin()
 		self._compute_time_on_site()
@@ -145,6 +152,27 @@ class Visit(Document):
 		if fieldname in ("check_in_time", "check_out_time"):
 			return get_datetime(value) if value else None
 		return flt(value)
+
+	def _validate_position(self):
+		"""
+		The check-in point is a real, finite point on the globe and its accuracy is sane
+		(``parse_accuracy``). The API checks this already; this also covers System Manager
+		edits and data import. Only changed values are checked, so an old row still saves.
+		"""
+
+		def changed(*fields):
+			return self.is_new() or any(self.has_value_changed(f) for f in fields)
+
+		for lat_field, lon_field in (("latitude", "longitude"), ("retailer_latitude", "retailer_longitude")):
+			lat, lon = self.get(lat_field), self.get(lon_field)
+			if (
+				changed(lat_field, lon_field)
+				and has_coords(lat, lon)
+				and not is_valid_coords(flt(lat), flt(lon))
+			):
+				frappe.throw(_("Invalid location: {0}, {1}").format(lat, lon))
+		if self.location_accuracy_m not in (None, "") and changed("location_accuracy_m"):
+			self.location_accuracy_m = parse_accuracy(self.location_accuracy_m)
 
 	def _validate_checkout_after_checkin(self):
 		"""Check-out time, when present, must be strictly after check-in time."""

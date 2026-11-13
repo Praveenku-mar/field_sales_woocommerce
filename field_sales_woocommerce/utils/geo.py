@@ -6,10 +6,16 @@
 import json
 import math
 
+import frappe
+from frappe import _
 from frappe.utils import flt
 
 EARTH_RADIUS_M = 6_371_000  # mean Earth radius in metres
 DEFAULT_GEOFENCE_RADIUS_M = 50
+# A fix worse than this is not a position at all (cell-tower / IP guesses are kilometres off).
+MAX_ACCURACY_M = 5000
+# A check-in only becomes a shop's first saved location when the fix is at least this good.
+LOCATION_FILL_MAX_ACCURACY_M = 100
 
 
 def haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -36,7 +42,39 @@ def has_coords(latitude, longitude) -> bool:
 
 
 def is_valid_coords(latitude: float, longitude: float) -> bool:
-	return -90 <= latitude <= 90 and -180 <= longitude <= 180
+	"""Finite and on the globe (NaN / inf compare false, but say so explicitly)."""
+	return (
+		math.isfinite(latitude)
+		and math.isfinite(longitude)
+		and -90 <= latitude <= 90
+		and -180 <= longitude <= 180
+	)
+
+
+def parse_accuracy(value) -> float | None:
+	"""
+	A GPS fix's accuracy radius in metres, as the client reports it.
+
+	``None`` when not sent. Not a number, NaN / infinity, negative or more than
+	``MAX_ACCURACY_M`` is refused. The geofence never uses accuracy (only the distance
+	from the shop), so this only keeps stored values and messages sane.
+	"""
+	if value is None or (isinstance(value, str) and not value.strip()):
+		return None
+	try:
+		accuracy = float(value)
+	except (TypeError, ValueError):
+		frappe.throw(_("Invalid location accuracy: {0}").format(frappe.utils.escape_html(str(value)[:40])))
+	if not math.isfinite(accuracy) or accuracy < 0:
+		frappe.throw(_("Invalid location accuracy: {0}").format(accuracy))
+	if accuracy > MAX_ACCURACY_M:
+		frappe.throw(
+			_("Your location is too imprecise (±{0} m). Move to an open area and try again.").format(
+				round(accuracy)
+			),
+			title=_("Weak GPS Signal"),
+		)
+	return accuracy
 
 
 def point_geojson(latitude: float, longitude: float) -> str:
