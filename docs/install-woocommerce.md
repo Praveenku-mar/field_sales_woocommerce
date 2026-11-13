@@ -121,3 +121,29 @@ local testing).
 
 Not in the frame: live updates (pages poll every 30 s instead) and installing
 the app — use *Open in a new tab* for those.
+
+## 8. Background jobs
+
+With the scheduler enabled (section 1), the app runs:
+
+| When | Job |
+|---|---|
+| every 30 min | Product sync, at Store Connection's *Product Sync Frequency* |
+| every 15 min | Re-push orders that failed (up to 5 attempts) or got stuck in Pending |
+| hourly | Re-check Razorpay links whose webhook never arrived; retry marking paid orders paid on the store |
+| daily | Purge old Sync Logs; re-match the store's currency and time zone; anonymise inactive retailers (off unless *Anonymise Inactive Retailers After* is set) |
+| 20:00 | Daily team summary email to each manager (needs an outgoing Email Account) |
+| 1st of the month, 02:00 | Draft commission statements for last month |
+
+**Upgrading a site from before these jobs existed** (earlier releases did not schedule
+them): their first run works through everything that piled up. Before `bench migrate`, see
+what that will be:
+
+```bash
+bench --site sales.example.com execute field_sales_woocommerce.utils.scheduler_check.report
+```
+
+It lists the orders that will be re-pushed to the store, the Sync Logs that will be
+deleted, the retailers that will be anonymised and whether the summary email can be sent.
+Cancel any order that should not reach the store (or set its *Sync Attempts* to 5), then
+`bench migrate`. Run it again afterwards: *not registered* should say *none*.

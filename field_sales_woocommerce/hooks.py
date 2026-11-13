@@ -56,3 +56,41 @@ doc_events = {
 	# Push bell notifications made by push.notify.notify_users to the mobile app.
 	"Notification Log": {"after_insert": "field_sales_woocommerce.push.notify.on_notification_log_insert"},
 }
+
+# Background jobs. Each job checks its own switch (Store Connection enabled, sync frequency,
+# Razorpay / commission on, anonymise days > 0), so a site that has not set one up does nothing.
+scheduler_events = {
+	# Purge Success Sync Logs older than 30 days, Failed ones after failed_log_retention_days.
+	"daily": [
+		"field_sales_woocommerce.field_sales_woocommerce.doctype.sync_log.sync_log.clear_old_logs",
+		# Keep the site's currency and time zone the same as the store's.
+		"field_sales_woocommerce.sync.shop_settings.scheduled_sync",
+		# Store Connection retailer_inactive_anonymise_days (0 = off).
+		"field_sales_woocommerce.utils.anonymise.anonymise_inactive_retailers",
+	],
+	# Razorpay payment links whose webhook never arrived (Link Sent, last 7 days, 50 a run).
+	"hourly": [
+		"field_sales_woocommerce.payments.razorpay.reconcile_open_links",
+		# Confirmed store orders paid on Razorpay that the store does not show as paid yet.
+		"field_sales_woocommerce.sync.orders.retry_store_payments",
+	],
+	# Ticks every 30 minutes; scheduled_sync itself honours Store Connection's sync frequency.
+	# No link_completed_drafts: WooCommerce has no draft orders (Draft mode makes a `pending` order).
+	"cron": {
+		"*/30 * * * *": [
+			"field_sales_woocommerce.sync.products.scheduled_sync",
+		],
+		# Re-push Field Orders that failed (up to 5 attempts) or lost their job.
+		"*/15 * * * *": [
+			"field_sales_woocommerce.sync.orders.retry_failed_orders",
+		],
+		# Daily team summary to each manager, in the system timezone.
+		"0 20 * * *": [
+			"field_sales_woocommerce.daily_summary.send_daily_summary",
+		],
+		# Draft Commission Statements for last month, on the 1st.
+		"0 2 1 * *": [
+			"field_sales_woocommerce.commission.statements.generate_monthly_statements",
+		],
+	},
+}
