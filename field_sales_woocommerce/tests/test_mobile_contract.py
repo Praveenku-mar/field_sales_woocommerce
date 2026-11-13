@@ -94,12 +94,15 @@ CUSTOMER_CARD_KEYS = {
 	"sync_status",
 }
 ORDER_DETAIL_KEYS = {
+	"can_mark_paid",
 	"discount_amount",
 	"discount_percent",
 	"docstatus",
 	"grand_total",
 	"items",
 	"location_id",
+	"manual_payment_method",
+	"manual_payment_reference",
 	"modified",
 	"name",
 	"net_total",

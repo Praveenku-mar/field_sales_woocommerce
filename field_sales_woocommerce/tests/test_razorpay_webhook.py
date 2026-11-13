@@ -276,7 +276,7 @@ class TestRazorpayWebhook(IntegrationTestCase):
 				doc = frappe.get_doc("Field Order", self.order.name)
 				with self.assertRaises(frappe.ValidationError) as ctx:
 					doc.cancel()
-				self.assertIn("Refund", str(ctx.exception))
+				self.assertIn("refund the payment", str(ctx.exception))
 		self.assertEqual(frappe.db.get_value("Field Order", self.order.name, "docstatus"), 1)
 
 	def test_cancel_cancels_the_open_link(self):
