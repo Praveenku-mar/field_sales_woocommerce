@@ -59,24 +59,35 @@ store is the source of truth for money, so the site must use its currency.
 Each user needs one of these roles plus a **Sales Rep** record (Field Sales →
 Sales Reps → New). Reps see data through their own hierarchy.
 
-## 5. Optional: webhooks for live stock updates
+## 5. Webhooks for live updates (automatic)
 
 Stock is refreshed on every product sync and checked live at order submit, so
-webhooks are optional. For push updates, create them in WooCommerce → Settings →
-Advanced → **Webhooks** pointing at:
+webhooks only make updates arrive sooner. **Test Connection sets them up**: it
+registers one WooCommerce webhook per topic below, delivering to
 
 ```
 https://sales.example.com/api/method/field_sales_woocommerce.api.webhooks.receive
 ```
 
+and the result shows in its banner (and in Sync Log, operation *Register
+Webhooks*).
+
 | Woo topic | Effect |
 |---|---|
-| `product.updated` | stock and price refresh |
+| `product.updated`, `product.restored` | stock and price refresh |
 | `product.deleted` | product archived |
-| `order.updated` | payment / fulfilment state |
+| `order.updated`, `order.restored` | payment / fulfilment state |
+| `order.deleted` | treated as cancelled |
 
-WooCommerce signs each delivery; the app verifies signatures with the Consumer
-Secret already configured — no extra setup.
+Each webhook is signed with the Consumer Secret, which the app verifies. Running
+Test Connection again reuses the same webhooks: it turns them back on (WooCommerce
+disables a webhook after repeated failed deliveries) and resets their secret, so
+it also repairs webhooks added by hand earlier. Webhooks pointing elsewhere are
+left alone.
+
+The address must be reachable from the WooCommerce server: on a local setup where
+it is not, deliveries fail and WooCommerce disables the webhooks after a few
+tries; nothing else is affected.
 
 ## 6. Daily flow
 
