@@ -707,7 +707,7 @@ def _apply_link_state(doc, link_entity: dict, payment_entity: dict | None = None
 				_(doc.payment_status),
 			),
 		)
-		_notify_payment(doc)
+		notify_payment_received(doc)
 		if doc.payment_status == "Paid":
 			# Imported here: sync.orders imports sync.confirmation, which imports this module.
 			from field_sales_woocommerce.sync.orders import enqueue_mark_store_paid
@@ -736,7 +736,7 @@ def _stale_link(doc, link_entity: dict) -> bool:
 	)
 
 
-def _notify_payment(doc) -> None:
+def notify_payment_received(doc) -> None:
 	"""Bell notification and a realtime event for the order's rep and every Sales Manager."""
 	users = {doc.sales_rep, *users_with_roles(PAYMENT_NOTIFY_ROLES)} - {None, "", "Guest", "Administrator"}
 	users = [u for u in sorted(users) if frappe.db.get_value("User", u, "enabled")]

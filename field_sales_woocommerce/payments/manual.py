@@ -4,7 +4,7 @@ import frappe
 from frappe import _
 from frappe.utils import escape_html, flt, now_datetime
 
-from field_sales_woocommerce.payments.razorpay import cancel_payment_link, fetch_payment_link, get_settings
+from field_sales_woocommerce.payments.razorpay import cancel_payment_link, fetch_payment_link, get_settings, notify_payment_received
 from field_sales_woocommerce.sync.orders import enqueue_mark_store_paid
 from field_sales_woocommerce.utils.money import site_currency
 
@@ -60,6 +60,7 @@ def mark_order_paid(field_order: str, payment_method: str, payment_reference: st
 		)
 		+ (_(" Reference: {0}.").format(escape_html(reference)) if reference else ""),
 	)
+	notify_payment_received(doc)
 	enqueue_mark_store_paid(doc.name)
 	frappe.publish_realtime(
 		"field_order_payment_updated",
