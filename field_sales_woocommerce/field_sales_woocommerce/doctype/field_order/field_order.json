@@ -34,6 +34,7 @@
   "notes_section",
   "remarks",
   "client_temp_id",
+  "client_temp_key",
   "sync_tab",
   "platform_sync_section",
   "platform",
@@ -226,6 +227,15 @@
    "no_copy": 1,
    "search_index": 1,
    "description": "Set by the mobile app when it creates the order, so a retry after a timeout finds it instead of creating a duplicate."
+  },
+  {
+   "fieldname": "client_temp_key",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Client Temp Key",
+   "no_copy": 1,
+   "read_only": 1,
+   "unique": 1
   },
   {
    "fieldname": "sync_tab",
@@ -469,7 +479,7 @@
  "is_submittable": 1,
  "issingle": 0,
  "links": [],
- "modified": "2026-11-13 12:00:00.000000",
+ "modified": "2026-11-13 14:00:00.000000",
  "modified_by": "Administrator",
  "module": "Field Sales Woocommerce",
  "name": "Field Order",

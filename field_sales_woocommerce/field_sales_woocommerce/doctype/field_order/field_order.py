@@ -108,6 +108,7 @@ class FieldOrder(Document):
 
 	def on_cancel(self):
 		self.db_set("sync_status", "Draft")
+		self.db_set("client_temp_key", None, update_modified=False)
 		update_order_taken(self.visit)
 		if self.payment_status == "Link Sent":
 			cancel_link_for_cancelled_order(self)
@@ -200,12 +201,18 @@ class FieldOrder(Document):
 		instead of creating a second order.
 		"""
 		if not self.is_new():
+			# Keep the stored key, never recompute it: a duplicate made before the unique key
+			# existed holds none (patch client_temp_key) and must stay savable.
 			before = self.get_doc_before_save()
 			if before:
 				self.client_temp_id = before.client_temp_id
+				self.client_temp_key = before.client_temp_key
+			else:
+				self.client_temp_key = frappe.db.get_value("Field Order", self.name, "client_temp_key")
 			return
 		self.client_temp_id = (self.client_temp_id or "").strip() or None
 		if not self.client_temp_id:
+			self.client_temp_key = None
 			return
 		if not CLIENT_TEMP_ID.fullmatch(self.client_temp_id):
 			frappe.throw(_("Client Temp ID may hold only letters, digits and . _ : -"))
@@ -216,6 +223,7 @@ class FieldOrder(Document):
 			frappe.throw(
 				_("This order was already created as {0}").format(existing), frappe.DuplicateEntryError
 			)
+		self.client_temp_key = self.client_temp_id
 
 	def _validate_visit(self):
 		"""

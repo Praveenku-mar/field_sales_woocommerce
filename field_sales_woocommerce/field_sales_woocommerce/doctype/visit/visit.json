@@ -45,7 +45,8 @@
   "order_taken",
   "no_order_reason",
   "no_order_remarks",
-  "client_temp_id"
+  "client_temp_id",
+  "client_temp_key"
  ],
  "fields": [
   {
@@ -305,6 +306,15 @@
    "no_copy": 1,
    "search_index": 1,
    "description": "Set by the mobile app when it creates the visit, so a retry after a timeout finds it instead of creating a duplicate."
+  },
+  {
+   "fieldname": "client_temp_key",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Client Temp Key",
+   "no_copy": 1,
+   "read_only": 1,
+   "unique": 1
   }
  ],
  "in_create": 0,
@@ -316,7 +326,7 @@
    "group": "Orders"
   }
  ],
- "modified": "2026-11-11 16:00:00.000000",
+ "modified": "2026-11-12 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Field Sales Woocommerce",
  "name": "Visit",
