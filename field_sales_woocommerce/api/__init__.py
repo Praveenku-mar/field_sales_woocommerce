@@ -80,6 +80,7 @@ def test_connection() -> dict:
 		# is retried before the next order.
 		result["order_fields_ready"] = conn.ensure_order_metafields()
 		result.update(_sync_shop_settings(result))
+		result["webhooks"] = _register_webhooks(conn)
 	status = "Success" if result.get("ok") else f"Failed: {result.get('message')}"
 	values = {"last_test_status": status[:140], "last_tested_on": now_datetime()}
 	if result.get("ok") and result.get("shop_name"):
@@ -87,6 +88,44 @@ def test_connection() -> dict:
 		values["shop_name"] = result["shop_name"][:140]
 	frappe.db.set_single_value("Store Connection", values)
 	return result
+
+
+# Where the store delivers webhooks (api/webhooks.receive).
+WEBHOOK_PATH = "/api/method/field_sales_woocommerce.api.webhooks.receive"
+
+
+@frappe.whitelist(methods=["POST"])
+def register_webhooks() -> dict:
+	"""Subscribe this site to the store's product and order webhooks (also done by Test Connection)."""
+	frappe.only_for("System Manager")
+	return _register_webhooks(get_connector())
+
+
+def _register_webhooks(conn) -> dict:
+	"""
+	``conn.ensure_webhooks`` for this site's public webhook URL, logged in Sync Log (Register
+	Webhooks). A failure is returned, never raised: webhooks are optional, so they never fail
+	the connection test.
+
+	:return: ``{"ok", "delivery_url", "topics": {topic: "created" | "updated" | "reactivated"}}``,
+		or ``{"ok": False, "delivery_url", "message"}``
+	"""
+	from field_sales_woocommerce.field_sales_woocommerce.doctype.sync_log.sync_log import log_sync
+
+	url = public_url(WEBHOOK_PATH)
+	try:
+		topics = conn.ensure_webhooks(url)
+	except ConnectorError as e:
+		log_sync(
+			platform=conn.platform, operation="Register Webhooks", status="Failed", endpoint=url,
+			error_code=e.code, error_message=e.message,
+		)
+		return {"ok": False, "delivery_url": url, "message": e.message}
+	log_sync(
+		platform=conn.platform, operation="Register Webhooks", status="Success", endpoint=url,
+		response_payload=frappe.as_json(topics),
+	)
+	return {"ok": True, "delivery_url": url, "topics": topics}
 
 
 def _sync_shop_settings(result: dict) -> dict:

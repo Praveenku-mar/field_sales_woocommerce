@@ -18,8 +18,10 @@ the store until it is edited there), ``Confirmed`` as ``processing``.
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import hmac
+import re
 import time
 from typing import TYPE_CHECKING
 import frappe
@@ -46,6 +48,18 @@ PAGE_SIZE = 100
 #: The single stock pool, as a location the app can select.
 STOCK_LOCATION_ID = "woo"
 STOCK_LOCATION_NAME = "WooCommerce Stock"
+#: Webhook topics the app acts on (see _map_topic); ensure_webhooks subscribes the app to each.
+WEBHOOK_TOPICS = (
+	"product.updated",
+	"product.deleted",
+	"product.restored",
+	"order.updated",
+	"order.deleted",
+	"order.restored",
+)
+WEBHOOK_NAME = "Agamsale: {topic}"
+#: WooCommerce's unsigned test delivery when a webhook is created or saved.
+PING_BODY = re.compile(rb"webhook_id=\d+")
 
 
 class WooCommerceConnector(BaseConnector):
@@ -487,12 +501,77 @@ class WooCommerceConnector(BaseConnector):
 	# ------------------------------------------------------------------
 
 	def verify_webhook(self, headers, raw_body: bytes) -> bool:
-		signature = (headers.get("X-WC-Webhook-Signature") or "").encode()
-		if not signature:
+		"""
+		WooCommerce signs a delivery with base64(HMAC-SHA256(body)) keyed with the webhook's own
+		secret; ``ensure_webhooks`` sets that secret to the Consumer Secret on every webhook it
+		registers, so that is the key here.
+		"""
+		signature = (headers.get("X-WC-Webhook-Signature") or "").strip().encode()
+		if not signature or not self.consumer_secret:
 			return False
-		# WooCommerce sends the HMAC-SHA256 of the body as a hex digest.
-		expected = hmac.new(self.consumer_secret.encode(), raw_body, hashlib.sha256).hexdigest().encode()
-		return hmac.compare_digest(expected, signature)
+		digest = hmac.new(self.consumer_secret.encode(), raw_body, hashlib.sha256).digest()
+		return hmac.compare_digest(base64.b64encode(digest), signature)
+
+	def is_ping(self, headers, raw_body: bytes) -> bool:
+		"""The unsigned ``webhook_id=<n>`` POST WooCommerce sends when a webhook is created or saved."""
+		return not headers.get("X-WC-Webhook-Signature") and bool(PING_BODY.fullmatch((raw_body or b"").strip()))
+
+	def ensure_webhooks(self, delivery_url: str) -> dict:
+		"""
+		Subscribe ``delivery_url`` to every topic in ``WEBHOOK_TOPICS``, signed with the Consumer
+		Secret (what ``verify_webhook`` checks).
+
+		A webhook already pointing at ``delivery_url`` for a topic is reused: set active and given
+		the secret again (WooCommerce disables a webhook after repeated failed deliveries, and one
+		added by hand in WooCommerce has a secret of its own). Webhooks to other URLs are left alone.
+
+		:return: ``{topic: "created" | "updated" | "reactivated"}``
+		:raises ConnectorError: the store refused or could not be reached; topics done before
+			that stay done.
+		"""
+		target = _normalize_url(delivery_url)
+		existing = [w for w in self._list_webhooks() if _normalize_url(w.get("delivery_url")) == target]
+		results = {}
+		for topic in WEBHOOK_TOPICS:
+			hooks = [w for w in existing if w.get("topic") == topic]
+			for hook in hooks:
+				self._request(
+					"PUT",
+					f"/webhooks/{hook['id']}",
+					operation="Register Webhooks",
+					json_body={"status": "active", "secret": self.consumer_secret},
+				)
+			if hooks:
+				results[topic] = "updated" if all(h.get("status") == "active" for h in hooks) else "reactivated"
+				continue
+			self._request(
+				"POST",
+				"/webhooks",
+				operation="Register Webhooks",
+				json_body={
+					"name": WEBHOOK_NAME.format(topic=topic),
+					"topic": topic,
+					"delivery_url": delivery_url,
+					"secret": self.consumer_secret,
+					"status": "active",
+				},
+			)
+			results[topic] = "created"
+		return results
+
+	def _list_webhooks(self) -> list[dict]:
+		hooks, page = [], 1
+		while True:
+			batch = self._request(
+				"GET", "/webhooks", operation="Register Webhooks", params={"per_page": PAGE_SIZE, "page": page}
+			)
+			if not isinstance(batch, list):
+				break
+			hooks.extend(batch)
+			if len(batch) < PAGE_SIZE:
+				break
+			page += 1
+		return hooks
 
 	def parse_webhook(self, headers, raw_body: bytes) -> dict:
 		import json as _json
@@ -502,7 +581,8 @@ class WooCommerceConnector(BaseConnector):
 		return {
 			"topic": _map_topic(topic, payload),
 			"platform_topic": topic,
-			"event_id": headers.get("X-WC-Webhook-ID") or headers.get("X-WC-Delivery-ID"),
+			# Per delivery; X-WC-Webhook-ID is the webhook's own id, the same on every delivery.
+			"event_id": headers.get("X-WC-Webhook-Delivery-ID") or None,
 			"updated_at": payload.get("date_modified") or payload.get("date_created"),
 			"payload": payload,
 		}
@@ -806,6 +886,10 @@ def _error_code(response) -> str:
 def _email_taken_code(error: ConnectorError) -> bool:
 	"""WooCommerce rejects a duplicate email with HTTP 400 and an email error."""
 	return error.http_status == 400 and "email" in error.message.lower()
+
+
+def _normalize_url(url: str | None) -> str:
+	return (url or "").strip().rstrip("/").lower()
 
 
 def _safe_payload(payload) -> str | None:

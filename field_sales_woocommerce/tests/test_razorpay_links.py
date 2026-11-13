@@ -441,8 +441,14 @@ class TestRazorpayLinks(IntegrationTestCase):
 	def test_manual_cash_payment_records_full_amount(self):
 		from field_sales_woocommerce.payments.manual import mark_order_paid
 
-		with patch("field_sales_woocommerce.payments.manual.enqueue_mark_store_paid"):
+		with patch("field_sales_woocommerce.payments.manual.enqueue_mark_store_paid"), patch(
+			"field_sales_woocommerce.payments.razorpay.notify_users"
+		) as notify:
 			result = mark_order_paid(self.order.name, "Cash")
+		self.assertIn(self.rep_user, notify.call_args.args[0])
+		self.assertEqual(
+			notify.call_args.args[1:4], ("payment_received", "Field Order", self.order.name)
+		)
 		values = frappe.db.get_value(
 			"Field Order", self.order.name,
 			["payment_status", "amount_paid", "manual_payment_method", "manual_payment_reference", "paid_on"],
