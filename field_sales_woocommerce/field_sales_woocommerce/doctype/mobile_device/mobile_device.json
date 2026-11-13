@@ -12,6 +12,7 @@
   "column_break_1",
   "enabled",
   "last_seen",
+  "handover_to",
   "token_section",
   "fcm_token"
  ],
@@ -60,6 +61,14 @@
    "in_list_view": 1
   },
   {
+   "fieldname": "handover_to",
+   "fieldtype": "Link",
+   "label": "Handover Requested By",
+   "options": "User",
+   "read_only": 1,
+   "description": "Another user registered this phone while its owner was still active: pushes are off until the owner registers again (it is theirs) or stays away for a day (it moves)."
+  },
+  {
    "fieldname": "token_section",
    "fieldtype": "Section Break",
    "label": "Firebase"
@@ -74,7 +83,7 @@
   }
  ],
  "links": [],
- "modified": "2026-11-11 12:00:00.000000",
+ "modified": "2026-11-12 13:00:00.000000",
  "modified_by": "Administrator",
  "module": "Field Sales Woocommerce",
  "name": "Mobile Device",

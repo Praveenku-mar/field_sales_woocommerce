@@ -21,6 +21,7 @@ from frappe.utils import add_days, cint, flt, get_first_day, getdate, nowdate
 from field_sales_woocommerce.commission import commission_enabled, require_commission_enabled
 from field_sales_woocommerce.commission.engine import penalty_multiplier, slab_rate
 from field_sales_woocommerce.push.events import notify_statement
+from field_sales_woocommerce.permissions import get_own_rep, is_admin
 
 MANAGER_ROLES = {"Sales Manager", "System Manager"}
 
@@ -73,6 +74,8 @@ def regenerate_statement(name: str) -> dict:
 	require_commission_enabled()
 	_require_manager()
 	doc = frappe.get_doc("Commission Statement", name, for_update=True)
+	doc.check_permission("write")
+	check_not_own_commission(doc.sales_rep)
 	if doc.docstatus != 0 or doc.status != "Draft":
 		frappe.throw(_("Only a Draft Commission Statement can be regenerated."))
 
@@ -97,6 +100,9 @@ def mark_paid(name: str, paid_on: str | None = None, payment_reference: str | No
 	"""
 	_require_manager()
 	doc = frappe.get_doc("Commission Statement", name, for_update=True)
+	# db_set skips the save's permission check: the rep must be in the caller's hierarchy.
+	doc.check_permission("write")
+	check_not_own_commission(doc.sales_rep)
 	if doc.docstatus != 1 or doc.status != "Approved":
 		frappe.throw(_("Only an Approved Commission Statement can be marked as paid."))
 
@@ -115,6 +121,21 @@ def _require_manager():
 	user = frappe.session.user
 	if user != "Administrator" and not MANAGER_ROLES & set(frappe.get_roles(user)):
 		frappe.throw(_("Only a Sales Manager or System Manager can do this."), frappe.PermissionError)
+
+
+def check_not_own_commission(sales_rep: str | None) -> None:
+	"""
+	Separation of duties: a manager never approves, pays, rebuilds or adjusts their own
+	commission, nor picks their own plan; someone above them (or a System Manager) does.
+	"""
+	if is_admin():
+		return
+	own = get_own_rep()
+	if own and sales_rep == own:
+		frappe.throw(
+			_("You cannot do this for your own commission. Ask your manager or a System Manager."),
+			frappe.PermissionError,
+		)
 
 
 def _statement_exists(sales_rep: str, period_start) -> bool:
@@ -165,6 +186,8 @@ def _open_entries(sales_rep: str, period_end) -> list:
 
 def _fill(doc) -> None:
 	"""Set the statement's rows and totals from the rep's open entries (applying slabs first)."""
+	# The controller keeps these fields from the client; this save is the build itself.
+	doc.flags.from_build = True
 	entries = _open_entries(doc.sales_rep, doc.period_end)
 	rep_orders = [e for e in entries if e.entry_type == "Order" and e.beneficiary_type == "Rep"]
 	slab_rate_applied = _apply_slabs(rep_orders, doc.sales_rep)

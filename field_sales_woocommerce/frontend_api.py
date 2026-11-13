@@ -6,6 +6,7 @@ frappe.get_list, so the Sales Rep hierarchy rules apply as they do in the desk."
 
 import frappe
 from frappe import _
+from frappe.rate_limiter import rate_limit
 from frappe.utils import add_days, cint, flt, get_first_day, nowdate, strip_html
 
 from field_sales_woocommerce.commission import commission_enabled
@@ -14,6 +15,7 @@ from field_sales_woocommerce.payments.razorpay import PAYMENT_FIELDS, payment_li
 from field_sales_woocommerce.permissions import hierarchy_filters, is_retailer_user
 from field_sales_woocommerce.sync.orders import MAX_AUTO_ATTEMPTS
 from field_sales_woocommerce.utils.phone import whatsapp_digits
+from field_sales_woocommerce.utils.search import escape_like
 from field_sales_woocommerce.www.fieldsales import APP_ROLES, has_app_access
 
 SEARCH_LIMIT = 6
@@ -188,6 +190,7 @@ def get_notifications(limit: int = 50) -> list[dict]:
 
 
 @frappe.whitelist()
+@rate_limit(limit=120, seconds=60, user_based=True, ip_based=False)
 def search(txt: str) -> dict:
 	"""Command palette: retailers and orders matching ``txt``."""
 	_check_access()
@@ -195,7 +198,7 @@ def search(txt: str) -> dict:
 	if not txt:
 		return {"retailers": [], "orders": []}
 
-	like = f"%{txt}%"
+	like = f"%{escape_like(txt)}%"
 	retailers = frappe.get_list(
 		"Retailer",
 		or_filters={"name": ("like", like), "retailer_name": ("like", like), "city": ("like", like), "phone": ("like", like)},
@@ -516,13 +519,19 @@ def get_order_payment_info(field_order: str) -> dict:
 		"razorpay_enabled": bool(cint(frappe.db.get_single_value("Razorpay Settings", "enabled"))),
 		"payment_links_available": payment_links_disabled_reason() is None,
 		"can_create_link": bool(doc.has_permission("write")),
+		"can_mark_paid": bool(
+			doc.has_permission("write")
+			and doc.docstatus == 1
+			and flt(doc.grand_total) > 0
+			and doc.payment_status not in ("Paid", "Partially Paid")
+		),
 		"whatsapp_number": whatsapp,
 	}
 
 
 def _check_access():
 	if frappe.session.user == "Guest" or not has_app_access():
-		frappe.throw(_("You do not have access to Field Sales"), frappe.PermissionError)
+		frappe.throw(_("You do not have access to Agamsale"), frappe.PermissionError)
 
 
 def _preset_args(key: str) -> dict:

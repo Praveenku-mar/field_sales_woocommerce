@@ -1,16 +1,25 @@
 # Copyright (c) 2026, Your Company and contributors
 # For license information, please see license.txt
 
+import re
+
 import frappe
 from frappe import _
 from frappe.model.document import Document
 from frappe.utils import flt
 
-from field_sales_woocommerce.connectors import ConnectorError
+from field_sales_woocommerce.commission.engine import enqueue_create_entries
+from field_sales_woocommerce.connectors import ConnectorError, get_connector
 from field_sales_woocommerce.field_sales_woocommerce.doctype.visit.visit import update_order_taken
 from field_sales_woocommerce.payments.razorpay import cancel_link_for_cancelled_order
+from field_sales_woocommerce.permissions import get_allowed_reps, is_admin
 from field_sales_woocommerce.sync.orders import enqueue_push_order
-from field_sales_woocommerce.sync.stock import fetch_live_stock, get_location_stock, get_sell_locations, live_stock_enabled
+from field_sales_woocommerce.sync.stock import (
+	fetch_live_stock,
+	get_location_stock,
+	get_sell_locations,
+	live_stock_enabled,
+)
 from field_sales_woocommerce.utils.guards import is_system_manager, keep_server_fields
 from field_sales_woocommerce.utils.limits import ORDERS_PER_MONTH, check_limit
 from field_sales_woocommerce.utils.money import site_currency
@@ -29,6 +38,10 @@ SYNC_FIELDS = (
 	"last_sync_attempt",
 	"sync_error",
 )
+# GST slabs the app offers; the order's tax is sent to the store as its tax line.
+TAX_SLABS = (0, 5, 12, 18, 28)
+# The app's own id for an order it created (UUID-based): letters, digits and . _ : -
+CLIENT_TEMP_ID = re.compile(r"[A-Za-z0-9._:-]{1,140}")
 # Payment state is written only by server code (db_set), even on submitted orders where
 # allow_on_submit would otherwise let any writer set it; no exception for System Managers.
 PAYMENT_FIELDS = (
@@ -40,6 +53,8 @@ PAYMENT_FIELDS = (
 	"payment_link_created_on",
 	"payment_link_expires_on",
 	"paid_on",
+	"manual_payment_method",
+	"manual_payment_reference",
 	"store_marked_paid_on",
 )
 
@@ -52,6 +67,7 @@ class FieldOrder(Document):
 	def validate(self):
 		self._keep_sync_fields()
 		keep_server_fields(self, PAYMENT_FIELDS)
+		self._validate_client_temp_id()
 		self._validate_visit()
 		self._validate_location()
 		self._set_row_stock()
@@ -86,16 +102,82 @@ class FieldOrder(Document):
 		if self.payment_status in ("Paid", "Partially Paid"):
 			frappe.throw(
 				_(
-					"This order has a Razorpay payment of {0}. Refund it in the Razorpay Dashboard first, then cancel the order."
+					"This order has a payment of {0}. Reconcile or refund the payment before cancelling the order."
 				).format(frappe.utils.fmt_money(self.amount_paid, currency=site_currency())),
 				title=_("Order is paid"),
 			)
+		self._settle_store_order_before_cancel()
 
 	def on_cancel(self):
 		self.db_set("sync_status", "Draft")
+		self.db_set("client_temp_key", None, update_modified=False)
 		update_order_taken(self.visit)
 		if self.payment_status == "Link Sent":
 			cancel_link_for_cancelled_order(self)
+		if self.external_order_id:
+			# The store order is cancelled (checked in before_cancel): reconcile its commission
+			# entries, which become Cancelled (or get negative Adjustments on approved statements).
+			enqueue_create_entries(self.name)
+
+	def _settle_store_order_before_cancel(self):
+		"""
+		A Field Order that reached the store is cancelled here only once the store order is
+		cancelled on WooCommerce (that cancel is what reverses its commission); the app never
+		cancels it there itself. Refused while a push is running, and when the store cannot be
+		checked.
+
+		Sync state is re-read under a row lock: push_order writes it with db_set (modified is
+		unchanged), so this document may predate a push that started after it was loaded.
+		"""
+		stored = frappe.db.get_value(
+			"Field Order",
+			self.name,
+			["sync_status", "external_order_id", "external_draft_id", "store_order_name", "store_draft_name"],
+			as_dict=True,
+			for_update=True,
+		)
+		if stored.sync_status == "Pending":
+			frappe.throw(
+				_("Order {0} is being sent to the store. Cancel it once that has finished.").format(self.name),
+				title=_("Sync in progress"),
+			)
+		if not (stored.external_order_id or stored.external_draft_id):
+			return
+
+		store_ref = stored.store_order_name or stored.store_draft_name or stored.external_order_id or stored.external_draft_id
+		try:
+			conn = get_connector()
+		except frappe.ValidationError:
+			frappe.throw(
+				_(
+					"Order {0} is on the store as {1}, but the Store Connection is off, so it cannot be checked "
+					"there. Turn the Store Connection on, then cancel."
+				).format(self.name, store_ref),
+				title=_("Store not connected"),
+			)
+
+		try:
+			order_id = stored.external_order_id or conn.delete_draft(stored.external_draft_id, self)
+			if not order_id:
+				return  # the open draft was deleted (or was already gone)
+			order = conn.get_order(order_id)
+		except ConnectorError as e:
+			frappe.throw(
+				_("Could not check order {0} on the store, so it was not cancelled: {1}").format(store_ref, e.message),
+				title=_("Store unavailable"),
+			)
+
+		if order and not order.get("cancelled"):
+			frappe.throw(
+				_(
+					"Order {0} is still open on the store ({1}). Cancel it there first, then cancel it here: "
+					"cancelling only here would leave the store order (and its commission) in place."
+				).format(self.name, store_ref),
+				title=_("Cancel it on the store first"),
+			)
+		if not stored.external_order_id:
+			# A draft completed on the store that link_completed_drafts() has not linked yet.
+			self.db_set("external_order_id", order_id, update_modified=False)
 
 	def on_trash(self):
 		update_order_taken(self.visit, exclude=self.name)
@@ -114,8 +196,43 @@ class FieldOrder(Document):
 		if self.is_new() or not is_system_manager():
 			keep_server_fields(self, SYNC_FIELDS)
 
+	def _validate_client_temp_id(self):
+		"""
+		The app's id for an order it created, set once on insert: a retry after a timeout
+		finds the order (``find_order_by_client_temp_id``) or is refused as a duplicate here,
+		instead of creating a second order.
+		"""
+		if not self.is_new():
+			# Keep the stored key, never recompute it: a duplicate made before the unique key
+			# existed holds none (patch client_temp_key) and must stay savable.
+			before = self.get_doc_before_save()
+			if before:
+				self.client_temp_id = before.client_temp_id
+				self.client_temp_key = before.client_temp_key
+			else:
+				self.client_temp_key = frappe.db.get_value("Field Order", self.name, "client_temp_key")
+			return
+		self.client_temp_id = (self.client_temp_id or "").strip() or None
+		if not self.client_temp_id:
+			self.client_temp_key = None
+			return
+		if not CLIENT_TEMP_ID.fullmatch(self.client_temp_id):
+			frappe.throw(_("Client Temp ID may hold only letters, digits and . _ : -"))
+		existing = frappe.db.get_value(
+			"Field Order", {"client_temp_id": self.client_temp_id, "docstatus": ("!=", 2)}, "name"
+		)
+		if existing:
+			frappe.throw(
+				_("This order was already created as {0}").format(existing), frappe.DuplicateEntryError
+			)
+		self.client_temp_key = self.client_temp_id
+
 	def _validate_visit(self):
-		"""The visit must be to the same retailer; the order defaults to the visit's rep."""
+		"""
+		The visit must be to the same retailer, and belong to the user's own rep or someone in
+		their team: an order cannot be booked on another team's visit. The order defaults to
+		the visit's rep.
+		"""
 		if not self.visit:
 			return
 		visit = frappe.db.get_value("Visit", self.visit, ["retailer", "sales_rep", "status"], as_dict=True)
@@ -131,6 +248,15 @@ class FieldOrder(Document):
 			frappe.throw(_("Visit {0} is cancelled; an order cannot be taken on it.").format(self.visit))
 		if not self.sales_rep:
 			self.sales_rep = visit.sales_rep
+		if is_admin() or not (self.has_value_changed("visit") or self.has_value_changed("sales_rep")):
+			return
+		if visit.sales_rep not in get_allowed_reps():
+			frappe.throw(
+				_("Visit {0} belongs to another sales rep. Pick one of your own visits or clear the Visit.").format(
+					self.visit
+				),
+				frappe.PermissionError,
+			)
 
 	def _validate_location(self):
 		"""
@@ -340,6 +466,10 @@ class FieldOrder(Document):
 		"""Bounds on what is sent to the store as the order's tax and discount."""
 		if not 0 <= flt(self.tax_percent) <= 100:
 			frappe.throw(_("Tax % must be between 0 and 100."))
+		if (self.docstatus == 0 or self.get("_action") == "submit") and flt(self.tax_percent) not in TAX_SLABS:
+			frappe.throw(
+				_("Tax % must be one of {0}.").format(", ".join(f"{slab}%" for slab in TAX_SLABS))
+			)
 		if flt(self.discount_amount) < 0:
 			frappe.throw(_("Discount cannot be negative."))
 		if flt(self.discount_amount) > flt(self.net_total) + flt(self.tax_amount):

@@ -68,6 +68,13 @@ def notify_low_stock(products: list[tuple[str, float]], digest: bool = False) ->
 	"""
 	from field_sales_woocommerce.sync.notify import users_with_roles
 
+	if not products:
+		return
+	# Recipients first: with nobody to tell, the products must not be marked as reported,
+	# or a manager added later would miss them for a day.
+	users = [u for u in users_with_roles(LOW_STOCK_ROLES) if u != "Administrator"]
+	if not users:
+		return
 	fresh = []
 	for name, qty in products:
 		key = f"field_sales:low_stock_notified:{name}"
@@ -76,9 +83,6 @@ def notify_low_stock(products: list[tuple[str, float]], digest: bool = False) ->
 		frappe.cache.set_value(key, 1, expires_in_sec=24 * 60 * 60)
 		fresh.append((name, qty))
 	if not fresh:
-		return
-	users = [u for u in users_with_roles(LOW_STOCK_ROLES) if u != "Administrator"]
-	if not users:
 		return
 
 	if digest and len(fresh) >= LOW_STOCK_DIGEST_MIN:

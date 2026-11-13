@@ -2,6 +2,7 @@
 # For license information, please see license.txt
 
 import json
+from functools import partial
 
 import frappe
 from frappe import _
@@ -20,33 +21,40 @@ class MobilePushSettings(Document):
 			self.set_onload("bench_key_project", bench["project_id"])
 
 	def validate(self):
-		if self.service_account_file:
-			self._take_key_from_file()
+		upload = self._take_upload()
+		if upload:
+			# The private key must not stay on disk in plain text, whatever happens to this save:
+			# on success it is deleted below; if the save is rolled back (a bad file included),
+			# the upload is removed afterwards in its own transaction. Deleting it inside a
+			# transaction that rolls back would restore the File row without its file.
+			frappe.db.after_rollback.add(partial(_discard_upload, upload.name))
+			self._read_key_file(upload)
 		raw = self.service_account_json or ""
 		if raw and set(raw) != {"*"}:  # a new key, not the saved mask
 			self._use_key(raw)
 		if self.enabled and not (self.service_account_json and self.firebase_project_id):
 			frappe.throw(_("Upload the Firebase service account key file before enabling push notifications."))
+		if upload:
+			upload.delete(ignore_permissions=True)
 
 	def on_update(self):
 		frappe.cache.delete_keys("field_sales:fcm_access_token:")
 
-	def _take_key_from_file(self):
-		"""
-		Read the uploaded key file into the encrypted field, then delete the upload, so the
-		private key is not left on disk in plain text.
-		"""
-		file_doc = frappe.get_doc("File", {"file_url": self.service_account_file})
-		try:
-			if (file_doc.file_size or 0) > MAX_KEY_FILE_SIZE:
-				frappe.throw(_("That file is too large to be a service account key."))
-			content = file_doc.get_content()
-			if isinstance(content, bytes):
-				content = content.decode("utf-8", errors="replace")
-			self.service_account_json = content.strip()
-		finally:
-			file_doc.delete(ignore_permissions=True)
-			self.service_account_file = None
+	def _take_upload(self):
+		"""The uploaded key file's File doc (or ``None``); the field itself never keeps the URL."""
+		file_url, self.service_account_file = self.service_account_file, None
+		if not file_url:
+			return None
+		return frappe.get_doc("File", {"file_url": file_url})
+
+	def _read_key_file(self, file_doc):
+		"""Read the uploaded key file into the encrypted field."""
+		if (file_doc.file_size or 0) > MAX_KEY_FILE_SIZE:
+			frappe.throw(_("That file is too large to be a service account key."))
+		content = file_doc.get_content()
+		if isinstance(content, bytes):
+			content = content.decode("utf-8", errors="replace")
+		self.service_account_json = content.strip()
 
 	def _use_key(self, raw: str):
 		try:
@@ -70,6 +78,28 @@ class MobilePushSettings(Document):
 				),
 				alert=True,
 			)
+
+
+def _discard_upload(file_name: str) -> None:
+	"""After a rolled-back save: remove the uploaded key file (row and file on disk) for good."""
+	if frappe.db.exists("File", file_name):
+		frappe.delete_doc("File", file_name, ignore_permissions=True, force=True)
+		frappe.db.commit()
+
+
+@frappe.whitelist(methods=["GET"])
+def get_push_status() -> dict:
+	"""Safe settings summary for the SPA; never return the service-account key."""
+	frappe.only_for("System Manager")
+	from field_sales_woocommerce.push.fcm import get_config
+
+	config = get_config()
+	return {
+		"configured": bool(config),
+		"source": config["source"] if config else None,
+		"project_id": config["project_id"] if config else None,
+		"registered_phones": frappe.db.count("Mobile Device", {"enabled": 1}),
+	}
 
 
 @frappe.whitelist(methods=["GET"])
@@ -103,7 +133,7 @@ def send_test_notification(user: str | None = None) -> dict:
 		)
 	if not frappe.db.exists("Mobile Device", {"user": user, "enabled": 1}):
 		frappe.throw(
-			_("{0} has no phone registered. Sign in to the Field Sales mobile app as {0} and allow notifications first.").format(
+			_("{0} has no phone registered. Sign in to the Agamsale mobile app as {0} and allow notifications first.").format(
 				user
 			)
 		)

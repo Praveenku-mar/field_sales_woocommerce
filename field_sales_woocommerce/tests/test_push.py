@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 import frappe
 from frappe.tests import IntegrationTestCase
-from frappe.utils import add_days, nowdate
+from frappe.utils import add_days, now_datetime, nowdate
 
 APP = __name__.split(".", 1)[0]
 devices = importlib.import_module(f"{APP}.push.devices")
@@ -107,11 +107,58 @@ class TestPush(IntegrationTestCase):
 		self.assertEqual(frappe.db.count("Mobile Device", {"fcm_token": token}), 1)
 
 		devices.set_enabled(self.rep_user, token, False)
+		# The old owner has been away longer than the handover window: the phone moves.
+		self.age_device(token)
 		result = self.register(self.manager_user, token)
 		row = frappe.db.get_value("Mobile Device", {"fcm_token": token}, ["user", "enabled"], as_dict=True)
 		self.assertEqual(row.user, self.manager_user)
 		self.assertTrue(row.enabled)
 		self.assertTrue(result["enabled"])
+
+	def age_device(self, token, days=2):
+		frappe.db.set_value(
+			"Mobile Device", {"fcm_token": token}, "last_seen", add_days(now_datetime(), -days), update_modified=False
+		)
+		frappe.db.set_value("User", self.rep_user, "last_active", None, update_modified=False)
+
+	def device(self, token):
+		return frappe.db.get_value(
+			"Mobile Device", {"fcm_token": token}, ["user", "enabled", "handover_to"], as_dict=True
+		)
+
+	def test_active_owners_token_is_not_taken_over(self):
+		token = "fcm-token-active-owner-000000001"
+		self.register(self.rep_user, token)
+		result = self.register(self.manager_user, token)
+		self.assertEqual(result, {"enabled": False, "handover_pending": True})
+		row = self.device(token)
+		# Still the owner's, but pushes stop until it is settled.
+		self.assertEqual((row.user, row.enabled, row.handover_to), (self.rep_user, 0, self.manager_user))
+		self.assertEqual(fcm.send_to_user(self.manager_user, "t", "b", {})["sent"], 0)
+		self.assertEqual(fcm.send_to_user(self.rep_user, "t", "b", {})["sent"], 0)
+
+	def test_owner_registering_again_takes_the_phone_back(self):
+		token = "fcm-token-owner-reclaims-0000001"
+		self.register(self.rep_user, token)
+		self.register(self.manager_user, token)
+		self.assertTrue(self.register(self.rep_user, token)["enabled"])
+		row = self.device(token)
+		self.assertEqual((row.user, row.enabled, row.handover_to), (self.rep_user, 1, None))
+
+	def test_owner_switched_off_phone_stays_off_after_an_attempt(self):
+		token = "fcm-token-owner-switched-off-001"
+		self.register(self.rep_user, token)
+		devices.set_enabled(self.rep_user, token, False)
+		self.register(self.manager_user, token)
+		self.assertIsNone(self.device(token).handover_to)
+		self.assertFalse(self.register(self.rep_user, token)["enabled"])
+
+	def test_disabled_owners_phone_moves_at_once(self):
+		token = "fcm-token-disabled-owner-0000001"
+		self.register(self.rep_user, token)
+		frappe.db.set_value("User", self.rep_user, "enabled", 0)
+		self.assertTrue(self.register(self.manager_user, token)["enabled"])
+		self.assertEqual(self.device(token).user, self.manager_user)
 
 	def test_only_the_newest_ten_devices_are_kept(self):
 		for i in range(12):
@@ -148,6 +195,42 @@ class TestPush(IntegrationTestCase):
 		self.assertFalse(settings.service_account_file)
 		self.assertEqual(json.loads(settings.get_password("service_account_json")), key)
 		self.assertFalse(frappe.db.exists("File", {"file_url": url}))
+
+	def test_refused_key_file_is_removed_after_the_rollback(self):
+		settings = frappe.get_doc("Mobile Push Settings")
+		url = self.upload(json.dumps({"project_info": {}}), "google-services.json")
+		file_name = frappe.db.get_value("File", {"file_url": url})
+		file_path = frappe.get_doc("File", file_name).get_full_path()
+		settings.service_account_file = url
+		with self.assertRaises(frappe.ValidationError):
+			settings.save(ignore_permissions=True)
+		with patch.object(frappe.db, "commit"):
+			frappe.db.rollback()  # the request's rollback runs the cleanup
+		self.assertFalse(frappe.db.exists("File", file_name))
+		self.assertFalse(os.path.exists(file_path))
+
+	def test_expired_access_token_is_refreshed_once(self):
+		token = "fcm-token-expired-access-000001"
+		self.register(self.rep_user, token)
+		self.responses = [(401, {"error": {"status": "UNAUTHENTICATED"}}, {})]
+		result = fcm.send_to_user(self.rep_user, "t", "b", {})
+		self.assertEqual(result["sent"], 1)
+		self.assertEqual(fcm._access_token.call_count, 2)
+		self.assertEqual(len(self.sent_to(token)), 2)
+
+	def test_no_access_token_counts_every_phone_failed(self):
+		self.register(self.rep_user, "fcm-token-no-access-000000001")
+		self.register(self.rep_user, "fcm-token-no-access-000000002")
+		with patch.object(fcm, "_access_token", side_effect=ValueError("invalid_grant")):
+			result = fcm.send_to_user(self.rep_user, "t", "b", {})
+		self.assertEqual(result, {"sent": 0, "failed": 2, "disabled": 0})
+		self.assertEqual(self.sent, [])
+
+	def test_low_stock_with_nobody_to_tell_is_not_marked_reported(self):
+		product = "LOW-STOCK-NOBODY"
+		with patch(f"{APP}.sync.notify.users_with_roles", return_value=[]):
+			events.notify_low_stock([(product, 1)])
+		self.assertFalse(frappe.cache.get_value(f"field_sales_woocommerce:low_stock_notified:{product}"))
 
 	def test_google_services_json_is_refused_as_a_key(self):
 		app_config = {"project_info": {"project_id": "fs-push-test"}, "client": []}

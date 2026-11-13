@@ -235,7 +235,7 @@ class WooCommerceConnector(BaseConnector):
 			"shop_name": name,
 			"scopes": ["read", "write"],
 			"currency": store_settings.get("currency") or "",
-			"timezone": env.get("default_timezone") or "",
+			"timezone": self._store_timezone(env.get("default_timezone")),
 			"country": store_settings.get("country") or "",
 			"message": _("Connected to {0} (WooCommerce {1})").format(name, env.get("version") or "?"),
 		}
@@ -244,9 +244,44 @@ class WooCommerceConnector(BaseConnector):
 		data = self._request("GET", "/system_status", operation="Other")
 		return {
 			"currency": (data.get("settings") or {}).get("currency") or "",
-			"timezone": (data.get("environment") or {}).get("default_timezone") or "",
+			"timezone": self._store_timezone((data.get("environment") or {}).get("default_timezone")),
 			"country": (data.get("settings") or {}).get("country") or "",
 		}
+
+	def _store_timezone(self, fallback: str | None = None) -> str:
+		"""
+		The store's time zone as WordPress → Settings → General sets it.
+
+		WooCommerce's ``environment.default_timezone`` is PHP's default zone, which WordPress
+		always sets to UTC, so it cannot tell. The public REST index (``/wp-json/``, no auth)
+		carries ``timezone_string`` (e.g. ``Asia/Kolkata``), or only ``gmt_offset`` when a
+		manual UTC offset is chosen: a whole-hour offset maps to ``Etc/GMT∓N``; a fractional
+		one has no IANA name, so ``fallback`` is kept. Best effort: any failure keeps ``fallback``.
+		"""
+		index = None
+		for url, params in ((f"{self.base_url}/wp-json/", None), (f"{self.base_url}/", {"rest_route": "/"})):
+			try:
+				response = requests.get(url, params=params, timeout=TIMEOUT)
+				if response.ok and not _is_html_response(response):
+					index = response.json()
+					break
+			except (requests.exceptions.RequestException, ValueError):
+				continue
+		if not isinstance(index, dict):
+			return fallback or ""
+		zone = (index.get("timezone_string") or "").strip()
+		if zone:
+			return zone
+		try:
+			offset = float(index.get("gmt_offset"))
+		except (TypeError, ValueError):
+			return fallback or ""
+		if offset == 0:
+			return "UTC"
+		if offset.is_integer():
+			# Etc zones use POSIX signs: UTC+5 is "Etc/GMT-5".
+			return f"Etc/GMT{'-' if offset > 0 else '+'}{abs(int(offset))}"
+		return fallback or ""
 
 	def get_locations(self) -> list[dict]:
 		"""WooCommerce has one stock pool; report it as the single location."""

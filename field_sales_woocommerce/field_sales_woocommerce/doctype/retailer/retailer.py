@@ -64,6 +64,9 @@ class Retailer(Document):
 		A rep could pass any check-in by moving the retailer to where they stand or widening
 		its geofence. Reps may set a retailer's first location; after that only managers
 		move it, and only managers change the radius (new retailers get the default).
+
+		Likewise only managers move a retailer to another Sales Rep (a rep may claim one
+		that has none).
 		"""
 		if LOCATION_EDIT_ROLES & set(frappe.get_roles()):
 			return
@@ -71,6 +74,11 @@ class Retailer(Document):
 		if self.is_new():
 			return
 		before = self.get_doc_before_save()
+		if before and before.sales_rep and self.sales_rep != before.sales_rep:
+			frappe.throw(
+				_("Only a Sales Manager can assign this retailer to another Sales Rep."),
+				frappe.PermissionError,
+			)
 		if not before or not has_coords(before.latitude, before.longitude):
 			return  # the first location can still be set
 		if flt(self.latitude) != flt(before.latitude) or flt(self.longitude) != flt(before.longitude):
@@ -151,7 +159,7 @@ class Retailer(Document):
 		if self.user in ("Administrator", "Guest"):
 			frappe.throw(_("This user cannot be a retailer login"), frappe.PermissionError)
 		if STAFF_ROLES & set(frappe.get_roles(self.user)):
-			frappe.throw(_("{0} works in Field Sales and cannot be a retailer login").format(self.user))
+			frappe.throw(_("{0} works in Agamsale and cannot be a retailer login").format(self.user))
 		other = frappe.db.get_value("Retailer", {"user": self.user, "name": ("!=", self.name)}, "name")
 		if other:
 			frappe.throw(

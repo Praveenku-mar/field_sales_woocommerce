@@ -27,6 +27,10 @@ from field_sales_woocommerce.sync.notify import notify_order_sync_failure, notif
 MAX_AUTO_ATTEMPTS = 5
 # A Pending order untouched for this long lost its job (worker restart, queue down).
 STALE_PENDING_MINUTES = 30
+# link_completed_drafts() only asks the store about drafts pushed this recently, newest first,
+# at most this many a run: abandoned drafts would otherwise be re-queried every 30 minutes forever.
+DRAFT_LINK_DAYS = 90
+DRAFT_LINK_BATCH = 500
 
 
 def enqueue_push_order(field_order: str):
@@ -82,6 +86,48 @@ def push_order(field_order: str):
 			operation = "Confirm Order"
 		_ensure_store_customer(doc.retailer)
 		result = conn.create_order(doc)
+
+		docstatus = frappe.db.get_value("Field Order", field_order, "docstatus", for_update=True)
+		if docstatus != 1:
+			store_ref = (
+				result.get("order_name")
+				or result.get("draft_name")
+				or result.get("order_id")
+				or result.get("draft_id")
+				or field_order
+			)
+			sync_error = _(
+				"Cancelled while being sent; order {0} exists on the store — cancel it there"
+			).format(store_ref)
+			_reset_before_save(doc)
+			doc.db_set(
+				{
+					"external_draft_id": result.get("draft_id"),
+					"store_draft_name": result.get("draft_name"),
+					"external_order_id": result.get("order_id"),
+					"store_order_name": result.get("order_name"),
+					"store_checkout_url": result.get("checkout_url"),
+					"platform": platform,
+					"sync_status": "Failed",
+					"sync_error": sync_error,
+				},
+				update_modified=False,
+			)
+			log_sync(
+				platform=platform or frappe.db.get_single_value("Store Connection", "platform"),
+				operation=operation,
+				reference_doctype="Field Order",
+				reference_name=field_order,
+				status="Failed",
+				attempt=doc.sync_attempts,
+				duration_ms=_elapsed_ms(start),
+				error_code="CANCELLED_DURING_PUSH",
+				error_message=sync_error,
+				external_id=result.get("order_id") or result.get("draft_id"),
+			)
+			frappe.db.commit()
+			_notify(doc)
+			return
 	except Exception as e:
 		frappe.db.rollback()
 		_reset_before_save(doc)
@@ -267,6 +313,9 @@ def link_completed_drafts():
 
 	``push_order`` skips Synced orders, so without this the order id of a
 	draft completed on the store later would never be recorded.
+
+	Only drafts pushed in the last ``DRAFT_LINK_DAYS`` days are checked (newest first, at most
+	``DRAFT_LINK_BATCH``): a draft completed later than that is not linked automatically.
 	"""
 	if not frappe.db.get_single_value("Store Connection", "enabled"):
 		return
@@ -278,8 +327,11 @@ def link_completed_drafts():
 			"sync_status": "Synced",
 			"external_draft_id": ("is", "set"),
 			"external_order_id": ("is", "not set"),
+			"last_sync_attempt": (">=", add_to_date(now_datetime(), days=-DRAFT_LINK_DAYS)),
 		},
 		fields=["name", "external_draft_id"],
+		order_by="last_sync_attempt desc",
+		limit=DRAFT_LINK_BATCH,
 	)
 	if not drafts:
 		return

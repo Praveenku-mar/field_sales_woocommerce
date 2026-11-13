@@ -24,7 +24,7 @@ function pickUserAndSend() {
 	frappe.call({ method: `${METHOD}.users_with_phones`, type: "GET" }).then(({ message: users }) => {
 		if (!users || !users.length) {
 			frappe.msgprint(
-				__("No phone is registered yet. Sign in to the Field Sales mobile app and allow notifications, then try again.")
+				__("No phone is registered yet. Sign in to the Agamsale mobile app and allow notifications, then try again.")
 			);
 			return;
 		}

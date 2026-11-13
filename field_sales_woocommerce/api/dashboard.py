@@ -31,7 +31,7 @@ def get_dashboard(period: str = "today") -> dict:
 	        "recent_orders", "active_visits"}``
 	"""
 	if frappe.session.user == "Guest" or not has_app_access():
-		frappe.throw(_("You do not have access to Field Sales"), frappe.PermissionError)
+		frappe.throw(_("You do not have access to Agamsale"), frappe.PermissionError)
 	if period not in PERIODS:
 		frappe.throw(_("Period must be one of: {0}").format(", ".join(PERIODS)))
 

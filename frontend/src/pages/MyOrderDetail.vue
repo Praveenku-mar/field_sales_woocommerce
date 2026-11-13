@@ -49,7 +49,7 @@
       </div>
 
       <div class="space-y-5">
-        <!-- Payment: read-only for the customer; links open where the money is taken. -->
+        <!-- Payment details and available checkout links for the customer. -->
         <div v-if="d.docstatus === 1" class="fs-card">
           <div class="flex items-center gap-2 border-b border-desk-border px-4 py-3">
             <span class="lucide-credit-card size-4 text-ink-gray-7" />
@@ -204,9 +204,11 @@ const paymentRows = computed(() => {
   const p = pay.value
   const rows = []
   if (flt(p.amount_paid)) rows.push({ label: 'Amount Paid', value: formatCurrency(p.amount_paid) })
-  if (p.razorpay_payment_link_url)
+  if (p.razorpay_payment_link_url && p.payment_status !== 'Paid')
     rows.push({ label: 'Payment Link', value: 'Open to pay', href: p.razorpay_payment_link_url })
   else if (storeCheckout.value) rows.push({ label: 'Store Checkout', value: 'Pay online', href: p.store_checkout_url })
+  if (p.manual_payment_method) rows.push({ label: 'Payment Method', value: p.manual_payment_method })
+  if (p.manual_payment_reference) rows.push({ label: 'Reference No.', value: p.manual_payment_reference })
   if (p.razorpay_payment_id) rows.push({ label: 'Payment ID', value: p.razorpay_payment_id })
   if (p.paid_on) rows.push({ label: 'Paid On', value: formatDate(p.paid_on) })
   return rows.length ? rows : [{ label: 'Status', value: p.payment_status || 'Unpaid' }]

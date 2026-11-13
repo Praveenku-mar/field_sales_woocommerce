@@ -9,6 +9,7 @@ held to the same responses.
 """
 
 import importlib
+from unittest.mock import patch
 
 import frappe
 from frappe.tests import IntegrationTestCase
@@ -93,12 +94,15 @@ CUSTOMER_CARD_KEYS = {
 	"sync_status",
 }
 ORDER_DETAIL_KEYS = {
+	"can_mark_paid",
 	"discount_amount",
 	"discount_percent",
 	"docstatus",
 	"grand_total",
 	"items",
 	"location_id",
+	"manual_payment_method",
+	"manual_payment_reference",
 	"modified",
 	"name",
 	"net_total",
@@ -308,6 +312,323 @@ class TestMobileContract(IntegrationTestCase):
 		self.assertIsNone(
 			self.as_user(self.rep_user, mobile.find_visit_by_client_temp_id, "contract-visit-1")
 		)
+
+	def test_client_temp_key_lifecycle_and_reuse(self):
+		"""Key set on insert; cleared on Field Order cancel and when a Visit becomes Cancelled; a new record may then reuse the id."""
+		# Field Order
+		order_values = {
+			"doctype": "Field Order",
+			"retailer": self.retailer,
+			"sales_rep": self.rep,
+			"order_date": nowdate(),
+			"client_temp_id": "reuse-order-1",
+			"items": [{"product": self.product.name, "qty": 1, "rate": 100}],
+		}
+		order = frappe.get_doc(order_values).insert(ignore_permissions=True)
+		self.assertEqual(order.client_temp_key, "reuse-order-1")
+		self.assertEqual(
+			frappe.db.get_value("Field Order", order.name, "client_temp_key"), "reuse-order-1"
+		)
+
+		order.submit()
+		order.db_set("sync_status", "Draft")
+		order.cancel()
+		self.assertIsNone(frappe.db.get_value("Field Order", order.name, "client_temp_key"))
+
+		reused_order = frappe.get_doc(order_values).insert(ignore_permissions=True)
+		self.assertEqual(reused_order.client_temp_key, "reuse-order-1")
+		self.assertEqual(
+			frappe.db.get_value("Field Order", reused_order.name, "client_temp_key"), "reuse-order-1"
+		)
+
+		# Visit
+		visit_values = {
+			"doctype": "Visit",
+			"retailer": self.retailer,
+			"sales_rep": self.rep,
+			"visit_date": nowdate(),
+			"status": "Planned",
+			"client_temp_id": "reuse-visit-1",
+		}
+		visit = frappe.get_doc(visit_values).insert(ignore_permissions=True)
+		self.assertEqual(visit.client_temp_key, "reuse-visit-1")
+		self.assertEqual(frappe.db.get_value("Visit", visit.name, "client_temp_key"), "reuse-visit-1")
+
+		visit.status = "Cancelled"
+		visit.save(ignore_permissions=True)
+		self.assertIsNone(frappe.db.get_value("Visit", visit.name, "client_temp_key"))
+
+		reused_visit = frappe.get_doc(visit_values).insert(ignore_permissions=True)
+		self.assertEqual(reused_visit.client_temp_key, "reuse-visit-1")
+		self.assertEqual(
+			frappe.db.get_value("Visit", reused_visit.name, "client_temp_key"), "reuse-visit-1"
+		)
+
+	def test_legacy_duplicate_stays_savable(self):
+		"""Duplicates made before the unique key existed (left keyless by the patch) can still be saved."""
+		order_values = {
+			"doctype": "Field Order",
+			"retailer": self.retailer,
+			"sales_rep": self.rep,
+			"order_date": nowdate(),
+			"items": [{"product": self.product.name, "qty": 1, "rate": 100}],
+		}
+		visit_values = {
+			"doctype": "Visit",
+			"retailer": self.retailer,
+			"sales_rep": self.rep,
+			"visit_date": nowdate(),
+			"status": "Planned",
+		}
+		for doctype, values in (("Field Order", order_values), ("Visit", visit_values)):
+			with self.subTest(doctype):
+				first = frappe.get_doc(values).insert(ignore_permissions=True).name
+				second = frappe.get_doc(values).insert(ignore_permissions=True).name
+				# As the patch leaves them: same id, only the oldest holds the key.
+				frappe.db.set_value(doctype, first, {"client_temp_id": "legacy-dup", "client_temp_key": "legacy-dup"})
+				frappe.db.set_value(doctype, second, {"client_temp_id": "legacy-dup", "client_temp_key": None})
+
+				doc = frappe.get_doc(doctype, second)
+				doc.save(ignore_permissions=True)
+				self.assertIsNone(frappe.db.get_value(doctype, second, "client_temp_key"))
+				self.assertEqual(frappe.db.get_value(doctype, first, "client_temp_key"), "legacy-dup")
+
+	def test_uncancelled_visit_claims_its_id_again(self):
+		values = {
+			"doctype": "Visit",
+			"retailer": self.retailer,
+			"sales_rep": self.rep,
+			"visit_date": nowdate(),
+			"status": "Planned",
+			"client_temp_id": "uncancel-visit-1",
+		}
+		visit = frappe.get_doc(values).insert(ignore_permissions=True)
+		visit.status = "Cancelled"
+		visit.save(ignore_permissions=True)
+		visit.status = "Planned"
+		visit.save(ignore_permissions=True)
+		self.assertEqual(frappe.db.get_value("Visit", visit.name, "client_temp_key"), "uncancel-visit-1")
+
+		# Reused by a new visit while cancelled: un-cancelling the old one is refused.
+		visit.status = "Cancelled"
+		visit.save(ignore_permissions=True)
+		frappe.get_doc(values).insert(ignore_permissions=True)
+		visit.status = "Planned"
+		self.assertRaises(frappe.UniqueValidationError, visit.save, ignore_permissions=True)
+
+	def test_client_temp_key_race_backstop(self):
+		"""With the read check patched out, the 2nd concurrent insert raises UniqueValidationError."""
+		orig_get_value = frappe.db.get_value
+
+		def bypass_read_check(doctype, filters=None, *args, **kwargs):
+			if isinstance(filters, dict) and "client_temp_id" in filters:
+				return None
+			return orig_get_value(doctype, filters, *args, **kwargs)
+
+		# Field Order race
+		order_values = {
+			"doctype": "Field Order",
+			"retailer": self.retailer,
+			"sales_rep": self.rep,
+			"order_date": nowdate(),
+			"client_temp_id": "race-order-key",
+			"items": [{"product": self.product.name, "qty": 1, "rate": 100}],
+		}
+		frappe.get_doc(order_values).insert(ignore_permissions=True)
+		with patch.object(frappe.db, "get_value", side_effect=bypass_read_check):
+			with self.assertRaises(frappe.UniqueValidationError):
+				frappe.get_doc(order_values).insert(ignore_permissions=True)
+
+		# Visit race
+		visit_values = {
+			"doctype": "Visit",
+			"retailer": self.retailer,
+			"sales_rep": self.rep,
+			"visit_date": nowdate(),
+			"status": "Planned",
+			"client_temp_id": "race-visit-key",
+		}
+		frappe.get_doc(visit_values).insert(ignore_permissions=True)
+		with patch.object(frappe.db, "get_value", side_effect=bypass_read_check):
+			with self.assertRaises(frappe.UniqueValidationError):
+				frappe.get_doc(visit_values).insert(ignore_permissions=True)
+
+	def test_client_cannot_set_or_change_client_temp_key(self):
+		"""REST / client values for client_temp_key are always overwritten by the server."""
+		order = frappe.get_doc({
+			"doctype": "Field Order",
+			"retailer": self.retailer,
+			"sales_rep": self.rep,
+			"order_date": nowdate(),
+			"client_temp_id": "client-order-1",
+			"client_temp_key": "spoofed-key",
+			"items": [{"product": self.product.name, "qty": 1, "rate": 100}],
+		}).insert(ignore_permissions=True)
+		self.assertEqual(order.client_temp_key, "client-order-1")
+		self.assertEqual(
+			frappe.db.get_value("Field Order", order.name, "client_temp_key"), "client-order-1"
+		)
+
+		order.client_temp_key = "tampered-key"
+		order.save(ignore_permissions=True)
+		order.reload()
+		self.assertEqual(order.client_temp_key, "client-order-1")
+
+		order_no_id = frappe.get_doc({
+			"doctype": "Field Order",
+			"retailer": self.retailer,
+			"sales_rep": self.rep,
+			"order_date": nowdate(),
+			"client_temp_key": "spoofed-no-id",
+			"items": [{"product": self.product.name, "qty": 1, "rate": 100}],
+		}).insert(ignore_permissions=True)
+		self.assertIsNone(order_no_id.client_temp_key)
+		self.assertIsNone(frappe.db.get_value("Field Order", order_no_id.name, "client_temp_key"))
+
+		visit = frappe.get_doc({
+			"doctype": "Visit",
+			"retailer": self.retailer,
+			"sales_rep": self.rep,
+			"visit_date": nowdate(),
+			"status": "Planned",
+			"client_temp_id": "client-visit-1",
+			"client_temp_key": "spoofed-visit-key",
+		}).insert(ignore_permissions=True)
+		self.assertEqual(visit.client_temp_key, "client-visit-1")
+		self.assertEqual(frappe.db.get_value("Visit", visit.name, "client_temp_key"), "client-visit-1")
+
+		visit.client_temp_key = "tampered-visit-key"
+		visit.save(ignore_permissions=True)
+		visit.reload()
+		self.assertEqual(visit.client_temp_key, "client-visit-1")
+
+		visit_no_id = frappe.get_doc({
+			"doctype": "Visit",
+			"retailer": self.retailer,
+			"sales_rep": self.rep,
+			"visit_date": nowdate(),
+			"status": "Planned",
+			"client_temp_key": "spoofed-no-id",
+		}).insert(ignore_permissions=True)
+		self.assertIsNone(visit_no_id.client_temp_key)
+		self.assertIsNone(frappe.db.get_value("Visit", visit_no_id.name, "client_temp_key"))
+
+	def test_client_temp_key_patch(self):
+		"""Patch fills client_temp_key for the oldest active row; duplicates and cancelled rows keep NULL."""
+		run_patch = importlib.import_module(f"{APP}.patches.v1_0.client_temp_key").execute
+
+		o1 = frappe.get_doc({
+			"doctype": "Field Order",
+			"retailer": self.retailer,
+			"sales_rep": self.rep,
+			"order_date": nowdate(),
+			"client_temp_id": "patch-dupe-order",
+			"items": [{"product": self.product.name, "qty": 1, "rate": 100}],
+		}).insert(ignore_permissions=True)
+
+		o2 = frappe.get_doc({
+			"doctype": "Field Order",
+			"retailer": self.retailer,
+			"sales_rep": self.rep,
+			"order_date": nowdate(),
+			"items": [{"product": self.product.name, "qty": 1, "rate": 100}],
+		}).insert(ignore_permissions=True)
+
+		o3 = frappe.get_doc({
+			"doctype": "Field Order",
+			"retailer": self.retailer,
+			"sales_rep": self.rep,
+			"order_date": nowdate(),
+			"items": [{"product": self.product.name, "qty": 1, "rate": 100}],
+		}).insert(ignore_permissions=True)
+
+		frappe.db.set_value(
+			"Field Order",
+			o1.name,
+			{"creation": "2026-01-01 10:00:00", "client_temp_key": None},
+			update_modified=False,
+		)
+		frappe.db.set_value(
+			"Field Order",
+			o2.name,
+			{"client_temp_id": "patch-dupe-order", "creation": "2026-01-01 11:00:00", "client_temp_key": None},
+			update_modified=False,
+		)
+		frappe.db.set_value(
+			"Field Order",
+			o3.name,
+			{"client_temp_id": "patch-dupe-order", "docstatus": 2, "creation": "2026-01-01 09:00:00", "client_temp_key": None},
+			update_modified=False,
+		)
+
+		v1 = frappe.get_doc({
+			"doctype": "Visit",
+			"retailer": self.retailer,
+			"sales_rep": self.rep,
+			"visit_date": nowdate(),
+			"status": "Planned",
+			"client_temp_id": "patch-dupe-visit",
+		}).insert(ignore_permissions=True)
+
+		v2 = frappe.get_doc({
+			"doctype": "Visit",
+			"retailer": self.retailer,
+			"sales_rep": self.rep,
+			"visit_date": nowdate(),
+			"status": "Planned",
+		}).insert(ignore_permissions=True)
+
+		v3 = frappe.get_doc({
+			"doctype": "Visit",
+			"retailer": self.retailer,
+			"sales_rep": self.rep,
+			"visit_date": nowdate(),
+			"status": "Cancelled",
+		}).insert(ignore_permissions=True)
+
+		frappe.db.set_value(
+			"Visit",
+			v1.name,
+			{"creation": "2026-01-01 10:00:00", "client_temp_key": None},
+			update_modified=False,
+		)
+		frappe.db.set_value(
+			"Visit",
+			v2.name,
+			{"client_temp_id": "patch-dupe-visit", "creation": "2026-01-01 11:00:00", "client_temp_key": None},
+			update_modified=False,
+		)
+		frappe.db.set_value(
+			"Visit",
+			v3.name,
+			{"client_temp_id": "patch-dupe-visit", "creation": "2026-01-01 09:00:00", "client_temp_key": None},
+			update_modified=False,
+		)
+
+		run_patch()
+
+		self.assertEqual(
+			frappe.db.get_value("Field Order", o1.name, "client_temp_key"), "patch-dupe-order"
+		)
+		self.assertIsNone(frappe.db.get_value("Field Order", o2.name, "client_temp_key"))
+		self.assertIsNone(frappe.db.get_value("Field Order", o3.name, "client_temp_key"))
+
+		self.assertEqual(
+			frappe.db.get_value("Visit", v1.name, "client_temp_key"), "patch-dupe-visit"
+		)
+		self.assertIsNone(frappe.db.get_value("Visit", v2.name, "client_temp_key"))
+		self.assertIsNone(frappe.db.get_value("Visit", v3.name, "client_temp_key"))
+
+		# Safe to re-run
+		run_patch()
+		self.assertEqual(
+			frappe.db.get_value("Field Order", o1.name, "client_temp_key"), "patch-dupe-order"
+		)
+		self.assertIsNone(frappe.db.get_value("Field Order", o2.name, "client_temp_key"))
+		self.assertEqual(
+			frappe.db.get_value("Visit", v1.name, "client_temp_key"), "patch-dupe-visit"
+		)
+		self.assertIsNone(frappe.db.get_value("Visit", v2.name, "client_temp_key"))
 
 	# -- push devices ------------------------------------------------------
 

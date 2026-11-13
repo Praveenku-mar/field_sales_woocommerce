@@ -34,6 +34,7 @@
   "notes_section",
   "remarks",
   "client_temp_id",
+  "client_temp_key",
   "sync_tab",
   "platform_sync_section",
   "platform",
@@ -50,6 +51,8 @@
   "payment_status",
   "amount_paid",
   "paid_on",
+  "manual_payment_method",
+  "manual_payment_reference",
   "store_marked_paid_on",
   "col_break_payment",
   "razorpay_payment_link_id",
@@ -228,6 +231,15 @@
    "description": "Set by the mobile app when it creates the order, so a retry after a timeout finds it instead of creating a duplicate."
   },
   {
+   "fieldname": "client_temp_key",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Client Temp Key",
+   "no_copy": 1,
+   "read_only": 1,
+   "unique": 1
+  },
+  {
    "fieldname": "sync_tab",
    "fieldtype": "Tab Break",
    "label": "Store Sync"
@@ -351,6 +363,23 @@
    "no_copy": 1
   },
   {
+   "fieldname": "manual_payment_method",
+   "fieldtype": "Select",
+   "label": "Manual Payment Method",
+   "options": "\nCash\nBank Transfer / UPI",
+   "read_only": 1,
+   "allow_on_submit": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "manual_payment_reference",
+   "fieldtype": "Data",
+   "label": "Payment Reference No.",
+   "read_only": 1,
+   "allow_on_submit": 1,
+   "no_copy": 1
+  },
+  {
    "fieldname": "store_marked_paid_on",
    "fieldtype": "Datetime",
    "label": "Store Marked Paid On",
@@ -469,7 +498,7 @@
  "is_submittable": 1,
  "issingle": 0,
  "links": [],
- "modified": "2026-11-11 12:00:00.000000",
+ "modified": "2026-11-13 14:00:00.000000",
  "modified_by": "Administrator",
  "module": "Field Sales Woocommerce",
  "name": "Field Order",

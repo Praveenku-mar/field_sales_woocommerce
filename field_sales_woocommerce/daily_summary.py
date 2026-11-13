@@ -61,7 +61,7 @@ def _send_to_manager(manager, today: str):
 
 	frappe.sendmail(
 		recipients=[manager.user],
-		subject=_("Field Sales summary for {0}").format(formatdate(today)),
+		subject=_("Agamsale summary for {0}").format(formatdate(today)),
 		message=_render(manager, today, active),
 		reference_doctype="Sales Rep",
 		reference_name=manager.name,

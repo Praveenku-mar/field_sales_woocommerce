@@ -18,7 +18,7 @@
 
   <Dialog v-model="iosHintOpen" title="Add to Home Screen" size="sm">
     <p class="text-p-base text-ink-gray-7">
-      In Safari, tap the Share button, then choose Add to Home Screen to install Field Sales.
+      In Safari, tap the Share button, then choose Add to Home Screen to install Agamsale.
     </p>
   </Dialog>
 </template>

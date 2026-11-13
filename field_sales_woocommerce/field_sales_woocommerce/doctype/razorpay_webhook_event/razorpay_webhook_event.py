@@ -5,6 +5,10 @@ from frappe.model.document import Document
 
 
 class RazorpayWebhookEvent(Document):
-	"""One Razorpay webhook delivery: written by ``payments/razorpay.py -> webhook()``, read-only for users."""
+	"""
+	One Razorpay webhook delivery: written by ``payments/razorpay.py -> webhook()``, read-only.
+
+	System Manager only: the payload holds the customer's name, phone and email.
+	"""
 
 	pass

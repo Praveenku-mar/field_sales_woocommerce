@@ -22,6 +22,7 @@ from field_sales_woocommerce.commission.statements import (
 	_require_manager,
 	_statement_exists,
 	build_statement,
+	check_not_own_commission,
 )
 from field_sales_woocommerce.permissions import get_allowed_reps, get_own_rep, is_admin
 from field_sales_woocommerce.push.events import notify_statement
@@ -213,6 +214,7 @@ def approve_statement(name: str) -> dict:
 	"""
 	_require_manager()
 	doc = frappe.get_doc("Commission Statement", name, for_update=True)
+	check_not_own_commission(doc.sales_rep)
 	if doc.docstatus != 0:
 		frappe.throw(_("Only a Draft Commission Statement can be approved."))
 	doc.submit()
@@ -276,13 +278,15 @@ def save_commission_plan(doc: dict | str) -> dict:
 
 	The plan name is the document name, so an existing plan cannot be renamed here. Rows that do not
 	belong to the plan's rule type (rates outside Product Rate, slabs outside Tiered Slab) are dropped.
-	Validation errors of the plan are raised as they are.
+	Validation errors of the plan are raised as they are. System Manager only: a plan sets
+	the rates managers themselves are paid on.
 
 	:param doc: Plan fields (``plan_name``, ``rule_type``, ...) with ``rates`` and ``slabs`` as lists of rows.
 	:return: The saved plan, as ``get_commission_plans`` returns it.
 	"""
 	require_commission_enabled()
-	_require_manager()
+	if not is_admin():
+		frappe.throw(_("Only a System Manager can create or change Commission Plans."), frappe.PermissionError)
 	if isinstance(doc, str):
 		doc = json.loads(doc or "{}")
 
@@ -330,6 +334,7 @@ def assign_commission_plan(sales_rep: str, commission_plan: str | None = None, c
 	_require_manager()
 	rep = frappe.get_doc("Sales Rep", sales_rep)
 	rep.check_permission("write")
+	check_not_own_commission(rep.name)
 
 	commission_active = cint(commission_active)
 	if commission_plan:
@@ -362,6 +367,7 @@ def create_adjustment(
 	"""
 	require_commission_enabled()
 	_require_manager()
+	check_not_own_commission(sales_rep)
 	if beneficiary_type not in ("Rep", "Manager Override"):
 		frappe.throw(_("Beneficiary Type must be Rep or Manager Override."))
 	amount = flt(amount)

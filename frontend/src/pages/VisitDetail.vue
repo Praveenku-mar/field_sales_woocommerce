@@ -13,7 +13,7 @@
         <!-- Inside Shopify admin there is no location: check in / out happens in the standalone app -->
         <Button
           v-if="embedded && (d.status === 'In Progress' || (d.status === 'Planned' && isVisitDay))"
-          label="Open in Field Sales"
+          label="Open in Agamsale"
           icon-left="lucide-external-link"
           variant="solid"
           @click="openStandalone(currentPath())"

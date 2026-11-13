@@ -33,7 +33,7 @@ def get_context(context):
 		_redirect(login_url(path or "/fieldsales"))
 
 	if not has_app_access():
-		frappe.throw(_("You do not have access to Field Sales"), frappe.PermissionError)
+		frappe.throw(_("You do not have access to Agamsale"), frappe.PermissionError)
 
 	# get_csrf_token may create the token on this GET request; keep it.
 	frappe.db.commit()

@@ -48,5 +48,5 @@ def render(kind: str, docname: str | None, params: dict | None) -> tuple[str, st
 	if kind == "low_stock_digest":
 		return _("Low stock"), _("{0} products are low on stock.").format(cint(params.get("count")))
 	if kind == "test":
-		return _("Field Sales"), _("Push notifications are working on this device.")
-	return _("Field Sales"), _("You have a new notification.")
+		return _("Agamsale"), _("Push notifications are working on this device.")
+	return _("Agamsale"), _("You have a new notification.")

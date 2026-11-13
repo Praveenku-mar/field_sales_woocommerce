@@ -90,14 +90,60 @@ Secret already configured — no extra setup.
 
 ## 7. Optional: the app inside wp-admin
 
-`wordpress-plugin/field-sales.php` is a small WordPress plugin that adds a
-**Field Sales** item to wp-admin embedding the app:
+`wordpress-plugin/field-sales.php` is a small WordPress plugin that adds an
+**Agamsale** item to wp-admin embedding the app:
 
 1. Copy `wordpress-plugin/` to the store's `wp-content/plugins/` (or zip it and
    upload under Plugins → Add New).
-2. Activate **Field Sales**, then set your app URL on Settings → Field Sales.
-3. The app page allows framing from the connected store's origin automatically.
+2. Activate **Agamsale**, then set your app URL on Settings → Agamsale.
+3. Copy the **secret** shown on Settings → Agamsale and paste it in the app under
+   Settings → Store Connection → **WordPress Plugin Secret**, then Save.
+4. The app page allows framing from the connected store's origin automatically
+   (Store Connection → Store URL must be this WordPress site).
 
-If the browser asks you to sign in repeatedly inside the frame, use the page's
-*Open in a new tab* button — browsers can restrict sign-in inside cross-site
-frames. Over HTTPS with third-party cookies allowed the frame keeps you signed in.
+**Sign-in.** Inside wp-admin the app signs you in as the Agamsale user with the
+**same email** as your WordPress account; that user needs a Field Sales role
+(Sales Rep, Sales Manager or System Manager). The plugin hands the app a 5-minute
+token signed with the shared secret, so no cookies are needed and it works in
+every browser, including Safari and with third-party cookies blocked. A WordPress
+user with no matching Agamsale user sees "no Agamsale access". *Regenerate secret*
+on the plugin page invalidates the old one: paste the new one in the app.
+
+**Same site alternative.** Serving the app on a subdomain of the store (e.g.
+`sales.shop.com` for `shop.com`) makes the app's own sign-in cookie work in the
+frame too; the settings page says which case you are in. If you are already
+signed in to the app in that browser, that sign-in is used instead of the token.
+
+**Location, camera, clipboard.** The plugin's frame allows them, so check-in
+location and the barcode scanner work inside wp-admin (the browser still asks
+for permission). Both sites must be on HTTPS (plain `http://localhost` works for
+local testing).
+
+Not in the frame: live updates (pages poll every 30 s instead) and installing
+the app — use *Open in a new tab* for those.
+
+## 8. Background jobs
+
+With the scheduler enabled (section 1), the app runs:
+
+| When | Job |
+|---|---|
+| every 30 min | Product sync, at Store Connection's *Product Sync Frequency* |
+| every 15 min | Re-push orders that failed (up to 5 attempts) or got stuck in Pending |
+| hourly | Re-check Razorpay links whose webhook never arrived; retry marking paid orders paid on the store |
+| daily | Purge old Sync Logs; re-match the store's currency and time zone; anonymise inactive retailers (off unless *Anonymise Inactive Retailers After* is set) |
+| 20:00 | Daily team summary email to each manager (needs an outgoing Email Account) |
+| 1st of the month, 02:00 | Draft commission statements for last month |
+
+**Upgrading a site from before these jobs existed** (earlier releases did not schedule
+them): their first run works through everything that piled up. Before `bench migrate`, see
+what that will be:
+
+```bash
+bench --site sales.example.com execute field_sales_woocommerce.utils.scheduler_check.report
+```
+
+It lists the orders that will be re-pushed to the store, the Sync Logs that will be
+deleted, the retailers that will be anonymised and whether the summary email can be sent.
+Cancel any order that should not reach the store (or set its *Sync Attempts* to 5), then
+`bench migrate`. Run it again afterwards: *not registered* should say *none*.

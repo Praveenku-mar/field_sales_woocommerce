@@ -31,7 +31,7 @@
  "icon": "map-pin",
  "idx": 0,
  "is_hidden": 0,
- "label": "Field Sales",
+ "label": "Agamsale",
  "links": [
   {
    "doctype": "Workspace Link",
@@ -256,7 +256,7 @@
    "doc_view": "",
    "doctype": "Workspace Shortcut",
    "icon": "external-link",
-   "label": "Field Sales App",
+   "label": "Agamsale App",
    "type": "URL",
    "url": "/fieldsales"
   },
@@ -308,5 +308,5 @@
    "type": "Page"
   }
  ],
- "title": "Field Sales"
+ "title": "Agamsale"
 }

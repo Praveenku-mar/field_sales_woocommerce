@@ -16,7 +16,7 @@ export function getPosition() {
   return new Promise((resolve, reject) => {
     // The Shopify admin's iframe is not allowed to use location (Permissions Policy).
     if (isEmbedded()) {
-      reject(new Error('Location is not available inside Shopify admin. Use the Field Sales app (/fieldsales) on your phone.'))
+      reject(new Error('Location is not available inside Shopify admin. Use the Agamsale app (/fieldsales) on your phone.'))
       return
     }
     if (!window.isSecureContext || !navigator.geolocation) {

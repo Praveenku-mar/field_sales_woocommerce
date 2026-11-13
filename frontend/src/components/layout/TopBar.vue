@@ -18,10 +18,11 @@
 <script setup>
 import { Button } from 'frappe-ui'
 import UserMenu from './UserMenu.vue'
-import { isEmbedded } from '@/shopify/embedded'
+import { isTokenSession } from '@/wordpress/embed'
 import { useSessionStore } from '@/stores/session'
 
-const embedded = isEmbedded()
+// No sign-out inside a store admin's frame: the admin's own login signs the app in.
+const embedded = isTokenSession()
 const session = useSessionStore()
 
 defineEmits(['open-search'])

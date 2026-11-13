@@ -27,6 +27,7 @@ frappe.ui.form.on("Field Order", {
 		_add_stock_button(frm);
 		_show_sync_status(frm);
 		_add_payment_buttons(frm);
+		_add_manual_payment_button(frm);
 		_show_discount_limit(frm);
 		_lock_rate(frm);
 	},
@@ -200,6 +201,37 @@ function _stock_shortage_html(rows) {
 		]);
 	});
 	return lines.join("<br>");
+}
+
+function _add_manual_payment_button(frm) {
+	if (frm.doc.docstatus !== 1 || ["Paid", "Partially Paid"].includes(frm.doc.payment_status) ||
+		!(frm.doc.grand_total > 0) || !(frm.perm && frm.perm[0] && frm.perm[0].write)) return;
+	frm.add_custom_button(__("Mark as Paid"), function () {
+		var dialog = new frappe.ui.Dialog({
+			title: __("Mark as Paid"),
+			fields: [
+				{ fieldname: "payment_method", fieldtype: "Select", label: __("Payment Method"),
+					options: "\nCash\nBank Transfer / UPI", reqd: 1 },
+				{ fieldname: "payment_reference", fieldtype: "Data", label: __("Payment Reference No."),
+					depends_on: "eval:doc.payment_method == 'Bank Transfer / UPI'",
+					mandatory_depends_on: "eval:doc.payment_method == 'Bank Transfer / UPI'" },
+			],
+			primary_action_label: __("Mark as Paid"),
+			primary_action: function (values) {
+				frappe.call({
+					method: "field_sales_woocommerce.payments.manual.mark_order_paid",
+					args: { field_order: frm.doc.name, payment_method: values.payment_method,
+						payment_reference: values.payment_method === "Cash" ? "" : values.payment_reference },
+					freeze: true,
+				}).then(function () {
+					dialog.hide();
+					frappe.show_alert({ message: __("Order marked as paid"), indicator: "green" });
+					frm.reload_doc();
+				});
+			},
+		});
+		dialog.show();
+	}, __("Payment"));
 }
 
 // Razorpay "Payment" button group on submitted orders. get_payment_config is called once
