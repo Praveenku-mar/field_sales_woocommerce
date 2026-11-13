@@ -82,6 +82,48 @@ def push_order(field_order: str):
 			operation = "Confirm Order"
 		_ensure_store_customer(doc.retailer)
 		result = conn.create_order(doc)
+
+		docstatus = frappe.db.get_value("Field Order", field_order, "docstatus", for_update=True)
+		if docstatus != 1:
+			store_ref = (
+				result.get("order_name")
+				or result.get("draft_name")
+				or result.get("order_id")
+				or result.get("draft_id")
+				or field_order
+			)
+			sync_error = _(
+				"Cancelled while being sent; order {0} exists on the store — cancel it there"
+			).format(store_ref)
+			_reset_before_save(doc)
+			doc.db_set(
+				{
+					"external_draft_id": result.get("draft_id"),
+					"store_draft_name": result.get("draft_name"),
+					"external_order_id": result.get("order_id"),
+					"store_order_name": result.get("order_name"),
+					"store_checkout_url": result.get("checkout_url"),
+					"platform": platform,
+					"sync_status": "Failed",
+					"sync_error": sync_error,
+				},
+				update_modified=False,
+			)
+			log_sync(
+				platform=platform or frappe.db.get_single_value("Store Connection", "platform"),
+				operation=operation,
+				reference_doctype="Field Order",
+				reference_name=field_order,
+				status="Failed",
+				attempt=doc.sync_attempts,
+				duration_ms=_elapsed_ms(start),
+				error_code="CANCELLED_DURING_PUSH",
+				error_message=sync_error,
+				external_id=result.get("order_id") or result.get("draft_id"),
+			)
+			frappe.db.commit()
+			_notify(doc)
+			return
 	except Exception as e:
 		frappe.db.rollback()
 		_reset_before_save(doc)

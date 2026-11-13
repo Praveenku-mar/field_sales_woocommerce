@@ -298,6 +298,19 @@ class BaseConnector:
 		"""
 		return {}
 
+	def delete_draft(self, draft_id: str, field_order: Document | None = None) -> str | None:
+		"""
+		Remove an open draft because its Field Order is being cancelled.
+
+		Platforms that create drafts in ``create_order`` should override this; the default
+		does nothing (no draft to remove).
+
+		:return: the order id when the draft was already completed into an order (nothing is
+			deleted then), else ``None`` (deleted, or already gone).
+		:raises ConnectorError: the store could not be read or refused the delete.
+		"""
+		return None
+
 	def ensure_order_metafields(self) -> bool:
 		"""
 		Set up the store's order fields for the Field Order No and Sales Rep, if the platform has them.

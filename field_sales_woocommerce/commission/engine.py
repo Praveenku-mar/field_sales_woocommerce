@@ -97,7 +97,10 @@ def reconcile_order(external_order_id: str) -> dict:
 	if not commission_enabled():
 		return {"note": "Ignored: commission is turned off"}
 	external_order_id = str(external_order_id or "")
-	name = frappe.db.get_value("Field Order", {"external_order_id": external_order_id, "docstatus": 1}, "name")
+	# Cancelled Field Orders too: their store order's cancel / refund must still reverse the entries.
+	name = frappe.db.get_value(
+		"Field Order", {"external_order_id": external_order_id, "docstatus": ("in", (1, 2))}, "name"
+	)
 	if not name:
 		return {"note": "Ignored: not a Field Sales order"}
 
@@ -112,7 +115,8 @@ def reconcile_order(external_order_id: str) -> dict:
 		return {"note": "Ignored: order not found on the store"}
 
 	ctx = _Context(field_order, order)
-	created = ctx.create_missing_entries()
+	# A cancelled Field Order earns nothing new; its existing entries still follow the store.
+	created = ctx.create_missing_entries() if field_order.docstatus == 1 else 0
 	updated, adjusted = ctx.apply_state()
 
 	result = {"field_order": name, "created": created, "updated": updated, "adjusted": adjusted}
