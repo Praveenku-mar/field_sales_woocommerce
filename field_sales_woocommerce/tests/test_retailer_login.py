@@ -59,7 +59,7 @@ class TestRetailerLogin(IntegrationTestCase):
 		)
 		with patch.object(frappe.local, "request", request, create=True):
 			self.assertEqual(
-				_retailer_login_url(), frappe.utils.get_url("/login?redirect-to=%2Ffieldsales")
+				_retailer_login_url(), frappe.utils.get_url("/login?redirect-to=%2Ffieldsales", allow_header_override=False)
 			)
 
 	def setUp(self):

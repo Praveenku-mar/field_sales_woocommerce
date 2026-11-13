@@ -84,7 +84,7 @@ class TestRazorpaySettings(IntegrationTestCase):
 		data = doc.as_dict()
 		self.assertNotEqual(data.get("key_secret"), "s3cret-key")
 		self.assertNotEqual(data.get("webhook_secret"), "hook-secret")
-		self.assertEqual(doc.webhook_url, frappe.utils.get_url(WEBHOOK_PATH))
+		self.assertEqual(doc.webhook_url, frappe.utils.get_url(WEBHOOK_PATH, allow_header_override=False))
 
 	def test_sales_manager_reads_masked_settings(self):
 		# What the SPA's Settings tab loads (frappe.client.get), after a save through the form.
@@ -115,15 +115,15 @@ class TestRazorpaySettings(IntegrationTestCase):
 	def test_webhook_url_ignores_an_unknown_forwarded_host(self):
 		forged = MagicMock(headers={"X-Forwarded-Host": "evil.example.net", "X-Forwarded-Proto": "https"})
 		with patch.object(frappe.local, "request", forged, create=True):
-			self.assertEqual(razorpay.webhook_url(), frappe.utils.get_url(WEBHOOK_PATH))
+			self.assertEqual(razorpay.webhook_url(), frappe.utils.get_url(WEBHOOK_PATH, allow_header_override=False))
 
 	def test_webhook_url_ignores_a_malformed_forwarded_host(self):
 		bad = MagicMock(headers={"X-Forwarded-Host": "evil.com/path?x=<script>"}, host="site.local")
 		with patch.object(frappe.local, "request", bad, create=True):
 			url = razorpay.webhook_url()
-			self.assertEqual(url, frappe.utils.get_url(WEBHOOK_PATH))
+			self.assertEqual(url, frappe.utils.get_url(WEBHOOK_PATH, allow_header_override=False))
 		self.assertNotIn("evil.com", url)
 
 	def test_webhook_url_without_a_request_uses_host_name(self):
 		with patch.object(frappe.local, "request", None, create=True):
-			self.assertEqual(razorpay.webhook_url(), frappe.utils.get_url(WEBHOOK_PATH))
+			self.assertEqual(razorpay.webhook_url(), frappe.utils.get_url(WEBHOOK_PATH, allow_header_override=False))
