@@ -186,6 +186,8 @@ def _open_entries(sales_rep: str, period_end) -> list:
 
 def _fill(doc) -> None:
 	"""Set the statement's rows and totals from the rep's open entries (applying slabs first)."""
+	# The controller keeps these fields from the client; this save is the build itself.
+	doc.flags.from_build = True
 	entries = _open_entries(doc.sales_rep, doc.period_end)
 	rep_orders = [e for e in entries if e.entry_type == "Order" and e.beneficiary_type == "Rep"]
 	slab_rate_applied = _apply_slabs(rep_orders, doc.sales_rep)

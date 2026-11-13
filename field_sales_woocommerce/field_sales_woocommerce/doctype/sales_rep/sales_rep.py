@@ -6,7 +6,10 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.utils import cint, flt
 
-from field_sales_woocommerce.permissions import clear_allowed_reps_cache, is_admin, is_manager_or_admin
+from field_sales_woocommerce.permissions import clear_allowed_reps_cache, get_own_rep, is_admin, is_manager_or_admin
+
+# What a rep earns and may give away: never set by the rep themselves (see _validate_not_own_terms).
+OWN_TERMS_FIELDS = ("commission_plan", "commission_active", "max_discount_pct")
 
 
 def sync_sales_rep_roles(user_name: str, is_sales_manager: bool, is_sales_rep: bool) -> None:
@@ -60,6 +63,8 @@ class SalesRep(Document):
 		if not self.is_new() and self.has_value_changed("user") and not is_admin():
 			frappe.throw(_("Only a System Manager can change the user of a Sales Rep."), frappe.PermissionError)
 
+		self._validate_not_own_terms()
+
 		if self.is_new() and self.user and frappe.db.exists("User", self.user):
 			user_roles = set(frappe.get_roles(self.user))
 			if not cint(self.sales_manager) and "Sales Manager" in user_roles:
@@ -78,6 +83,24 @@ class SalesRep(Document):
 						_("Only Administrator and Sales Manager can assign roles."),
 						frappe.PermissionError,
 					)
+
+	def _validate_not_own_terms(self):
+		"""
+		Separation of duties (as ``commission.statements.check_not_own_commission``): a manager
+		may write their own Sales Rep row, but not their own commission plan, commission switch
+		or discount limit; someone above them or a System Manager sets those. Checked here so the
+		Desk form and REST cannot go around ``commission.api.assign_commission_plan``.
+		"""
+		if self.is_new() or is_admin() or self.name != get_own_rep():
+			return
+		changed = [f for f in OWN_TERMS_FIELDS if self.has_value_changed(f)]
+		if changed:
+			frappe.throw(
+				_("You cannot change your own {0}. Ask your manager or a System Manager.").format(
+					", ".join(_(self.meta.get_label(f)) for f in changed)
+				),
+				frappe.PermissionError,
+			)
 
 	def on_update(self):
 		# The hierarchy may have changed; later checks in this request must see it.

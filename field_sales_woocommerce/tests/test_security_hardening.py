@@ -5,8 +5,6 @@
 
 from unittest.mock import patch
 
-import unittest
-
 import frappe
 import frappe.client
 from frappe.tests import IntegrationTestCase
@@ -36,9 +34,6 @@ from field_sales_woocommerce.utils.search import escape_like
 PASSWORD = "Fs-Harden#2026-strong"
 NEW_PASSWORD = "Fs-Harden#2026-newer"
 PRICE = 100
-
-# Commission Statement and Sales Rep separation of duties (field_sales 4741a63): ported in phase 2.
-PHASE_2 = "commission separation of duties: not ported yet (phase 2)"
 
 
 class TestSecurityHardening(IntegrationTestCase):
@@ -301,14 +296,12 @@ class TestSecurityHardening(IntegrationTestCase):
 		self.assertRaises(frappe.PermissionError, self.as_user, self.manager_user, mark_paid, statement.name)
 		self.assertEqual(frappe.db.get_value("Commission Statement", statement.name, "status"), "Approved")
 
-	@unittest.skip(PHASE_2)
 	def test_manager_cannot_submit_own_statement_from_the_form(self):
 		statement = self.statement(self.manager_rep)
 		doc = frappe.get_doc("Commission Statement", statement.name)
 		self.assertRaises(frappe.PermissionError, self.as_user, self.manager_user, doc.submit)
 		self.assertEqual(frappe.db.get_value("Commission Statement", statement.name, "docstatus"), 0)
 
-	@unittest.skip(PHASE_2)
 	def test_statement_amounts_and_status_are_not_taken_from_the_client(self):
 		statement = self.statement(self.rep)
 		values = statement.as_dict()
@@ -319,7 +312,6 @@ class TestSecurityHardening(IntegrationTestCase):
 		self.assertEqual(saved.status, "Draft")
 		self.assertEqual(len(saved.entries), len(statement.entries))
 
-	@unittest.skip(PHASE_2)
 	def test_statement_cannot_be_made_by_hand(self):
 		doc = frappe.get_doc(
 			{
@@ -332,7 +324,6 @@ class TestSecurityHardening(IntegrationTestCase):
 		)
 		self.assertRaises(frappe.PermissionError, self.as_user, self.manager_user, doc.insert)
 
-	@unittest.skip(PHASE_2)
 	def test_approved_statement_status_cannot_be_updated_by_hand(self):
 		statement = self.statement(self.rep)
 		self.as_user(self.manager_user, approve_statement, statement.name)
@@ -344,7 +335,6 @@ class TestSecurityHardening(IntegrationTestCase):
 
 	# -- own terms on the Sales Rep record ---------------------------------------
 
-	@unittest.skip(PHASE_2)
 	def test_manager_cannot_change_own_commission_terms(self):
 		for field, value in (("commission_active", 1), ("max_discount_pct", 50)):
 			with self.subTest(field):
