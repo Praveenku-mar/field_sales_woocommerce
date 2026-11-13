@@ -111,8 +111,12 @@ def _bench_key_problem(path: str, problem: str) -> None:
 	)
 
 
+def _token_cache_key(config: dict) -> str:
+	return f"field_sales_woocommerce:fcm_access_token:{config['project_id']}"
+
+
 def _access_token(config: dict) -> str:
-	key = f"field_sales:fcm_access_token:{config['project_id']}"
+	key = _token_cache_key(config)
 	token = frappe.cache.get_value(key)
 	if token:
 		return token
@@ -182,9 +186,34 @@ def send_to_user(user: str, title: str, body: str, data: dict, tag: str | None =
 		return result
 
 	url = FCM_URL.format(project=config["project_id"])
-	access_token = _access_token(config)
+	try:
+		access_token = _access_token(config)
+	except Exception:
+		# Bad or revoked key, Google unreachable: nothing can be sent; say why once per run.
+		frappe.log_error(title="Push notification failed: no Firebase access token", reference_doctype="Mobile Device")
+		result["failed"] = len(devices)
+		return result
+
+	refreshed = False
 	for device in devices:
-		outcome = _send_one(url, access_token, build_message(device.fcm_token, title, body, data, tag))
+		message = build_message(device.fcm_token, title, body, data, tag)
+		outcome = _send_one(url, access_token, message)
+		if outcome == "unauthorized" and not refreshed:
+			# The cached token stopped working (key revoked or replaced): get a new one, once.
+			refreshed = True
+			frappe.cache.delete_value(_token_cache_key(config))
+			try:
+				access_token = _access_token(config)
+			except Exception:
+				frappe.log_error(
+					title="Push notification failed: no Firebase access token", reference_doctype="Mobile Device"
+				)
+				result["failed"] += len(devices) - sum(result.values())
+				return result
+			outcome = _send_one(url, access_token, message)
+		if outcome == "unauthorized":
+			_log_send_failure(401, {})
+			outcome = "failed"
 		if outcome == "gone":
 			frappe.db.set_value("Mobile Device", device.name, "enabled", 0, update_modified=False)
 			result["disabled"] += 1
@@ -194,7 +223,7 @@ def send_to_user(user: str, title: str, body: str, data: dict, tag: str | None =
 
 
 def _send_one(url: str, access_token: str, payload: dict) -> str:
-	""":return: ``"sent"``, ``"gone"`` or ``"failed"``"""
+	""":return: ``"sent"``, ``"gone"``, ``"unauthorized"`` (the access token was refused) or ``"failed"``"""
 	for attempt in (1, 2):
 		try:
 			status, body, headers = _post(url, payload, access_token)
@@ -204,6 +233,8 @@ def _send_one(url: str, access_token: str, payload: dict) -> str:
 			return "sent"
 		if _token_is_gone(status, body):
 			return "gone"
+		if status == 401:
+			return "unauthorized"
 		if attempt == 1 and (status == 0 or status == 429 or status >= 500):
 			retry_after = headers.get("Retry-After") or headers.get("retry-after")
 			try:
@@ -213,9 +244,13 @@ def _send_one(url: str, access_token: str, payload: dict) -> str:
 			time.sleep(wait)
 			continue
 		break
+	_log_send_failure(status, body)
+	return "failed"
+
+
+def _log_send_failure(status: int, body: dict) -> None:
 	frappe.log_error(
 		title="Push notification failed",
 		message=f"HTTP {status}\n{frappe.as_json(body)}",
 		reference_doctype="Mobile Device",
 	)
-	return "failed"

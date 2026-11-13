@@ -30,6 +30,7 @@ from field_sales_woocommerce.permissions import (
 	sales_rep_query,
 	visit_query,
 )
+from field_sales_woocommerce.push.events import LOW_STOCK_QTY
 from field_sales_woocommerce.utils.search import escape_like
 
 DEFAULT_PAGE_SIZE = 50
@@ -96,6 +97,7 @@ def _build_keyset_condition(
 	cursor: dict,
 	params: dict,
 	param_prefix: str = "_kc_",
+	nullable: frozenset[str] = frozenset(),
 ) -> str:
 	"""
 	Builds a keyset pagination WHERE condition supporting composite sort keys.
@@ -104,6 +106,9 @@ def _build_keyset_condition(
 	  (order_date < :d)
 	  OR (order_date = :d AND modified < :m)
 	  OR (order_date = :d AND modified = :m AND name < :n)
+
+	``nullable`` columns are compared as ``IFNULL(col, '')``, the value the cursor stores for
+	NULL: a plain comparison with NULL is never true, so those rows would be skipped.
 	"""
 	disjunctions = []
 	for i in range(len(order_by)):
@@ -113,17 +118,23 @@ def _build_keyset_condition(
 			col, _ = order_by[j]
 			pname = f"{param_prefix}eq_{j}_{col}"
 			params[pname] = cursor[col]
-			conjunctions.append(f"`{col}` = %({pname})s")
+			conjunctions.append(f"{_sort_expr(col, nullable)} = %({pname})s")
 		# The current column applies inequality according to its sort direction
 		col, direction = order_by[i]
 		op = "<" if direction.lower() == "desc" else ">"
 		pname = f"{param_prefix}cmp_{i}_{col}"
 		params[pname] = cursor[col]
-		conjunctions.append(f"`{col}` {op} %({pname})s")
+		conjunctions.append(f"{_sort_expr(col, nullable)} {op} %({pname})s")
 
 		disjunctions.append(" AND ".join(conjunctions))
 
 	return f"({' OR '.join(f'({d})' for d in disjunctions)})"
+
+
+def _sort_expr(col: str, nullable: frozenset[str], table: str = "") -> str:
+	"""A keyset sort column as SQL; a nullable one sorts and compares as ``''``."""
+	column = f"{table}`{col}`"
+	return f"IFNULL({column}, '')" if col in nullable else column
 
 
 def _format_field(doctype: str, field: str) -> str:
@@ -142,20 +153,25 @@ def _execute_keyset_query(
 	where_clauses: list[str],
 	params: dict,
 	limit: int,
+	nullable: frozenset[str] = frozenset(),
 ) -> dict:
 	"""
 	Executes a keyset query fetching (limit + 1) rows to determine has_more.
 	Generates next_cursor from the last item on the page.
+
+	:param nullable: sort columns that may be NULL (see ``_build_keyset_condition``).
 	"""
 	limit = clamp_limit(limit)
 	fetch_count = limit + 1
 
 	if cursor_dict:
-		keyset_sql = _build_keyset_condition(order_by, cursor_dict, params)
+		keyset_sql = _build_keyset_condition(order_by, cursor_dict, params, nullable=nullable)
 		where_clauses.append(keyset_sql)
 
 	where_str = " AND ".join(f"({w})" for w in where_clauses) if where_clauses else "1=1"
-	order_str = ", ".join(f"`tab{doctype}`.`{col}` {direction.upper()}" for col, direction in order_by)
+	order_str = ", ".join(
+		f"{_sort_expr(col, nullable, f'`tab{doctype}`.')} {direction.upper()}" for col, direction in order_by
+	)
 	fields_str = ", ".join(_format_field(doctype, f) for f in fields)
 
 	query = f"""
@@ -565,7 +581,8 @@ def get_products_list(
 	if tab == "low":
 		where.append("`tabPlatform Product`.`status` = 'Active'")
 		where.append("`tabPlatform Product`.`track_inventory` = 1")
-		where.append("`tabPlatform Product`.`available_qty` <= 5")
+		where.append("`tabPlatform Product`.`available_qty` <= %(f_low_qty)s")
+		params["f_low_qty"] = LOW_STOCK_QTY
 	elif tab == "all":
 		pass
 	elif status and status.strip() in ("Active", "Archived", "Draft"):
@@ -681,6 +698,8 @@ def get_team_list(
 		where_clauses=where,
 		params=params,
 		limit=limit,
+		# full_name is fetched from the User and may be empty.
+		nullable=frozenset({"full_name"}),
 	)
 
 
@@ -742,15 +761,6 @@ def get_commission_statements_list(
 			params["f_rep"] = sales_rep.strip()
 
 	decoded_cursor = decode_cursor(cursor, ("period_start", "name"))
-	return _execute_keyset_query(
-		doctype="Commission Statement",
-		fields=COMMISSION_CARD_FIELDS,
-		order_by=list(COMMISSION_KEYS),
-		cursor_dict=decoded_cursor,
-		where_clauses=where,
-		params=params,
-		limit=limit,
-	)
 	return _execute_keyset_query(
 		doctype="Commission Statement",
 		fields=COMMISSION_CARD_FIELDS,
@@ -916,13 +926,16 @@ def get_customer_detail_records(customer_id: str) -> dict:
 	doc.check_permission("read")
 
 	# Outstanding balance via SQL aggregate, over the orders the user may see: every rep reads
-	# every retailer, but another team's orders are not theirs to total.
+	# every retailer, but another team's orders are not theirs to total. What is still owed on
+	# each unpaid order: a Partially Paid one counts only its remainder, and a row without a
+	# payment status (older orders) counts as Unpaid instead of dropping out of `!=`.
 	order_scope = field_order_query(frappe.session.user) or "1=1"
 	unpaid_orders = frappe.db.sql(
 		f"""
-		SELECT COALESCE(SUM(grand_total), 0) as balance
+		SELECT COALESCE(SUM(GREATEST(grand_total - IFNULL(amount_paid, 0), 0)), 0) as balance
 		FROM `tabField Order`
-		WHERE retailer = %(ret)s AND docstatus = 1 AND payment_status != 'Paid' AND ({order_scope})
+		WHERE retailer = %(ret)s AND docstatus = 1 AND IFNULL(payment_status, 'Unpaid') != 'Paid'
+			AND ({order_scope})
 		""",
 		{"ret": customer_id},
 		as_dict=True,
@@ -1148,8 +1161,10 @@ def get_mobile_count(
 		presets = get_attention_presets() or {}
 		cards = get_card_presets() or {}
 		p_data = presets.get(preset) or cards.get(preset)
-		if p_data and p_data.get("filters"):
-			filter_list.extend(p_data["filters"])
+		# Same rule as the list (_preset_conditions): a preset counts only its own doctype.
+		if not p_data or p_data.get("doctype") != doctype:
+			frappe.throw(_("Unknown list preset: {0}").format(preset), frappe.ValidationError)
+		filter_list.extend(p_data.get("filters") or [])
 
 	filter_list.extend(_count_filters(doctype, filters))
 
@@ -1236,7 +1251,12 @@ def mobile_search(
 			results.extend(rows)
 
 	# 3. Platform Products
-	if (not doctype or doctype == "Platform Product") and len(results) < limit and not is_retailer_user(user):
+	if (
+		(not doctype or doctype == "Platform Product")
+		and len(results) < limit
+		and not is_retailer_user(user)
+		and frappe.has_permission("Platform Product", "read")
+	):
 		rows = frappe.db.sql(
 			"""
 			SELECT name, product_title as title, sku as subtitle, status as badge, 'Platform Product' as doctype

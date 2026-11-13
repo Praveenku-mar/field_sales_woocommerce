@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import frappe
 from frappe.tests import IntegrationTestCase
-from frappe.utils import nowdate
+from frappe.utils import add_days, now_datetime, nowdate
 
 from field_sales_woocommerce.commission import engine
 from field_sales_woocommerce.connectors import ConnectorError
@@ -221,3 +221,26 @@ class TestOrderCancel(IntegrationTestCase):
 		confirmation.assert_not_called()
 		synced.assert_not_called()
 		mark_paid.assert_not_called()
+
+	# -- draft linker window -----------------------------------------------------
+
+	def test_draft_linker_skips_drafts_pushed_long_ago(self):
+		from field_sales_woocommerce.sync import orders as sync_orders
+
+		frappe.db.set_single_value("Store Connection", "enabled", 1)
+		frappe.db.set_value(
+			"Field Order",
+			{"docstatus": 1, "sync_status": "Synced", "external_draft_id": ("is", "set"), "name": ("!=", self.order)},
+			"last_sync_attempt",
+			add_days(now_datetime(), -(sync_orders.DRAFT_LINK_DAYS + 1)),
+			update_modified=False,
+		)
+		self.conn.get_completed_drafts.return_value = {}
+		with patch.object(sync_orders, "get_connector", return_value=self.conn):
+			self.set_store(external_draft_id="D-OLD", last_sync_attempt=add_days(now_datetime(), -(sync_orders.DRAFT_LINK_DAYS + 1)))
+			sync_orders.link_completed_drafts()
+			self.conn.get_completed_drafts.assert_not_called()
+
+			self.set_store(external_draft_id="D-NEW", last_sync_attempt=now_datetime())
+			sync_orders.link_completed_drafts()
+			self.conn.get_completed_drafts.assert_called_once_with(["D-NEW"])

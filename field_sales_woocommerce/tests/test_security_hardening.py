@@ -8,7 +8,7 @@ from unittest.mock import patch
 import frappe
 import frappe.client
 from frappe.tests import IntegrationTestCase
-from frappe.utils import get_first_day, get_last_day, nowdate
+from frappe.utils import flt, get_first_day, get_last_day, nowdate
 from frappe.utils.password import get_decrypted_password, update_password
 
 from field_sales_woocommerce import frontend_api
@@ -539,3 +539,29 @@ class TestSecurityHardening(IntegrationTestCase):
 		self.assertEqual(mine["customer"]["outstanding_balance"], 0)
 		theirs = self.as_user(self.other_manager_user, mobile.get_customer_detail_records, self.other_retailer)
 		self.assertEqual(theirs["customer"]["outstanding_balance"], order.grand_total)
+
+	def test_team_list_pages_through_reps_without_a_name(self):
+		reps = (self.manager_rep, self.rep, self.other_rep)
+		frappe.db.set_value("Sales Rep", {"name": ("in", reps)}, "full_name", None, update_modified=False)
+		seen, cursor = [], None
+		for _page in range(200):
+			page = mobile.get_team_list(cursor=cursor, limit=1)
+			seen += [row.name for row in page["items"]]
+			cursor = page["next_cursor"]
+			if not page["has_more"]:
+				break
+		self.assertEqual(len(seen), len(set(seen)))
+		self.assertTrue(set(reps) <= set(seen))
+
+	def test_customer_outstanding_counts_what_is_still_owed(self):
+		def submitted(**payment):
+			order = self.order_doc()
+			order.insert()
+			order.db_set({"docstatus": 1, **payment})
+			return order.grand_total
+
+		partly = submitted(payment_status="Partially Paid", amount_paid=40)
+		no_status = submitted(payment_status=None)  # older rows have none: still owed
+		submitted(payment_status="Paid", amount_paid=PRICE)
+		result = mobile.get_customer_detail_records(self.retailer)
+		self.assertEqual(result["customer"]["outstanding_balance"], flt(partly - 40 + no_status, 2))

@@ -27,6 +27,10 @@ from field_sales_woocommerce.sync.notify import notify_order_sync_failure, notif
 MAX_AUTO_ATTEMPTS = 5
 # A Pending order untouched for this long lost its job (worker restart, queue down).
 STALE_PENDING_MINUTES = 30
+# link_completed_drafts() only asks the store about drafts pushed this recently, newest first,
+# at most this many a run: abandoned drafts would otherwise be re-queried every 30 minutes forever.
+DRAFT_LINK_DAYS = 90
+DRAFT_LINK_BATCH = 500
 
 
 def enqueue_push_order(field_order: str):
@@ -309,6 +313,9 @@ def link_completed_drafts():
 
 	``push_order`` skips Synced orders, so without this the order id of a
 	draft completed on the store later would never be recorded.
+
+	Only drafts pushed in the last ``DRAFT_LINK_DAYS`` days are checked (newest first, at most
+	``DRAFT_LINK_BATCH``): a draft completed later than that is not linked automatically.
 	"""
 	if not frappe.db.get_single_value("Store Connection", "enabled"):
 		return
@@ -320,8 +327,11 @@ def link_completed_drafts():
 			"sync_status": "Synced",
 			"external_draft_id": ("is", "set"),
 			"external_order_id": ("is", "not set"),
+			"last_sync_attempt": (">=", add_to_date(now_datetime(), days=-DRAFT_LINK_DAYS)),
 		},
 		fields=["name", "external_draft_id"],
+		order_by="last_sync_attempt desc",
+		limit=DRAFT_LINK_BATCH,
 	)
 	if not drafts:
 		return

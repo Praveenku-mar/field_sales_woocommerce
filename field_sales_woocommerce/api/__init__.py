@@ -976,11 +976,14 @@ def retry_all_sync_failures() -> dict:
 @frappe.whitelist()
 def get_sync_failure_count(filters: str | list | dict | None = None) -> dict:
 	"""Number card "Sync Failures": failed orders + retailers in the user's scope; opens the page."""
-	count = len(
-		frappe.get_list("Field Order", filters={"docstatus": 1, "sync_status": "Failed"}, pluck="name", limit_page_length=0)
-	) + len(frappe.get_list(
-		"Retailer", filters=[["sync_status", "=", "Failed"], *hierarchy_filters("Retailer")], pluck="name", limit_page_length=0
-	))
+	def rows_counted(doctype, filters):
+		# COUNT(*) in the database (permission rules still apply), not every name in memory.
+		rows = frappe.get_list(doctype, filters=filters, fields=[{"COUNT": "*", "as": "count"}])
+		return rows[0].count if rows else 0
+
+	count = rows_counted("Field Order", {"docstatus": 1, "sync_status": "Failed"}) + rows_counted(
+		"Retailer", [["sync_status", "=", "Failed"], *hierarchy_filters("Retailer")]
+	)
 
 	result = {"value": count, "fieldtype": "Int"}
 	if set(MONITOR_ROLES) & set(frappe.get_roles()):
