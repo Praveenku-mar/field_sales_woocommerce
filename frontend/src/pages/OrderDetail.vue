@@ -345,7 +345,7 @@
           </div>
         </div>
 
-        <!-- Payment (Razorpay payment link); read-only, written by the server -->
+        <!-- Payment status, manual collection and payment links -->
         <div v-if="d.docstatus === 1" class="fs-card">
           <div class="flex items-center gap-2 border-b border-desk-border px-4 py-3">
             <span class="lucide-credit-card size-4 text-ink-gray-7" />
@@ -363,6 +363,9 @@
               </dd>
             </div>
           </dl>
+          <div v-if="canMarkPaid" class="p-4 pt-2">
+            <Button class="w-full" label="Mark as Paid" icon-left="lucide-check-circle" @click="openManualPayment" />
+          </div>
           <div v-if="pay.razorpay_enabled && (pay.razorpay_payment_link_url || linkAction)" class="space-y-2 p-4 pt-1">
             <div v-if="pay.razorpay_payment_link_url" class="flex gap-2">
               <Button class="flex-1" label="Copy" icon-left="lucide-copy" @click="copyPaymentLink" />
@@ -476,6 +479,20 @@
 
     <BarcodeScanner v-model="scanOpen" @scanned="onScanned" />
 
+    <Dialog v-model="manualPaymentOpen" title="Mark as Paid">
+      <form id="manual-payment-form" class="space-y-4" @submit.prevent="submitManualPayment">
+        <p class="text-sm text-polaris-secondary">Record the full payment of {{ formatCurrency(pay.grand_total || d.grand_total) }} for this order.</p>
+        <FormControl v-model="manualPayment.method" type="select" label="Payment Method" :options="manualPaymentOptions" required />
+        <FormControl v-if="manualPayment.method === 'Bank Transfer / UPI'" v-model="manualPayment.reference" label="Payment Reference No." maxlength="140" required />
+      </form>
+      <template #actions>
+        <div class="flex justify-end gap-2">
+          <Button label="Cancel" @click="manualPaymentOpen = false" />
+          <Button variant="solid" label="Mark as Paid" type="submit" form="manual-payment-form" :loading="markingPaid" />
+        </div>
+      </template>
+    </Dialog>
+
     <Dialog v-model="manualCopyOpen" title="Copy link">
       <p class="mb-3 text-sm text-ink-gray-6">Your browser blocked automatic copying. Select the link below and copy it.</p>
       <input
@@ -511,6 +528,7 @@ import {
   Checkbox,
   DatePicker,
   Dialog,
+  FormControl,
   Dropdown,
   LoadingIndicator,
   Select,
@@ -1187,17 +1205,57 @@ const pay = computed(() => paymentInfo.data || {})
 const creatingLink = ref(false)
 const refreshingPayment = ref(false)
 
+const manualPaymentOpen = ref(false)
+const markingPaid = ref(false)
+const manualPayment = reactive({ method: '', reference: '' })
+const manualPaymentOptions = [
+  { label: 'Select payment method', value: '' },
+  { label: 'Cash', value: 'Cash' },
+  { label: 'Bank Transfer / UPI', value: 'Bank Transfer / UPI' },
+]
+const canMarkPaid = computed(() => d.value.docstatus === 1 && pay.value.can_mark_paid &&
+  pay.value.grand_total > 0 && !['Paid', 'Partially Paid'].includes(pay.value.payment_status))
+
+function openManualPayment() {
+  manualPayment.method = ''
+  manualPayment.reference = ''
+  manualPaymentOpen.value = true
+}
+
+async function submitManualPayment() {
+  if (!manualPayment.method || (manualPayment.method === 'Bank Transfer / UPI' && !manualPayment.reference.trim())) return
+  markingPaid.value = true
+  try {
+    await callMethod('field_sales_woocommerce.payments.manual.mark_order_paid', {
+      field_order: props.name,
+      payment_method: manualPayment.method,
+      payment_reference: manualPayment.method === 'Cash' ? '' : manualPayment.reference.trim(),
+    })
+    manualPaymentOpen.value = false
+    toast.success('Order marked as paid')
+    await reloadPayment()
+  } catch {
+    // callMethod shows the server error and keeps the dialog open.
+  } finally {
+    markingPaid.value = false
+  }
+}
+
 const paymentRows = computed(() => {
   const o = pay.value
   const when = (v) => (v ? `${relativeDay(v)}, ${formatTime(v)}` : null)
   const rows = [
     { label: 'Amount Paid', value: `${formatCurrency(o.amount_paid || 0)} of ${formatCurrency(o.grand_total ?? d.value.grand_total ?? 0)}`, muted: !o.amount_paid },
   ]
-  if (o.razorpay_payment_link_url) rows.push({ label: 'Payment Link', value: o.razorpay_payment_link_id || 'Open', href: o.razorpay_payment_link_url })
-  else if (storeCheckout.value) rows.push({ label: 'Store Checkout', value: 'Pay online', href: o.store_checkout_url })
-  else rows.push({ label: 'Payment Link', value: 'Not created', muted: true })
+  if (o.payment_status !== 'Paid') {
+    if (o.razorpay_payment_link_url) rows.push({ label: 'Payment Link', value: o.razorpay_payment_link_id || 'Open', href: o.razorpay_payment_link_url })
+    else if (storeCheckout.value) rows.push({ label: 'Store Checkout', value: 'Pay online', href: o.store_checkout_url })
+    else rows.push({ label: 'Payment Link', value: 'Not created', muted: true })
+  }
   if (o.payment_link_expires_on && !o.paid_on) rows.push({ label: 'Link Expires', value: when(o.payment_link_expires_on) })
   if (o.paid_on) rows.push({ label: 'Paid On', value: when(o.paid_on) })
+  if (o.manual_payment_method) rows.push({ label: 'Payment Method', value: o.manual_payment_method })
+  if (o.manual_payment_reference) rows.push({ label: 'Reference No.', value: o.manual_payment_reference })
   if (o.razorpay_payment_id) rows.push({ label: 'Payment ID', value: o.razorpay_payment_id })
   if (o.store_marked_paid_on) rows.push({ label: 'Store', value: `Marked paid ${when(o.store_marked_paid_on)}` })
   return rows

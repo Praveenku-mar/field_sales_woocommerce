@@ -437,3 +437,52 @@ class TestRazorpayLinks(IntegrationTestCase):
 			self.assertEqual(get_payment_config(), {"enabled": True, "available": True})
 		finally:
 			frappe.set_user("Administrator")
+
+	def test_manual_cash_payment_records_full_amount(self):
+		from field_sales_woocommerce.payments.manual import mark_order_paid
+
+		with patch("field_sales_woocommerce.payments.manual.enqueue_mark_store_paid"):
+			result = mark_order_paid(self.order.name, "Cash")
+		values = frappe.db.get_value(
+			"Field Order", self.order.name,
+			["payment_status", "amount_paid", "manual_payment_method", "manual_payment_reference", "paid_on"],
+			as_dict=True,
+		)
+		self.assertEqual(result["payment_status"], "Paid")
+		self.assertEqual(values.amount_paid, frappe.db.get_value("Field Order", self.order.name, "grand_total"))
+		self.assertEqual(values.manual_payment_method, "Cash")
+		self.assertIsNone(values.manual_payment_reference)
+		self.assertIsNotNone(values.paid_on)
+		with self.assertRaises(frappe.ValidationError):
+			mark_order_paid(self.order.name, "Cash")
+
+	def test_manual_bank_payment_requires_reference_and_cancels_open_link(self):
+		from field_sales_woocommerce.payments.manual import mark_order_paid
+
+		with self.assertRaises(frappe.ValidationError):
+			mark_order_paid(self.order.name, "Bank Transfer / UPI", " ")
+		create_link_for_order(self.order.name)
+		with patch("field_sales_woocommerce.payments.manual.enqueue_mark_store_paid"):
+			mark_order_paid(self.order.name, "Bank Transfer / UPI", " UTR-123 ")
+		self.assertEqual(self.fake.links["plink_1"]["status"], "cancelled")
+		self.assertEqual(frappe.db.get_value("Field Order", self.order.name, "manual_payment_reference"), "UTR-123")
+
+	def test_manual_payment_refuses_link_that_has_already_received_money(self):
+		from field_sales_woocommerce.payments.manual import mark_order_paid
+
+		create_link_for_order(self.order.name)
+		self.fake.links["plink_1"]["status"] = "partially_paid"
+		with self.assertRaises(frappe.ValidationError):
+			mark_order_paid(self.order.name, "Cash")
+		self.assertNotEqual(frappe.db.get_value("Field Order", self.order.name, "payment_status"), "Paid")
+
+	def test_manual_payment_checks_order_permission(self):
+		from field_sales_woocommerce.payments.manual import mark_order_paid
+
+		other = self._user("manual.other@example.com", "Field Sales Rep")
+		frappe.get_doc({"doctype": "Sales Rep", "user": other}).insert(ignore_permissions=True)
+		frappe.set_user(other)
+		try:
+			self.assertRaises(frappe.PermissionError, mark_order_paid, self.order.name, "Cash")
+		finally:
+			frappe.set_user("Administrator")

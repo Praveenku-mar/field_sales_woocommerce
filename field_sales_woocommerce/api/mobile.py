@@ -823,6 +823,7 @@ def get_retailer_payments_list(
 		"grand_total as amount",
 		"payment_status as status",
 		"razorpay_payment_id as payment_reference",
+		"manual_payment_reference",
 		"paid_on",
 		"name as order_id",
 		# Keyset keys (ORDER_KEYS): the next cursor is read from these.
@@ -831,7 +832,7 @@ def get_retailer_payments_list(
 	]
 
 	decoded_cursor = decode_cursor(cursor, ("order_date", "modified", "name"))
-	return _execute_keyset_query(
+	result = _execute_keyset_query(
 		doctype="Field Order",
 		fields=payment_fields,
 		order_by=list(ORDER_KEYS),
@@ -840,6 +841,9 @@ def get_retailer_payments_list(
 		params=params,
 		limit=limit,
 	)
+	for row in result["items"]:
+		row["payment_reference"] = row.pop("manual_payment_reference") or row["payment_reference"]
+	return result
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -899,6 +903,15 @@ def get_order_detail(order_id: str) -> dict:
 		"store_order_name": doc.store_order_name,
 		"store_checkout_url": doc.store_checkout_url,
 		"payment_status": doc.payment_status,
+		"manual_payment_method": doc.manual_payment_method,
+		"manual_payment_reference": doc.manual_payment_reference,
+		"can_mark_paid": bool(
+			not is_retailer_user()
+			and doc.has_permission("write")
+			and doc.docstatus == 1
+			and flt(doc.grand_total) > 0
+			and doc.payment_status not in ("Paid", "Partially Paid")
+		),
 		"location_id": doc.location_id,
 		"visit": doc.visit,
 		"remarks": doc.remarks,

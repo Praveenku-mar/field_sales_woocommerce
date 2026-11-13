@@ -53,6 +53,8 @@ PAYMENT_FIELDS = (
 	"payment_link_created_on",
 	"payment_link_expires_on",
 	"paid_on",
+	"manual_payment_method",
+	"manual_payment_reference",
 	"store_marked_paid_on",
 )
 
@@ -100,7 +102,7 @@ class FieldOrder(Document):
 		if self.payment_status in ("Paid", "Partially Paid"):
 			frappe.throw(
 				_(
-					"This order has a Razorpay payment of {0}. Refund it in the Razorpay Dashboard first, then cancel the order."
+					"This order has a payment of {0}. Reconcile or refund the payment before cancelling the order."
 				).format(frappe.utils.fmt_money(self.amount_paid, currency=site_currency())),
 				title=_("Order is paid"),
 			)

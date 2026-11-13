@@ -51,6 +51,8 @@
   "payment_status",
   "amount_paid",
   "paid_on",
+  "manual_payment_method",
+  "manual_payment_reference",
   "store_marked_paid_on",
   "col_break_payment",
   "razorpay_payment_link_id",
@@ -356,6 +358,23 @@
    "fieldname": "paid_on",
    "fieldtype": "Datetime",
    "label": "Paid On",
+   "read_only": 1,
+   "allow_on_submit": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "manual_payment_method",
+   "fieldtype": "Select",
+   "label": "Manual Payment Method",
+   "options": "\nCash\nBank Transfer / UPI",
+   "read_only": 1,
+   "allow_on_submit": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "manual_payment_reference",
+   "fieldtype": "Data",
+   "label": "Payment Reference No.",
    "read_only": 1,
    "allow_on_submit": 1,
    "no_copy": 1

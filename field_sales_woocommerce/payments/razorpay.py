@@ -62,6 +62,8 @@ PAYMENT_FIELDS = (
 	"amount_paid",
 	"razorpay_payment_id",
 	"paid_on",
+	"manual_payment_method",
+	"manual_payment_reference",
 	"razorpay_payment_link_id",
 	"razorpay_payment_link_url",
 	"payment_link_created_on",

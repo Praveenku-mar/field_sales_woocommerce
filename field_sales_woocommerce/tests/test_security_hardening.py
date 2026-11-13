@@ -522,6 +522,15 @@ class TestSecurityHardening(IntegrationTestCase):
 		self.assertEqual([r.order_id for r in result["items"]], [order.name])
 		self.assertEqual(result["items"][0].payment_reference, "pay_harden")
 
+	def test_retailer_payments_list_shows_manual_reference(self):
+		order = self.order_doc()
+		order.insert()
+		order.db_set({"docstatus": 1, "payment_status": "Paid", "manual_payment_reference": "UTR-123"})
+		login = self.make_user("harden.manual.payer@example.com", ["Field Sales Retailer"])
+		frappe.db.set_value("Retailer", self.retailer, "user", login)
+		result = self.as_user(login, mobile.get_retailer_payments_list)
+		self.assertEqual(result["items"][0].payment_reference, "UTR-123")
+
 	def test_retailer_summary_is_scoped_to_the_team(self):
 		order = self.order_doc(retailer=self.other_retailer, sales_rep=self.other_rep)
 		order.insert()
