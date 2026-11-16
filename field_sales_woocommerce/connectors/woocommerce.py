@@ -39,6 +39,7 @@ from field_sales_woocommerce.connectors.base import (
 	BaseConnector,
 	ConnectorError,
 )
+from field_sales_woocommerce.utils.money import site_currency
 
 if TYPE_CHECKING:
 	from frappe.model.document import Document
@@ -454,14 +455,62 @@ class WooCommerceConnector(BaseConnector):
 		return {"draft_id": None, "order_id": str(data["id"]), "order_name": f"#{data['number']}"}
 
 	def mark_order_paid(self, field_order: Document) -> dict:
-		data = self._request(
-			"PUT",
-			f"/orders/{field_order.external_order_id}",
-			operation="Mark Order Paid",
-			json_body={"set_paid": True},
-			ref=field_order,
-		)
-		return {"financial_status": "paid" if data.get("date_paid") else "pending", "already_paid": False}
+		"""
+		Mark the WooCommerce order paid for a payment taken in Agamsale (cash, bank transfer /
+		UPI, or Razorpay), and say how in the order: payment method, transaction id and a note.
+
+		The order is read first. A cancelled, refunded or trashed order is refused
+		(``CANNOT_MARK_PAID``): ``set_paid`` would run WooCommerce's payment_complete(), which
+		reopens it as Processing. An order WooCommerce already counts as paid (a paid date, or
+		Processing / Completed, as Confirmed-mode orders are created) keeps its status and only
+		gets the note, plus the payment method when it has none.
+		"""
+		order_id = field_order.external_order_id
+		try:
+			order = self._request("GET", f"/orders/{order_id}", operation="Mark Order Paid", ref=field_order)
+		except ConnectorError as e:
+			if e.http_status == 404:
+				raise ConnectorError(
+					_("WooCommerce order {0} no longer exists").format(order_id), code="NOT_FOUND", http_status=404
+				) from e
+			raise
+
+		status = order.get("status") or ""
+		if status in UNPAYABLE_ORDER_STATUSES:
+			raise ConnectorError(
+				_("WooCommerce order #{0} is {1}; it was not marked paid. Reopen it in WooCommerce, then retry.").format(
+					order.get("number") or order_id, status
+				),
+				code="CANNOT_MARK_PAID",
+			)
+
+		payment = _payment_details(field_order)
+		already_paid = bool(order.get("date_paid")) or status in PAID_ORDER_STATUSES
+		body = {}
+		# Never overwrite how the store says it was paid (e.g. the customer paid online).
+		if not order.get("payment_method") and not order.get("payment_method_title"):
+			body.update(payment_method=payment["method"], payment_method_title=payment["title"])
+			if payment["reference"] and not order.get("transaction_id"):
+				body["transaction_id"] = payment["reference"]
+		if not already_paid:
+			body["set_paid"] = True
+		if body:
+			order = self._request("PUT", f"/orders/{order_id}", operation="Mark Order Paid", json_body=body, ref=field_order)
+
+		# The note is a record only: the order is already marked, so a failure here (logged by
+		# _request) must not make the job report the payment as not reaching the store.
+		try:
+			self._request(
+				"POST",
+				f"/orders/{order_id}/notes",
+				operation="Mark Order Paid",
+				json_body={"note": payment["note"], "customer_note": False},
+				ref=field_order,
+			)
+		except ConnectorError:
+			pass
+
+		return {"financial_status": "paid" if order.get("date_paid") or already_paid else "pending", "already_paid": already_paid}
 
 	def get_order_url(self, order_id: str | None, draft_id: str | None = None) -> str | None:
 		if not order_id:
@@ -790,6 +839,34 @@ def _tax_line(field_order: Document) -> list[dict]:
 			"shipping_tax_total": "0.00",
 		}
 	]
+
+
+# WooCommerce statuses set_paid (payment_complete) would wrongly reopen as Processing.
+UNPAYABLE_ORDER_STATUSES = {"cancelled", "refunded", "trash"}
+# WooCommerce counts these as paid already (Confirmed-mode orders are created Processing).
+PAID_ORDER_STATUSES = {"processing", "completed"}
+
+# Agamsale payment method -> (WooCommerce gateway id, title shown as "Payment via ...").
+_PAYMENT_METHODS = {
+	"Cash": ("cod", "Cash"),
+	"Bank Transfer / UPI": ("bacs", "Bank Transfer / UPI"),
+}
+
+
+def _payment_details(field_order: Document) -> dict:
+	"""How the Field Order was paid, for the WooCommerce order: method, title, reference and note."""
+	manual = field_order.get("manual_payment_method")
+	if manual:
+		method, title = _PAYMENT_METHODS.get(manual, ("other", manual))
+		reference = (field_order.get("manual_payment_reference") or "").strip()
+	else:
+		method, title = "razorpay", "Razorpay"
+		reference = (field_order.get("razorpay_payment_id") or "").strip()
+	amount = frappe.utils.fmt_money(field_order.get("amount_paid") or field_order.grand_total, currency=site_currency())
+	note = _("Paid in Agamsale (Field Order {0}): {1} by {2}.").format(field_order.name, amount, _(title))
+	if reference:
+		note += " " + _("Reference: {0}.").format(reference)
+	return {"method": method, "title": title, "reference": reference, "note": note}
 
 
 def _variation_title(variation: dict | None) -> str | None:

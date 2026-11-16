@@ -208,7 +208,8 @@ def enqueue_mark_store_paid(field_order: str):
 
 def mark_store_order_paid(field_order: str):
 	"""
-	Mark a confirmed store order paid after the Field Order was paid on Razorpay.
+	Mark the store order paid after the Field Order was paid (Razorpay, cash or bank transfer /
+	UPI); the connector also records how it was paid on the store order.
 
 	Only orders pushed as confirmed orders (no draft); done once (``store_marked_paid_on``).
 	A store error is in Sync Log (written by the connector) and retried by ``retry_store_payments()``.
@@ -246,7 +247,9 @@ def mark_store_order_paid(field_order: str):
 		"Info",
 		_("Store order {0} marked as paid.").format(doc.store_order_name or doc.external_order_id)
 		if not result.get("already_paid")
-		else _("Store order {0} was already paid.").format(doc.store_order_name or doc.external_order_id),
+		else _("Store order {0} was already paid; the payment details were added to it.").format(
+			doc.store_order_name or doc.external_order_id
+		),
 	)
 
 

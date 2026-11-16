@@ -273,7 +273,8 @@ class BaseConnector:
 	def mark_order_paid(self, field_order: Document) -> dict:
 		"""
 		Mark the store order (``field_order.external_order_id``) paid in full, for a payment
-		taken outside the store (Razorpay). An order the store already shows as paid is left alone.
+		taken outside the store (Razorpay, or cash / bank transfer recorded in the app). An order
+		the store already shows as paid keeps its status.
 
 		:return: ``{"financial_status": str, "already_paid": bool}``
 		:raises ConnectorError: the store cannot mark it paid (e.g. cancelled there).

@@ -370,3 +370,77 @@ class TestWebhookEndpoint(IntegrationTestCase):
 		with patch.object(conn, "ensure_webhooks", return_value={"product.updated": "created"}):
 			result = api._register_webhooks(conn)
 		self.assertEqual(result["topics"], {"product.updated": "created"})
+
+
+class TestMarkOrderPaid(IntegrationTestCase):
+	"""mark_order_paid: reads the store order, refuses closed ones, records how it was paid."""
+
+	def run_with(self, order: dict, **fields):
+		conn = make_connector()
+		field_order = frappe._dict(
+			name="FO-TEST-1",
+			external_order_id="501",
+			grand_total=1180,
+			amount_paid=1180,
+			manual_payment_method="Bank Transfer / UPI",
+			manual_payment_reference="UTR-123",
+			razorpay_payment_id=None,
+		)
+		field_order.update(fields)
+		calls = []
+
+		def fake_request(method, path, operation, params=None, json_body=None, ref=None):
+			calls.append((method, path, json_body))
+			if method == "GET":
+				return order
+			if method == "PUT":
+				return {**order, **json_body, "date_paid": "2026-11-16T10:00:00"}
+			return {"id": 7}
+
+		with patch.object(conn, "_request", side_effect=fake_request):
+			result = conn.mark_order_paid(field_order)
+		return result, calls
+
+	def test_unpaid_order_is_paid_with_method_reference_and_note(self):
+		result, calls = self.run_with({"id": 501, "status": "pending", "date_paid": None})
+		self.assertEqual(result, {"financial_status": "paid", "already_paid": False})
+		put = next(c for c in calls if c[0] == "PUT")
+		self.assertEqual(
+			put[2],
+			{"set_paid": True, "payment_method": "bacs", "payment_method_title": "Bank Transfer / UPI", "transaction_id": "UTR-123"},
+		)
+		note = next(c for c in calls if c[0] == "POST")
+		self.assertEqual(note[1], "/orders/501/notes")
+		self.assertIn("FO-TEST-1", note[2]["note"])
+		self.assertIn("UTR-123", note[2]["note"])
+		self.assertFalse(note[2]["customer_note"])
+
+	def test_processing_order_keeps_its_status_and_gets_the_details(self):
+		result, calls = self.run_with({"id": 501, "status": "processing", "date_paid": None}, manual_payment_method="Cash", manual_payment_reference=None)
+		self.assertTrue(result["already_paid"])
+		put = next(c for c in calls if c[0] == "PUT")
+		self.assertNotIn("set_paid", put[2])
+		self.assertEqual(put[2]["payment_method"], "cod")
+		self.assertNotIn("transaction_id", put[2])
+
+	def test_store_payment_method_is_never_overwritten(self):
+		order = {"id": 501, "status": "completed", "date_paid": "2026-11-01", "payment_method": "stripe", "payment_method_title": "Card"}
+		result, calls = self.run_with(order)
+		self.assertTrue(result["already_paid"])
+		self.assertEqual([c[0] for c in calls], ["GET", "POST"])  # note only
+
+	def test_cancelled_order_is_refused_untouched(self):
+		from field_sales_woocommerce.connectors.base import ConnectorError
+
+		for status in ("cancelled", "refunded", "trash"):
+			with self.assertRaises(ConnectorError) as ctx:
+				self.run_with({"id": 501, "number": "501", "status": status})
+			self.assertEqual(ctx.exception.code, "CANNOT_MARK_PAID")
+
+	def test_razorpay_payment_uses_its_payment_id(self):
+		_result, calls = self.run_with(
+			{"id": 501, "status": "pending"}, manual_payment_method=None, manual_payment_reference=None, razorpay_payment_id="pay_ABC"
+		)
+		put = next(c for c in calls if c[0] == "PUT")
+		self.assertEqual(put[2]["payment_method"], "razorpay")
+		self.assertEqual(put[2]["transaction_id"], "pay_ABC")
