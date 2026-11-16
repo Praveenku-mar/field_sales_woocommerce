@@ -334,3 +334,28 @@ input[type='checkbox'].form-checkbox {
     margin-top: 4px !important;
   }
 }
+
+/* ---- Postbox titles on detail pages (WooCommerce metaboxes) ---- */
+.fs-card h2.text-base {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--wp-text);
+}
+
+/* ---- WooCommerce Analytics summary: tiles joined into one bordered strip ---- */
+.wc-summary {
+  gap: 1px;
+  border: 1px solid var(--wp-border);
+  background-color: var(--wp-border-light);
+  box-shadow: 0 1px 1px rgb(0 0 0 / 0.04);
+}
+.wc-summary > .fs-card {
+  border: 0;
+  box-shadow: none;
+}
+/* Two tiles a row on phones: an odd last tile fills its row instead of leaving a gap. */
+@media (max-width: 1023px) {
+  .wc-summary.grid-cols-2 > .fs-card:last-child:nth-child(odd) {
+    grid-column: span 2;
+  }
+}

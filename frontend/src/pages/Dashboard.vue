@@ -2,11 +2,12 @@
   <div>
     <PageHeader :title="greeting">
       <template #meta>
-        <TabButtons v-model="period" :options="PERIODS" />
+        <!-- WooCommerce Analytics: a date range dropdown beside the heading -->
+        <FormControl v-model="period" type="select" :options="PERIODS" aria-label="Date range" class="w-40" />
         <LoadingIndicator v-if="dash.loading && dash.data" class="size-4 text-ink-gray-5" />
       </template>
       <template #actions>
-        <Button icon="lucide-refresh-cw" variant="ghost" aria-label="Refresh" :loading="dash.loading || overview.loading" @click="refresh" />
+        <Button label="Refresh" icon-left="lucide-refresh-cw" :loading="dash.loading || overview.loading" @click="refresh" />
       </template>
     </PageHeader>
 
@@ -28,7 +29,7 @@
       <ErrorMessage v-if="dash.error || overview.error" :message="dash.error || overview.error" />
 
       <!-- The selected period -->
-      <div class="grid grid-cols-2 gap-4 lg:grid-cols-5">
+      <div class="wc-summary grid grid-cols-2 lg:grid-cols-5">
         <NumberCard label="Visits" icon="lucide-map-pin-check" :value="cards.visits_count" :caption="periodLabel" />
         <NumberCard label="Orders" icon="lucide-shopping-cart" :value="cards.orders_count" :caption="periodLabel" />
         <NumberCard
@@ -54,8 +55,8 @@
 
       <!-- Today -->
       <div>
-        <h2 class="mb-2 text-sm font-medium text-ink-gray-6">Today</h2>
-        <div class="grid grid-cols-2 gap-4 xl:grid-cols-4">
+        <h2 class="mb-2 text-[1.3em] font-semibold text-ink-gray-8">Today</h2>
+        <div class="wc-summary grid grid-cols-2 xl:grid-cols-4">
           <NumberCard
             label="Visits Today"
             icon="lucide-map-pin-check"
@@ -92,8 +93,8 @@
 
       <!-- Needs attention -->
       <div>
-        <h2 class="mb-2 text-sm font-medium text-ink-gray-6">Needs attention</h2>
-        <div class="grid grid-cols-2 gap-4 lg:grid-cols-3">
+        <h2 class="mb-2 text-[1.3em] font-semibold text-ink-gray-8">Needs attention</h2>
+        <div class="wc-summary grid grid-cols-2 lg:grid-cols-3">
           <NumberCard
             label="Missed Visits"
             icon="lucide-calendar-x"
@@ -359,7 +360,7 @@
 
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { Avatar, Badge, Button, ErrorMessage, LoadingIndicator, TabButtons, createResource, dayjs } from 'frappe-ui'
+import { Avatar, Badge, Button, ErrorMessage, FormControl, LoadingIndicator, createResource, dayjs } from 'frappe-ui'
 import { ListView } from 'frappe-ui/experimental'
 import { AreaChart, BarChart, DonutChart, LineChart } from 'frappe-ui/charts'
 import PageHeader from '@/components/PageHeader.vue'
