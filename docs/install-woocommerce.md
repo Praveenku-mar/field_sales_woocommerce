@@ -33,7 +33,7 @@ install. Open the app at `https://sales.example.com/fieldsales` and sign in.
 
 ## 3. Connect
 
-As a System Manager, open **Store Connection** (sidebar, bottom):
+As a System Manager, open **Settings → Store** (side menu, bottom):
 
 1. **Platform**: WooCommerce — the form switches to Consumer Key / Secret / API Version.
 2. **Store URL**: `https://your-store.example.com` (scheme optional).
@@ -111,6 +111,13 @@ tries; nothing else is affected.
    Settings → Store Connection → **WordPress Plugin Secret**, then Save.
 4. The app page allows framing from the connected store's origin automatically
    (Store Connection → Store URL must be this WordPress site).
+
+**Menu.** The plugin adds WooCommerce-style submenus under **Agamsale** —
+Dashboard, Orders, Shops, Visits, Products, Sales Reps, Commission, Reports,
+Status and Settings — and the app hides its own side menu in the frame. The page
+you are on is kept in the wp-admin URL (`&path=`), so a reload or a shared link
+reopens it. A page your Agamsale role cannot open sends you back to the Dashboard.
+Update the plugin (1.2.0) to get the submenus.
 
 **Sign-in.** Inside wp-admin the app signs you in as the Agamsale user with the
 **same email** as your WordPress account; that user needs a Field Sales role

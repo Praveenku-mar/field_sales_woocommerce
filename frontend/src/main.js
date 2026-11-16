@@ -8,14 +8,18 @@ import App from './App.vue'
 import router from './router'
 import './composables/useInstallPrompt' // listens for beforeinstallprompt from page load
 import { isEmbedded, useAdminToasts, withSessionToken } from './shopify/embedded'
-import { installWpAuth, isTokenSession, isWpEmbedded } from './wordpress/embed'
+import { announceRoutes, installWpAuth, isTokenSession, isWpEmbedded } from './wordpress/embed'
 
 // createResource / createListResource / createDocumentResource all fetch through this.
 // Inside the Shopify admin there is no Frappe cookie: each request carries a session token.
 setConfig('resourceFetcher', isEmbedded() ? withSessionToken(frappeRequest) : frappeRequest)
 if (isEmbedded()) useAdminToasts(toast)
 // Inside wp-admin (the Agamsale plugin's frame): API requests carry the plugin's token instead.
-if (isWpEmbedded()) installWpAuth()
+if (isWpEmbedded()) {
+  installWpAuth()
+  // The Agamsale submenus in wp-admin are the navigation there; keep them in step.
+  announceRoutes(router)
+}
 // frappe-ui sends the browser's hostname as X-Frappe-Site-Name, which names no site
 // behind a tunnel or proxy (ngrok, a custom domain). Send the site that served the page.
 setConfig('requestHeaders', () =>

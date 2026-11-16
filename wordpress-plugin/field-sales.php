@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Agamsale
  * Description: Run the Agamsale app (visits, orders, customers) inside WooCommerce. Connect it once on Settings → Agamsale.
- * Version: 1.1.0
+ * Version: 1.2.0
  * Author: Agamsale
  * Requires at least: 6.0
  * Requires PHP: 7.4
@@ -91,6 +91,36 @@ function field_sales_site_of(string $host): string {
 	return implode('.', array_slice($labels, -2));
 }
 
+/**
+ * The Agamsale submenus in wp-admin, as WooCommerce lays out its own: each opens one app page
+ * (a path under the App URL) in the frame. The app hides its own menu inside wp-admin, so these
+ * are its navigation there; pages the person's Agamsale role cannot open send them back to the
+ * Dashboard with a message.
+ */
+function field_sales_pages(): array {
+	return [
+		'field-sales' => ['Dashboard', 'dashboard'],
+		'field-sales-orders' => ['Orders', 'orders'],
+		'field-sales-shops' => ['Shops', 'retailers'],
+		'field-sales-visits' => ['Visits', 'visits'],
+		'field-sales-products' => ['Products', 'products'],
+		'field-sales-reps' => ['Sales Reps', 'sales-reps'],
+		'field-sales-commission' => ['Commission', 'commission'],
+		'field-sales-reports' => ['Reports', 'reports'],
+		'field-sales-status' => ['Status', 'sync-log'],
+		'field-sales-app-settings' => ['Settings', 'settings'],
+	];
+}
+
+/** An app path from wp-admin's URL (`&path=orders/FO-0001?tab=x`): relative, no scheme or host. */
+function field_sales_clean_path(string $path): string {
+	$path = ltrim($path, '/');
+	if ($path === '' || strlen($path) > 300 || strpos($path, '..') !== false || strpos($path, '//') !== false) {
+		return '';
+	}
+	return preg_match('#^[A-Za-z0-9][A-Za-z0-9/_.%~=&+,?-]*$#', $path) ? $path : '';
+}
+
 add_action('admin_menu', function () {
 	add_menu_page(
 		'Agamsale',
@@ -101,6 +131,9 @@ add_action('admin_menu', function () {
 		'dashicons-store',
 		56
 	);
+	foreach (field_sales_pages() as $slug => $page) {
+		add_submenu_page('field-sales', $page[0] . ' ‹ Agamsale', $page[0], field_sales_cap(), $slug, 'field_sales_render_page');
+	}
 	add_options_page(
 		'Agamsale',
 		'Agamsale',
@@ -244,13 +277,21 @@ function field_sales_render_page() {
 		<?php
 		return;
 	}
-	$frame_url = add_query_arg('wp_embed', '1', $url);
+	// The submenu's page, or the page the frame last reported (kept in &path= so a reload or a
+	// shared link reopens it).
+	$pages = field_sales_pages();
+	$slug = isset($_GET['page']) ? sanitize_key(wp_unslash($_GET['page'])) : 'field-sales';
+	$path = isset($_GET['path']) ? field_sales_clean_path((string) wp_unslash($_GET['path'])) : '';
+	if ($path === '') {
+		$path = isset($pages[$slug]) ? $pages[$slug][1] : 'dashboard';
+	}
+	$frame_url = add_query_arg('wp_embed', '1', $url . '/' . $path);
 	?>
 	<div class="wrap" style="margin-right:0;">
 		<h1 class="screen-reader-text">Agamsale</h1>
 		<p style="display:flex;gap:8px;align-items:center;margin:8px 0;">
 			<span><?php echo esc_html(wp_parse_url($url, PHP_URL_HOST)); ?></span>
-			<a class="button button-small" href="<?php echo esc_url($url); ?>" target="_blank" rel="noopener">
+			<a class="button button-small" href="<?php echo esc_url($url . '/' . $path); ?>" target="_blank" rel="noopener">
 				Open in a new tab <span class="dashicons dashicons-external" style="font-size:14px;line-height:1.4;"></span>
 			</a>
 		</p>
@@ -273,9 +314,36 @@ function field_sales_render_page() {
 			data.id = id;
 			frame.contentWindow.postMessage(data, appOrigin);
 		}
+		// The frame reports each page it opens ({type:'agamsale:navigated', path, title}): keep it in
+		// this page's URL and highlight the Agamsale submenu that owns it.
+		var pages = <?php echo wp_json_encode(array_map(function ($p) { return $p[1]; }, $pages)); ?>;
+		var owners = { 'sync-failures': 'field-sales-status', 'my-orders': 'field-sales' };
+		var siteTitle = <?php echo wp_json_encode(get_bloginfo('name')); ?>;
+		function onNavigated(msg) {
+			var path = String(msg.path || '');
+			if (!/^[A-Za-z0-9][A-Za-z0-9\/_.%~=&+,?-]*$/.test(path) || path.indexOf('..') !== -1 || path.indexOf('//') !== -1) return;
+			var first = path.split(/[/?]/)[0];
+			var slug = owners[first] || 'field-sales';
+			Object.keys(pages).forEach(function (s) { if (pages[s] === first) slug = s; });
+			var url = new URL(window.location.href);
+			url.searchParams.set('page', slug);
+			url.searchParams.set('path', path);
+			window.history.replaceState(null, '', url.toString());
+			document.querySelectorAll('#toplevel_page_field-sales .wp-submenu li').forEach(function (li) {
+				var a = li.querySelector('a');
+				var current = !!a && new URL(a.href, window.location.href).searchParams.get('page') === slug;
+				li.classList.toggle('current', current);
+				if (a) {
+					a.classList.toggle('current', current);
+					if (current) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+				}
+			});
+			if (msg.title) document.title = msg.title + ' \u2039 Agamsale \u2039 ' + siteTitle;
+		}
 		window.addEventListener('message', function (event) {
 			var msg = event.data;
 			if (event.source !== frame.contentWindow || event.origin !== appOrigin) return;
+			if (msg && msg.type === 'agamsale:navigated') return onNavigated(msg);
 			if (!msg || msg.type !== 'agamsale:token-request') return;
 			var body = new URLSearchParams({ action: 'agamsale_token', _ajax_nonce: nonce });
 			fetch(ajaxUrl, { method: 'POST', credentials: 'same-origin', body: body })

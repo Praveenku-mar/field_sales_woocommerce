@@ -122,3 +122,18 @@ export function installWpAuth() {
       })
   }
 }
+
+/**
+ * Tell the plugin page which app page is open ({type:'agamsale:navigated', path, title}), so
+ * wp-admin keeps it in its own URL (a reload or a shared link reopens it) and highlights the
+ * matching Agamsale submenu. Only the store's wp-admin can frame the app (frame-ancestors),
+ * and the path holds nothing the signed-in user cannot already see there.
+ */
+export function announceRoutes(router) {
+  router.afterEach((to) => {
+    window.parent.postMessage(
+      { type: 'agamsale:navigated', path: to.fullPath.replace(/^\/+/, ''), title: to.meta.title || '' },
+      '*',
+    )
+  })
+}
