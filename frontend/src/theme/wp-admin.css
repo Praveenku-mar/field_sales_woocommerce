@@ -294,3 +294,43 @@ input[type='checkbox'].form-checkbox {
   font-style: normal;
   margin-top: 4px;
 }
+
+/* ---- Settings: wp-admin `.form-table` ----
+ * The settings forms lay frappe-ui fields out in 2-column grids with the label above each
+ * field. Inside `.wp-form-table` (pages/Settings.vue) wide screens get the WooCommerce
+ * settings layout instead: one field per row, bold label in a 200px column on the left,
+ * field and its description on the right. Phones keep the stacked layout, as wp-admin does.
+ */
+.wp-form-table h3 {
+  font-size: 1.3em;
+  font-weight: 600;
+  color: var(--wp-text);
+}
+@media (min-width: 782px) {
+  .wp-form-table .grid.md\:grid-cols-2,
+  .wp-form-table .grid.lg\:grid-cols-2 {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 1rem;
+  }
+  .wp-form-table .space-y-1\.5:has(> label:first-child) {
+    display: grid;
+    grid-template-columns: 200px minmax(0, 28rem);
+    column-gap: 20px;
+    align-items: start;
+  }
+  .wp-form-table .space-y-1\.5:has(> label:first-child) > * {
+    grid-column: 2;
+    margin-top: 0 !important;
+  }
+  .wp-form-table .space-y-1\.5:has(> label:first-child) > label:first-child {
+    grid-column: 1;
+    grid-row: 1 / span 3;
+    padding-top: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--wp-text);
+  }
+  .wp-form-table .space-y-1\.5:has(> label:first-child) > * + * {
+    margin-top: 4px !important;
+  }
+}
