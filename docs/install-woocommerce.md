@@ -117,7 +117,8 @@ Dashboard, Orders, Shops, Visits, Products, Sales Reps, Commission, Reports,
 Status and Settings — and the app hides its own side menu in the frame. The page
 you are on is kept in the wp-admin URL (`&path=`), so a reload or a shared link
 reopens it. A page your Agamsale role cannot open sends you back to the Dashboard.
-Update the plugin (1.2.0) to get the submenus.
+Update the plugin (1.3.0) to get the submenus and the Razorpay checkout gateway
+(see [razorpay-payments.md](razorpay-payments.md)).
 
 **Sign-in.** Inside wp-admin the app signs you in as the Agamsale user with the
 **same email** as your WordPress account; that user needs a Field Sales role
