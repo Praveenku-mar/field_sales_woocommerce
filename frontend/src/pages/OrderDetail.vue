@@ -1242,8 +1242,10 @@ const manualPaymentOptions = [
   { label: 'Cash', value: 'Cash' },
   { label: 'Bank Transfer / UPI', value: 'Bank Transfer / UPI' },
 ]
+// Money came in (refunds included): no new link, store checkout or manual payment.
+const HAS_PAYMENT = ['Paid', 'Partially Paid', 'Partially Refunded', 'Refunded']
 const canMarkPaid = computed(() => d.value.docstatus === 1 && pay.value.can_mark_paid &&
-  pay.value.grand_total > 0 && !['Paid', 'Partially Paid'].includes(pay.value.payment_status))
+  pay.value.grand_total > 0 && !HAS_PAYMENT.includes(pay.value.payment_status))
 
 function openManualPayment() {
   manualPayment.method = ''
@@ -1276,7 +1278,7 @@ const paymentRows = computed(() => {
   const rows = [
     { label: 'Amount Paid', value: `${formatCurrency(o.amount_paid || 0)} of ${formatCurrency(o.grand_total ?? d.value.grand_total ?? 0)}`, muted: !o.amount_paid },
   ]
-  if (o.payment_status !== 'Paid') {
+  if (!HAS_PAYMENT.includes(o.payment_status) || o.payment_status === 'Partially Paid') {
     if (o.razorpay_payment_link_url) rows.push({ label: 'Payment Link', value: o.razorpay_payment_link_id || 'Open', href: o.razorpay_payment_link_url })
     else if (storeCheckout.value) rows.push({ label: 'Store Checkout', value: 'Pay online', href: o.store_checkout_url })
     else rows.push({ label: 'Payment Link', value: 'Not created', muted: true })
@@ -1286,6 +1288,7 @@ const paymentRows = computed(() => {
   if (o.manual_payment_method) rows.push({ label: 'Payment Method', value: o.manual_payment_method })
   if (o.manual_payment_reference) rows.push({ label: 'Reference No.', value: o.manual_payment_reference })
   if (o.razorpay_payment_id) rows.push({ label: 'Payment ID', value: o.razorpay_payment_id })
+  if (o.amount_refunded) rows.push({ label: 'Refunded', value: formatCurrency(o.amount_refunded) })
   if (o.store_marked_paid_on) rows.push({ label: 'Store', value: `Marked paid ${when(o.store_marked_paid_on)}` })
   return rows
 })
@@ -1303,7 +1306,7 @@ const linkActive = computed(
 const linkAction = computed(() => {
   const o = pay.value
   if (!o.razorpay_enabled || !o.can_create_link || o.payment_links_available === false || !(o.grand_total > 0)) return null
-  if (o.payment_status === 'Paid' || o.payment_status === 'Partially Paid') return null
+  if (HAS_PAYMENT.includes(o.payment_status)) return null
   return linkActive.value ? 'New Link' : 'Create Link'
 })
 
@@ -1311,7 +1314,7 @@ const linkAction = computed(() => {
 // edition's only payment link; direct installs get it when Razorpay has no link yet).
 const storeCheckout = computed(() => {
   const o = pay.value
-  return !!o.store_checkout_url && !['Paid', 'Partially Paid'].includes(o.payment_status)
+  return !!o.store_checkout_url && !HAS_PAYMENT.includes(o.payment_status)
 })
 
 function openStoreCheckout() {

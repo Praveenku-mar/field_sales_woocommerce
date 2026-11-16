@@ -50,6 +50,8 @@ const TONES = {
   Cancelled: 'failed',
   Reversed: 'failed',
   'Link Cancelled': 'failed',
+  'Partially Refunded': 'hold',
+  Refunded: 'failed',
   Draft: 'pending',
   Unpaid: 'pending',
   Inactive: 'pending',

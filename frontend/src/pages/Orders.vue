@@ -95,7 +95,7 @@ function buildFilters(m) {
   return filters
 }
 
-const PAYMENT_STATUSES = ['Unpaid', 'Link Sent', 'Partially Paid', 'Paid', 'Link Expired', 'Link Cancelled']
+const PAYMENT_STATUSES = ['Unpaid', 'Link Sent', 'Partially Paid', 'Paid', 'Link Expired', 'Link Cancelled', 'Partially Refunded', 'Refunded']
 const paymentFilter = {
   fieldname: 'payment_status',
   label: 'Payment',

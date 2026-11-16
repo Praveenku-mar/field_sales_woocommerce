@@ -545,3 +545,13 @@ class TestPaymentHistory(TestRazorpayLinks):
 		self.assertEqual(len(info["transactions"]), 1)
 		row = info["transactions"][0]
 		self.assertEqual((row.source, row.method, row.reference, row.status), ("Manual", "Bank Transfer / UPI", "UTR-9", "Captured"))
+
+
+class TestRefundedOrdersGetNoNewLink(TestRazorpayLinks):
+	def test_refunded_order_cannot_get_a_new_link(self):
+		for status in ("Partially Refunded", "Refunded"):
+			frappe.db.set_value("Field Order", self.order.name, "payment_status", status)
+			with self.assertRaises(frappe.ValidationError):
+				create_link_for_order(self.order.name)
+			self.assertIsNone(link_for_confirmation(frappe.get_doc("Field Order", self.order.name)))
+		self.assertEqual(self.fake.created(), [])

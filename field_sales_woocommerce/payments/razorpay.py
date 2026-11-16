@@ -72,6 +72,8 @@ PAYMENT_FIELDS = (
 	"payment_link_expires_on",
 	"store_marked_paid_on",
 )
+# Money came in (and maybe went back out): never ask for the full total again.
+PAID_STATES = ("Paid", "Partially Refunded", "Refunded")
 RECONCILE_DAYS = 7
 RECONCILE_BATCH = 50
 
@@ -328,7 +330,7 @@ def create_link_for_order(field_order: str, replace: bool = False) -> dict:
 		frappe.throw(_("Submit the order before creating a payment link"))
 	if flt(doc.grand_total) <= 0:
 		frappe.throw(_("The order total must be more than zero"))
-	if doc.payment_status == "Paid":
+	if doc.payment_status in PAID_STATES:
 		frappe.throw(_("This order is already paid"))
 
 	if (
@@ -358,7 +360,7 @@ def link_for_confirmation(doc) -> dict | None:
 	if payment_links_disabled_reason() is not None:
 		return None
 	settings = get_settings()
-	if not settings.enabled or flt(doc.grand_total) <= 0 or doc.payment_status in ("Paid", "Partially Paid"):
+	if not settings.enabled or flt(doc.grand_total) <= 0 or doc.payment_status in ("Partially Paid", *PAID_STATES):
 		return None
 	if doc.payment_status == "Link Sent" and doc.razorpay_payment_link_url and not _expired(doc):
 		return _link_result(doc)
