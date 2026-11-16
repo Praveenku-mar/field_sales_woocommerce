@@ -118,7 +118,7 @@ const routes = [
     path: '/sync-log',
     name: 'SyncLogs',
     component: () => import('@/pages/SyncLogs.vue'),
-    meta: { title: 'Sync Log', roles: MANAGERS },
+    meta: { title: 'Status · Logs', roles: MANAGERS },
   },
   {
     path: '/sync-log/:name',
@@ -131,7 +131,7 @@ const routes = [
     path: '/sync-failures',
     name: 'SyncFailures',
     component: () => import('@/pages/SyncFailures.vue'),
-    meta: { title: 'Sync Failures', roles: MANAGERS },
+    meta: { title: 'Status · Failures', roles: MANAGERS },
   },
   {
     path: '/notifications',

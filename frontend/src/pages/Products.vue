@@ -17,7 +17,7 @@
       </template>
     </PageHeader>
     <div class="flex min-h-0 flex-1 flex-col gap-3 px-5 pb-5">
-      <ListFilters v-model="model" search-placeholder="Search title, SKU or barcode" :tabs="tabs">
+      <ListFilters v-model="model" search-label="Search Products" search-placeholder="Search title, SKU or barcode" :tabs="tabs" :counts="tabCounts">
         <template #search-actions>
           <!-- No camera inside Shopify admin (iframe) -->
           <Button v-if="!embedded" icon="lucide-scan-barcode" tooltip="Scan barcode" aria-label="Scan barcode" @click="scanOpen = true" />
@@ -79,9 +79,9 @@ import { useSessionStore } from '@/stores/session'
 
 const LOW_STOCK = 5
 const tabs = [
+  { label: 'All', value: 'all' },
   { label: 'Active', value: 'Active' },
   { label: 'Low / Out of Stock', value: 'low' },
-  { label: 'All', value: 'all' },
 ]
 const columns = [
   { key: 'product_title', label: 'Product' },
@@ -103,7 +103,8 @@ function buildFilters(m) {
 }
 
 const route = useRoute()
-const { model, list, count, refresh, presetLabel, pageSize } = useDocList({
+const { model, list, count, refresh, presetLabel, pageSize, tabCounts } = useDocList({
+  tabs: tabs.map((t) => t.value),
   doctype: 'Platform Product',
   fields: ['name', 'product_title', 'variant_title', 'collection', 'sku', 'price', 'available_qty', 'track_inventory', 'status', 'image'],
   orderBy: 'product_title asc',

@@ -7,7 +7,7 @@
       </template>
     </PageHeader>
     <div class="flex min-h-0 flex-1 flex-col gap-3 px-5 pb-5">
-      <ListFilters v-model="model" search-placeholder="Search name, email, territory" :tabs="tabs" :fields="fields" />
+      <ListFilters v-model="model" search-label="Search Reps" search-placeholder="Search name, email, territory" :tabs="tabs" :counts="tabCounts" :fields="fields" />
       <DataTable
         :columns="columns"
         :rows="list.data || []"
@@ -63,9 +63,9 @@ import { formatCurrency, plural } from '@/utils/format'
 const session = useSessionStore()
 
 const tabs = [
+  { label: 'All', value: 'all' },
   { label: 'Active', value: 'active' },
   { label: 'Inactive', value: 'inactive' },
-  { label: 'All', value: 'all' },
 ]
 const fields = [{ fieldname: 'territory', label: 'Territory', type: 'text' }]
 const columns = [
@@ -87,7 +87,8 @@ function buildFilters(m) {
   return filters
 }
 
-const { model, list, count, pageSize } = useDocList({
+const { model, list, count, pageSize, tabCounts } = useDocList({
+  tabs: tabs.map((t) => t.value),
   doctype: 'Sales Rep',
   fields: ['name', 'full_name', 'user.user_image as user_image', 'territory', 'reports_to', 'reports_to.full_name as reports_to_name', 'mobile', 'monthly_target', 'active'],
   orderBy: 'full_name asc',

@@ -14,7 +14,7 @@
       </template>
     </PageHeader>
     <div class="flex min-h-0 flex-1 flex-col gap-3 px-5 pb-5">
-      <ListFilters v-model="model" search-placeholder="Search name, city, phone" :tabs="tabs" :fields="fields">
+      <ListFilters v-model="model" search-label="Search Shops" search-placeholder="Search name, city, phone" :tabs="tabs" :counts="tabCounts" :fields="fields">
         <PresetChip :label="presetLabel" />
       </ListFilters>
       <DataTable
@@ -63,9 +63,9 @@ import { useSessionStore } from '@/stores/session'
 const newRetailerOpen = ref(false)
 
 const tabs = [
+  { label: 'All', value: 'all' },
   { label: 'Active', value: 'Active' },
   { label: 'Inactive', value: 'Inactive' },
-  { label: 'All', value: 'all' },
 ]
 const fields = [
   { fieldname: 'retailer_type', label: 'Type', options: ['', 'Kirana', 'Supermarket', 'Wholesaler', 'Medical', 'Other'] },
@@ -89,7 +89,8 @@ function buildFilters(m) {
 }
 
 const route = useRoute()
-const { model, list, count, presetLabel, pageSize, refresh } = useDocList({
+const { model, list, count, presetLabel, pageSize, refresh, tabCounts } = useDocList({
+  tabs: tabs.map((t) => t.value),
   doctype: 'Retailer',
   fields: ['name', 'retailer_name', 'city', 'retailer_type', 'sales_rep', 'sales_rep.full_name as sales_rep_name', 'phone', 'last_visit', 'status', 'sync_status'],
   orderBy: 'retailer_name asc',

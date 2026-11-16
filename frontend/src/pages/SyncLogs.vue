@@ -1,9 +1,10 @@
 <template>
   <!-- Full height: the table fills what is left and scrolls inside its card -->
   <div class="flex h-full flex-col">
-    <PageHeader title="Sync Log" />
-    <div class="flex min-h-0 flex-1 flex-col gap-3 px-5 pb-5">
-      <ListFilters v-model="model" search-placeholder="Search record, error, endpoint" :tabs="tabs" :fields="fields">
+    <PageHeader title="Status" />
+    <StatusTabs />
+    <div class="flex min-h-0 flex-1 flex-col gap-3 px-5 pb-5 pt-4">
+      <ListFilters v-model="model" search-label="Search Logs" search-placeholder="Search record, error, endpoint" :tabs="tabs" :counts="tabCounts" :fields="fields">
         <div v-if="reference" class="flex items-center gap-1.5 rounded-full bg-surface-gray-3 py-1 pl-3 pr-1.5 text-sm text-ink-gray-8">
           <span class="lucide-filter size-3.5 text-ink-gray-5" />
           <span>Showing: <b class="font-medium">{{ reference }}</b></span>
@@ -54,6 +55,7 @@
 <script setup>
 import { useRoute, useRouter } from 'vue-router'
 import PageHeader from '@/components/PageHeader.vue'
+import StatusTabs from '@/components/StatusTabs.vue'
 import ListFilters from '@/components/ListFilters.vue'
 import DataTable from '@/components/DataTable.vue'
 import StatusPill from '@/components/StatusPill.vue'
@@ -104,7 +106,8 @@ function buildFilters(m) {
   return filters
 }
 
-const { model, list, count, pageSize } = useDocList({
+const { model, list, count, pageSize, tabCounts } = useDocList({
+  tabs: tabs.map((t) => t.value),
   doctype: 'Sync Log',
   fields: ['name', 'creation', 'platform', 'operation', 'reference_doctype', 'reference_name', 'status', 'attempt', 'duration_ms', 'error_code', 'error_message'],
   orderBy: 'creation desc',

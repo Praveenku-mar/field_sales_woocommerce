@@ -1,16 +1,18 @@
 <template>
   <div>
-    <PageHeader title="Sync Failures">
+    <PageHeader title="Status">
       <template #meta>
         <span class="text-ink-gray-5">{{ total }} record{{ total === 1 ? '' : 's' }} not in the store</span>
       </template>
       <template #actions>
-        <Button icon="lucide-refresh-cw" variant="ghost" @click="refresh" />
+        <Button label="Refresh" icon-left="lucide-refresh-cw" @click="refresh" />
       </template>
     </PageHeader>
+    <StatusTabs />
 
-    <div class="space-y-5 px-5 pb-6">
-      <SectionCard :title="`Field Orders (${orders.count.data ?? '…'})`" flush>
+    <div class="space-y-6 px-5 pb-6 pt-4">
+      <section class="flex flex-col gap-2">
+        <h2 class="text-[1.3em] font-semibold text-ink-gray-8">{{ `Field Orders (${orders.count.data ?? '…'})` }}</h2>
         <DataTable
           class="max-h-[60vh]"
           :columns="orderColumns"
@@ -29,13 +31,14 @@
             <div class="text-xs text-ink-gray-5">{{ row.name }}</div>
           </template>
           <template #cell-sync_error="{ value }"><span class="text-ink-red-5">{{ value || 'Sync failed' }}</span></template>
-          <template #cell-actions="{ row }">
-            <Button label="Retry" size="sm" :loading="retrying[row.name]" @click.stop="retry('order', row.name)" />
+          <template #row-actions="{ row }">
+            <WpRowActions :actions="rowActions('order', row)" />
           </template>
         </DataTable>
-      </SectionCard>
+      </section>
 
-      <SectionCard :title="`Shops (${retailers.count.data ?? '…'})`" flush>
+      <section class="flex flex-col gap-2">
+        <h2 class="text-[1.3em] font-semibold text-ink-gray-8">{{ `Shops (${retailers.count.data ?? '…'})` }}</h2>
         <DataTable
           class="max-h-[60vh]"
           :columns="retailerColumns"
@@ -54,11 +57,11 @@
             <div class="text-xs text-ink-gray-5">{{ [row.name, row.city].filter(Boolean).join(' · ') }}</div>
           </template>
           <template #cell-sync_error="{ value }"><span class="text-ink-red-5">{{ value || 'Sync failed' }}</span></template>
-          <template #cell-actions="{ row }">
-            <Button label="Retry" size="sm" :loading="retrying[row.name]" @click.stop="retry('retailer', row.name)" />
+          <template #row-actions="{ row }">
+            <WpRowActions :actions="rowActions('retailer', row)" />
           </template>
         </DataTable>
-      </SectionCard>
+      </section>
     </div>
   </div>
 </template>
@@ -67,7 +70,8 @@
 import { computed, reactive } from 'vue'
 import { Button, toast } from 'frappe-ui'
 import PageHeader from '@/components/PageHeader.vue'
-import SectionCard from '@/components/SectionCard.vue'
+import StatusTabs from '@/components/StatusTabs.vue'
+import WpRowActions from '@/components/wp/WpRowActions.vue'
 import DataTable from '@/components/DataTable.vue'
 import { useDocList } from '@/composables/useDocList'
 import { callMethod } from '@/utils/api'
@@ -94,7 +98,6 @@ const common = [
   { key: 'sync_error', label: 'Error', class: 'max-w-md whitespace-normal' },
   { key: 'sync_attempts', label: 'Attempts', align: 'right', format: (v) => v || 0 },
   { key: 'last_sync_attempt', label: 'Last Attempt', format: (v) => (v ? formatDateTime(v) : '—') },
-  { key: 'actions', label: '', align: 'right' },
 ]
 const orderColumns = [{ key: 'retailer_name', label: 'Order' }, ...common]
 const retailerColumns = [{ key: 'retailer_name', label: 'Shop' }, ...common]
@@ -102,6 +105,14 @@ const retailerColumns = [{ key: 'retailer_name', label: 'Shop' }, ...common]
 function refresh() {
   orders.refresh()
   retailers.refresh()
+}
+
+// wp-admin row actions under each title: View | Retry sync.
+function rowActions(kind, row) {
+  return [
+    { label: 'View', route: { name: kind === 'order' ? 'Order' : 'Retailer', params: { name: row.name } } },
+    { label: retrying[row.name] ? 'Retrying…' : 'Retry sync', disabled: !!retrying[row.name], onClick: () => retry(kind, row.name) },
+  ]
 }
 
 // Same server methods as the desk's Retry Sync / Sync to Store buttons.

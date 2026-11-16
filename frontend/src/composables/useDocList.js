@@ -1,5 +1,5 @@
-import { computed, ref, watch } from 'vue'
-import { createListResource, createResource } from 'frappe-ui'
+import { computed, reactive, ref, watch } from 'vue'
+import { call, createListResource, createResource } from 'frappe-ui'
 import { getPreference, setPreference } from '@/utils/storage'
 
 /**
@@ -21,6 +21,8 @@ import { getPreference, setPreference } from '@/utils/storage'
  * @param {number} [options.pageLength]  default rows per page; the user's pick (DataTable's
  *   page size selector) is remembered per doctype in this browser
  * @param {string|null} [options.preset]  dashboard preset key (e.g. from ?preset=)
+ * @param {string[]} [options.tabs]  ListFilters tab values to count (wp-admin status links:
+ *   "All (42) | Drafts (3)"); each count applies the search, filters and preset with that tab
  */
 export function useDocList({
   doctype,
@@ -31,6 +33,7 @@ export function useDocList({
   initial = {},
   pageLength = 20,
   preset = null,
+  tabs = [],
 }) {
   // Replaced wholesale by ListFilters (v-model), so a ref, not a reactive.
   const model = ref({ search: '', ...initial })
@@ -69,6 +72,26 @@ export function useDocList({
     auto: !preset,
   })
 
+  // { [tab]: count } for the status links. A newer refresh supersedes slower answers.
+  const tabCounts = reactive({})
+  let countsRun = 0
+  function reloadTabCounts() {
+    if (!tabs.length) return
+    const run = ++countsRun
+    const presetFilters = preset ? presetResource.data?.filters || [] : []
+    for (const tab of tabs) {
+      call('frappe.desk.reportview.get_count', {
+        doctype,
+        filters: [...presetFilters, ...buildFilters({ ...model.value, tab })],
+        or_filters: orFilters(),
+      }).then(
+        (n) => run === countsRun && (tabCounts[tab] = n),
+        () => run === countsRun && delete tabCounts[tab],
+      )
+    }
+  }
+  if (!preset) reloadTabCounts()
+
   function refresh() {
     if (preset && !presetResource.data) return
     list.filters = filters()
@@ -76,9 +99,27 @@ export function useDocList({
     list.start = 0
     list.reload()
     count.reload()
+    reloadTabCounts()
   }
 
-  watch(model, refresh, { deep: true })
+  // Switching status link only changes the rows, not the counts beside the links.
+  watch(
+    model,
+    (now, before) => {
+      const { tab: _a, ...rest } = now
+      const { tab: _b, ...restBefore } = before || {}
+      if (JSON.stringify(rest) === JSON.stringify(restBefore)) {
+        if (preset && !presetResource.data) return
+        list.filters = filters()
+        list.start = 0
+        list.reload()
+        count.reload()
+        return
+      }
+      refresh()
+    },
+    { deep: true },
+  )
 
   // A new page size reloads from the first row, as the desk list does.
   watch(pageSize, (size) => {
@@ -100,7 +141,7 @@ export function useDocList({
     },
   )
 
-  return { model, list, count, refresh, presetLabel, pageSize }
+  return { model, list, count, refresh, presetLabel, pageSize, tabCounts }
 }
 
 function readPageSize(key) {
