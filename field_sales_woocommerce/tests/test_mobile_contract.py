@@ -94,7 +94,10 @@ CUSTOMER_CARD_KEYS = {
 	"sync_status",
 }
 ORDER_DETAIL_KEYS = {
+	"amount_paid",
+	"amount_refunded",
 	"can_mark_paid",
+	"razorpay_payment_id",
 	"discount_amount",
 	"discount_percent",
 	"docstatus",

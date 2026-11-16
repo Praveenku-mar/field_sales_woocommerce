@@ -492,3 +492,56 @@ class TestRazorpayLinks(IntegrationTestCase):
 			self.assertRaises(frappe.PermissionError, mark_order_paid, self.order.name, "Cash")
 		finally:
 			frappe.set_user("Administrator")
+
+
+class TestPaymentHistory(TestRazorpayLinks):
+	"""Payment Transaction rows: one per link / payment, updated in place, shown by the APIs."""
+
+	def rows(self):
+		return frappe.get_all(
+			"Payment Transaction",
+			filters={"reference_order": self.order.name},
+			fields=["transaction_type", "status", "source", "razorpay_payment_link_id", "razorpay_payment_id", "amount", "method", "reference"],
+			order_by="creation asc",
+		)
+
+	def test_new_link_then_replacement_keeps_both_in_history(self):
+		create_link_for_order(self.order.name)
+		create_link_for_order(self.order.name, replace=True)
+		rows = self.rows()
+		self.assertEqual(
+			[(r.razorpay_payment_link_id, r.status) for r in rows], [("plink_1", "Cancelled"), ("plink_2", "Created")]
+		)
+		self.assertTrue(all(r.transaction_type == "Payment Link" and r.source == "Payment Link" for r in rows))
+
+	def test_paid_link_records_the_payment_once(self):
+		create_link_for_order(self.order.name)
+		doc = frappe.get_doc("Field Order", self.order.name)
+		paid = {"id": "plink_1", "status": "paid", "amount": 246900, "amount_paid": 246900, "currency": "INR"}
+		payment = {"id": "pay_1", "status": "captured", "amount": 246900, "currency": "INR", "method": "upi", "created_at": int(time.time())}
+		with patch("field_sales_woocommerce.sync.orders.enqueue_mark_store_paid"), patch.object(razorpay, "notify_users"):
+			razorpay._apply_link_state(doc, paid, payment)
+			razorpay._apply_link_state(frappe.get_doc("Field Order", self.order.name), paid, payment)  # repeat
+		rows = self.rows()
+		self.assertEqual([(r.transaction_type, r.status) for r in rows], [("Payment Link", "Paid"), ("Payment", "Captured")])
+		self.assertEqual(rows[1].razorpay_payment_id, "pay_1")
+		self.assertEqual(rows[1].method, "upi")
+		self.assertEqual(rows[1].amount, 2469)
+
+	def test_final_state_is_not_undone_by_a_late_event(self):
+		from field_sales_woocommerce.payments.transactions import record
+
+		record("payment:pay_x", transaction_type="Payment", status="Captured", reference_order=self.order.name)
+		record("payment:pay_x", transaction_type="Payment", status="Failed", error="late")
+		self.assertEqual(frappe.db.get_value("Payment Transaction", {"transaction_key": "payment:pay_x"}, "status"), "Captured")
+
+	def test_manual_payment_and_payment_info_history(self):
+		from field_sales_woocommerce.frontend_api import get_order_payment_info
+		from field_sales_woocommerce.payments.manual import mark_order_paid
+
+		with patch("field_sales_woocommerce.payments.manual.enqueue_mark_store_paid"), patch.object(razorpay, "notify_users"):
+			mark_order_paid(self.order.name, "Bank Transfer / UPI", "UTR-9")
+		info = get_order_payment_info(self.order.name)
+		self.assertEqual(len(info["transactions"]), 1)
+		row = info["transactions"][0]
+		self.assertEqual((row.source, row.method, row.reference, row.status), ("Manual", "Bank Transfer / UPI", "UTR-9", "Captured"))

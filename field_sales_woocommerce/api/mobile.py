@@ -910,8 +910,11 @@ def get_order_detail(order_id: str) -> dict:
 			and doc.has_permission("write")
 			and doc.docstatus == 1
 			and flt(doc.grand_total) > 0
-			and doc.payment_status not in ("Paid", "Partially Paid")
+			and doc.payment_status not in ("Paid", "Partially Paid", "Partially Refunded", "Refunded")
 		),
+		"razorpay_payment_id": doc.razorpay_payment_id,
+		"amount_paid": flt(doc.amount_paid or 0.0),
+		"amount_refunded": flt(doc.amount_refunded or 0.0),
 		"location_id": doc.location_id,
 		"visit": doc.visit,
 		"remarks": doc.remarks,
