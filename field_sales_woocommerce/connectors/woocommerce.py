@@ -452,7 +452,12 @@ class WooCommerceConnector(BaseConnector):
 		body = {k: v for k, v in body.items() if v is not None}
 
 		data = self._request("POST", "/orders", operation="Confirm Order" if status == "processing" else "Create Order", json_body=body, ref=field_order)
-		return {"draft_id": None, "order_id": str(data["id"]), "order_name": f"#{data['number']}"}
+		result = {"draft_id": None, "order_id": str(data["id"]), "order_name": f"#{data['number']}"}
+		# A Pending payment order can be paid on the store's own pay page (the plugin's Razorpay
+		# gateway): the app offers it as the store checkout link.
+		if status == "pending" and str(data.get("payment_url") or "").startswith("https://"):
+			result["checkout_url"] = data["payment_url"]
+		return result
 
 	def mark_order_paid(self, field_order: Document) -> dict:
 		"""
