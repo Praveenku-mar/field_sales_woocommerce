@@ -1,11 +1,14 @@
 <?php
 /**
  * Plugin Name: Agamsale
- * Description: Run the Agamsale app (visits, orders, customers) inside WooCommerce. Connect it once on Settings → Agamsale.
- * Version: 1.2.0
+ * Description: Run the Agamsale app (visits, orders, customers) inside WooCommerce, and take Razorpay payments at checkout through Agamsale. Connect it once on Settings → Agamsale.
+ * Version: 1.3.0
  * Author: Agamsale
  * Requires at least: 6.0
  * Requires PHP: 7.4
+ * Requires Plugins: woocommerce
+ * WC requires at least: 8.0
+ * WC tested up to: 9.4
  */
 
 if (!defined('ABSPATH')) {
@@ -18,6 +21,42 @@ const FIELD_SALES_CAP = 'manage_woocommerce';
 // Must match AUDIENCE in field_sales_woocommerce/wordpress_embed.py.
 const FIELD_SALES_TOKEN_AUDIENCE = 'agamsale-wordpress';
 const FIELD_SALES_TOKEN_TTL = 300;
+const FIELD_SALES_VERSION = '1.3.0';
+const FIELD_SALES_PLUGIN_FILE = __FILE__;
+// Optional: where WordPress reaches Agamsale's server, when the App URL's address is not
+// reachable from this server (e.g. Docker), and the Frappe site name to send with it.
+const FIELD_SALES_FRAPPE_URL_OPTION = 'field_sales_frappe_url';
+const FIELD_SALES_FRAPPE_SITE_OPTION = 'field_sales_frappe_site';
+
+require_once __DIR__ . '/includes/class-agamsale-api.php';
+
+// Order storage (HPOS) and the Cart/Checkout blocks: the gateway uses WC_Order methods only.
+add_action('before_woocommerce_init', function () {
+	if (class_exists(\Automattic\WooCommerce\Utilities\FeaturesUtil::class)) {
+		\Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility('custom_order_tables', __FILE__, true);
+		\Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility('cart_checkout_blocks', __FILE__, true);
+	}
+});
+
+// The Razorpay payment gateway (WooCommerce → Settings → Payments → Razorpay (Agamsale)).
+add_action('plugins_loaded', function () {
+	if (!class_exists('WC_Payment_Gateway')) {
+		return;
+	}
+	require_once __DIR__ . '/includes/class-wc-gateway-agamsale-razorpay.php';
+	add_filter('woocommerce_payment_gateways', function ($gateways) {
+		$gateways[] = 'WC_Gateway_Agamsale_Razorpay';
+		return $gateways;
+	});
+});
+
+add_action('woocommerce_blocks_payment_method_type_registration', function ($registry) {
+	if (!class_exists('\\Automattic\\WooCommerce\\Blocks\\Payments\\Integrations\\AbstractPaymentMethodType') || !class_exists('WC_Gateway_Agamsale_Razorpay')) {
+		return;
+	}
+	require_once __DIR__ . '/includes/class-agamsale-razorpay-blocks.php';
+	$registry->register(new Agamsale_Razorpay_Blocks());
+});
 
 function field_sales_url(): string {
 	$url = trim((string) get_option(FIELD_SALES_OPTION, ''));
@@ -148,6 +187,17 @@ add_action('admin_init', function () {
 		'type' => 'string',
 		'sanitize_callback' => 'field_sales_sanitize_url',
 	]);
+	register_setting('field_sales', FIELD_SALES_FRAPPE_URL_OPTION, [
+		'type' => 'string',
+		'sanitize_callback' => 'field_sales_sanitize_url',
+	]);
+	register_setting('field_sales', FIELD_SALES_FRAPPE_SITE_OPTION, [
+		'type' => 'string',
+		'sanitize_callback' => function ($site) {
+			$site = strtolower(trim((string) $site));
+			return preg_match('/^[a-z0-9.-]{0,253}$/', $site) ? $site : '';
+		},
+	]);
 });
 
 function field_sales_sanitize_url($url) {
@@ -185,6 +235,25 @@ add_action('admin_post_field_sales_regenerate_secret', function () {
 	exit;
 });
 
+// Settings → Agamsale → Test connection / Test Razorpay: the answer is shown once on the page.
+foreach (['field_sales_test_connection' => 'ping', 'field_sales_test_razorpay' => 'test_razorpay'] as $action => $endpoint) {
+	add_action('admin_post_' . $action, function () use ($action, $endpoint) {
+		if (!current_user_can('manage_options')) {
+			wp_die('Not allowed', 403);
+		}
+		check_admin_referer($action);
+		$answer = Agamsale_Api::call($endpoint);
+		set_transient('field_sales_test_' . get_current_user_id(), [
+			'what' => $endpoint === 'ping' ? 'Agamsale connection' : 'Razorpay',
+			'ok' => !is_wp_error($answer),
+			'message' => is_wp_error($answer) ? $answer->get_error_message() : ($answer['message'] ?? 'Connected.'),
+			'status' => (!is_wp_error($answer) && isset($answer['razorpay'])) ? $answer['razorpay'] : null,
+		], 300);
+		wp_safe_redirect(admin_url('options-general.php?page=field-sales-settings#agamsale-payments'));
+		exit;
+	});
+}
+
 function field_sales_render_settings() {
 	$url = field_sales_url();
 	$secret = field_sales_secret();
@@ -210,6 +279,28 @@ function field_sales_render_settings() {
 						</p>
 					</td>
 				</tr>
+				<tr>
+					<th scope="row"><label for="<?php echo esc_attr(FIELD_SALES_FRAPPE_URL_OPTION); ?>">Server URL</label></th>
+					<td>
+						<input type="url" class="regular-text code" id="<?php echo esc_attr(FIELD_SALES_FRAPPE_URL_OPTION); ?>"
+							name="<?php echo esc_attr(FIELD_SALES_FRAPPE_URL_OPTION); ?>"
+							value="<?php echo esc_attr((string) get_option(FIELD_SALES_FRAPPE_URL_OPTION, '')); ?>"
+							placeholder="<?php echo esc_attr(field_sales_origin($url) ?: 'https://sales.example.com'); ?>" />
+						<p class="description">
+							Optional. Where this server reaches Agamsale for payments. Leave empty to use the App URL's address;
+							set it when that address does not work from here (e.g. <code>http://host.docker.internal:8000</code>).
+						</p>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row"><label for="<?php echo esc_attr(FIELD_SALES_FRAPPE_SITE_OPTION); ?>">Site name</label></th>
+					<td>
+						<input type="text" class="regular-text code" id="<?php echo esc_attr(FIELD_SALES_FRAPPE_SITE_OPTION); ?>"
+							name="<?php echo esc_attr(FIELD_SALES_FRAPPE_SITE_OPTION); ?>"
+							value="<?php echo esc_attr((string) get_option(FIELD_SALES_FRAPPE_SITE_OPTION, '')); ?>" />
+						<p class="description">Optional. The Frappe site name, only when the Server URL does not name it.</p>
+					</td>
+				</tr>
 			</table>
 			<?php submit_button(); ?>
 		</form>
@@ -231,6 +322,8 @@ function field_sales_render_settings() {
 		</form>
 		<?php field_sales_render_site_hint($url); ?>
 
+		<?php field_sales_render_payments_section(); ?>
+
 		<h2>Connect this store</h2>
 		<p>So the app can read products and push orders, give it API keys:</p>
 		<ol>
@@ -239,6 +332,65 @@ function field_sales_render_settings() {
 				address, the Consumer Key and Secret, then Save and <strong>Test Connection</strong>.</li>
 		</ol>
 	</div>
+	<?php
+}
+
+/** Settings → Agamsale → Razorpay payments: tests, gateway and webhook status. */
+function field_sales_render_payments_section() {
+	$result = get_transient('field_sales_test_' . get_current_user_id());
+	if ($result) {
+		delete_transient('field_sales_test_' . get_current_user_id());
+	}
+	$gateway_url = admin_url('admin.php?page=wc-settings&tab=checkout&section=agamsale_razorpay');
+	$gateway = get_option('woocommerce_agamsale_razorpay_settings', []);
+	$status = $result['status'] ?? null;
+	?>
+	<h2 id="agamsale-payments">Razorpay payments</h2>
+	<p>Customers can pay at checkout with Razorpay, and orders paid by Agamsale payment links can be refunded from
+		the order screen. Agamsale keeps the Razorpay keys (Agamsale → Settings → Payments); WordPress never stores them.</p>
+	<?php if ($result) : ?>
+		<div class="notice notice-<?php echo $result['ok'] ? 'success' : 'error'; ?> inline">
+			<p><strong><?php echo esc_html($result['what']); ?>:</strong> <?php echo esc_html($result['message']); ?></p>
+		</div>
+	<?php endif; ?>
+	<table class="form-table" role="presentation">
+		<tr>
+			<th scope="row">Checkout gateway</th>
+			<td>
+				<?php echo (($gateway['enabled'] ?? 'no') === 'yes') ? '<strong>Enabled</strong>' : 'Disabled'; ?> —
+				<a href="<?php echo esc_url($gateway_url); ?>">turn on or off, title and description</a>
+			</td>
+		</tr>
+		<?php if ($status) : ?>
+			<tr>
+				<th scope="row">Razorpay in Agamsale</th>
+				<td>
+					<?php echo esc_html(($status['enabled'] ? 'On' : 'Off') . ', ' . $status['mode'] . ' mode, keys ' . ($status['keys_set'] ? 'set' : 'missing')); ?>
+				</td>
+			</tr>
+			<tr>
+				<th scope="row">Webhook</th>
+				<td>
+					<p>In the Razorpay Dashboard (Accounts &amp; Settings → Webhooks) add <code><?php echo esc_html($status['webhook_url']); ?></code>
+						with the secret saved in Agamsale, for these events:</p>
+					<p><code><?php echo esc_html(implode(', ', $status['webhook_events'])); ?></code></p>
+					<p class="description">
+						Secret <?php echo $status['webhook_secret_set'] ? 'set in Agamsale' : '<strong>not set in Agamsale</strong>'; ?>;
+						last event received: <?php echo esc_html($status['last_webhook_at'] ?: 'never'); ?>.
+					</p>
+				</td>
+			</tr>
+		<?php endif; ?>
+	</table>
+	<p style="display:flex;gap:8px;">
+		<?php foreach (['field_sales_test_connection' => 'Test connection', 'field_sales_test_razorpay' => 'Test Razorpay connection'] as $action => $label) : ?>
+			<form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+				<input type="hidden" name="action" value="<?php echo esc_attr($action); ?>" />
+				<?php wp_nonce_field($action); ?>
+				<?php submit_button($label, 'secondary', 'submit', false); ?>
+			</form>
+		<?php endforeach; ?>
+	</p>
 	<?php
 }
 
