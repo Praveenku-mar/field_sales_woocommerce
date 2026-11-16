@@ -3,21 +3,26 @@
     :is="to ? 'RouterLink' : 'div'"
     :to="to"
     class="fs-card block p-4"
-    :class="to && 'transition-colors hover:border-outline-gray-3'"
+    :class="to && 'transition-colors hover:bg-wp-table-alt focus:outline-none focus-visible:ring-2 focus-visible:ring-wp-blue'"
   >
-    <div class="flex items-center justify-between text-ink-gray-5">
+    <!-- A WooCommerce Analytics summary tile: label, figure, change chip. -->
+    <div class="flex items-center justify-between text-[13px] text-wp-muted">
       <span class="truncate">{{ label }}</span>
       <span v-if="icon" :class="[icon, 'size-4']" />
     </div>
     <div class="mt-2 flex items-baseline gap-2">
       <span v-if="loading" class="h-7 w-16 animate-pulse rounded-3 bg-surface-gray-2" />
-      <span v-else class="text-2xl font-semibold tabular-nums" :class="valueClass">{{ formatted }}</span>
-      <span v-if="delta != null && !loading" class="text-xs font-medium" :class="delta >= 0 ? 'text-ink-green-7' : 'text-ink-red-5'">
-        {{ delta >= 0 ? '▲' : '▼' }} {{ Math.abs(delta).toFixed(1) }}%
+      <span v-else class="text-[20px] font-medium leading-7 tabular-nums" :class="valueClass">{{ formatted }}</span>
+      <span
+        v-if="delta != null && !loading"
+        class="rounded-sm px-1.5 py-0.5 text-xs font-medium tabular-nums"
+        :class="delta >= 0 ? 'bg-[#edfaef] text-[#007017]' : 'bg-[#fcf0f1] text-[#b32d2e]'"
+      >
+        {{ delta >= 0 ? '↑' : '↓' }} {{ Math.abs(delta).toFixed(1) }}%
       </span>
       <slot v-if="!loading" name="badge" />
     </div>
-    <div v-if="caption" class="mt-1 truncate text-xs text-ink-gray-5">{{ caption }}</div>
+    <div v-if="caption" class="mt-1 truncate text-xs text-wp-muted">{{ caption }}</div>
   </component>
 </template>
 

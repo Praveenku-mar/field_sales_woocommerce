@@ -1,18 +1,14 @@
 <template>
-  <!-- The signed-in user, with Switch to Desk and Log out. Sidebar footer on desktop;
-       `collapsed` (sidebar collapsed, or the phone top bar) shows the avatar only. -->
-  <Dropdown :options="options" side="top" align="start" :match-trigger-width="!collapsed">
+  <!-- "Howdy, <name>" in the admin bar, with Switch to Desk and Log out. Phones show the
+       avatar only. -->
+  <Dropdown :options="options" side="bottom" align="end">
     <button
       type="button"
-      class="flex h-9 items-center gap-2 rounded-4 px-1 text-left hover:bg-surface-gray-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-outline-gray-3"
-      :class="collapsed ? 'w-auto' : 'w-full'"
+      class="flex h-8 items-center gap-2 px-2 text-left text-[13px] text-wp-menu-text hover:bg-wp-menu-sub hover:text-[#72aee6] focus:outline-none focus-visible:bg-wp-menu-sub"
       :aria-label="`Account: ${session.fullName}`"
     >
-      <Avatar :label="session.fullName" :image="session.userImage" size="md" />
-      <template v-if="!collapsed">
-        <span class="min-w-0 flex-1 truncate text-base font-medium text-ink-gray-8">{{ session.fullName }}</span>
-        <span class="lucide-chevron-up size-4 shrink-0 text-ink-gray-5" aria-hidden="true" />
-      </template>
+      <span class="hidden truncate md:inline">Howdy, {{ session.fullName }}</span>
+      <Avatar :label="session.fullName" :image="session.userImage" size="sm" />
     </button>
   </Dropdown>
 
@@ -28,10 +24,6 @@ import { computed, ref } from 'vue'
 import { Avatar, Dialog, Dropdown } from 'frappe-ui'
 import { useInstallPrompt } from '@/composables/useInstallPrompt'
 import { useSessionStore } from '@/stores/session'
-
-defineProps({
-  collapsed: { type: Boolean, default: false },
-})
 
 const session = useSessionStore()
 const { canInstall, showIosHint, install } = useInstallPrompt()

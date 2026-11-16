@@ -1,10 +1,9 @@
 <template>
-  <div class="flex flex-col items-center justify-center px-6 py-16 text-center">
-    <div class="flex size-10 items-center justify-center rounded-full bg-surface-gray-2">
-      <span :class="[icon, 'size-5 text-ink-gray-5']" />
-    </div>
-    <div class="mt-3 text-base font-medium text-ink-gray-8">{{ title }}</div>
-    <div v-if="description" class="mt-1 max-w-sm text-ink-gray-5">{{ description }}</div>
+  <!-- Quiet, like a wp-admin list table's "No items found." row. -->
+  <div class="flex flex-col items-center justify-center px-6 py-12 text-center">
+    <span :class="[icon, 'size-8 text-[#a7aaad]']" aria-hidden="true" />
+    <div class="mt-3 text-[14px] font-semibold text-ink-gray-8">{{ title }}</div>
+    <div v-if="description" class="mt-1 max-w-sm text-wp-muted">{{ description }}</div>
     <div v-if="$slots.default" class="mt-4"><slot /></div>
   </div>
 </template>

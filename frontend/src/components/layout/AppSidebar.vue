@@ -1,125 +1,91 @@
 <template>
-  <Sidebar v-model:collapsed="collapsed" width="224px" class="border-r border-outline-gray-2">
-    <SidebarHeader
-      title="Agamsale"
-      :subtitle="session.store.name || 'No store connected'"
-      logo="/assets/field_sales_woocommerce/images/agamsale-logo.png"
-      class="px-2"
-    />
-
-    <div class="flex flex-1 flex-col gap-1.5 overflow-y-auto px-2 pb-2">
-      <!-- Staff tools: a customer login has no search or notifications. -->
-      <SidebarItem
-        v-if="!session.isRetailer"
-        label="Search"
-        icon="lucide-search"
-        style="height: 2.5rem"
-        @click="$emit('open-search')"
-      >
-        <template #prefix><span class="lucide-search size-6 text-ink-gray-6" /></template>
-        <template #suffix>
-          <kbd class="mr-2 text-xs text-ink-gray-4">Ctrl K</kbd>
-        </template>
-      </SidebarItem>
-      <SidebarItem
-        v-if="!session.isRetailer"
-        label="Notification"
-        icon="lucide-bell"
-        style="height: 2.5rem"
-        :route="{ name: 'Notifications' }"
-        :active="route.name === 'Notifications'"
-      >
-        <template #prefix><span class="lucide-bell size-6 text-ink-gray-6" /></template>
-        <template v-if="counts.data?.unread_notifications" #suffix>
-          <span class="mr-2 text-xs font-medium tabular-nums text-ink-red-5">{{ counts.data.unread_notifications }}</span>
-        </template>
-      </SidebarItem>
-
-      <div v-if="!session.isRetailer" class="h-6 shrink-0" />
-
-      <SidebarItem
-        v-for="item in navItems"
-        :key="item.label"
-        :label="item.label"
-        style="height: 2.5rem"
-        :route="item.route && { name: item.route }"
-        :href="item.href"
-        :active="isActive(item)"
-      >
-        <template #prefix><span :class="[item.icon, 'size-6 text-ink-gray-6']" /></template>
-        <span class="truncate text-base leading-tighter">{{ item.label }}</span>
-        <template v-if="countOf(item)" #suffix>
-          <Tooltip :text="item.countTooltip" :disabled="!item.countTooltip">
+  <!-- The wp-admin side menu (#adminmenu): dark column, blue current item with a notch
+       pointing at the page, red count bubbles, "Collapse menu" folds it to icons. -->
+  <nav
+    aria-label="Main menu"
+    class="flex shrink-0 flex-col bg-wp-menu text-wp-menu-text"
+    :class="collapsed ? 'w-9' : 'w-sidebar'"
+  >
+    <ul class="flex-1 overflow-y-auto py-3">
+      <li v-for="item in navItems" :key="item.label">
+        <component
+          :is="item.route ? 'RouterLink' : 'a'"
+          v-bind="item.route ? { to: { name: item.route } } : { href: item.href }"
+          class="wp-menu-item group relative flex min-h-[34px] items-center gap-2 py-1.5 text-[14px] leading-[18px] focus:outline-none"
+          :class="[
+            collapsed ? 'justify-center px-0' : 'pl-2 pr-2',
+            isActive(item) ? 'bg-wp-blue text-white' : 'hover:bg-wp-menu-sub hover:text-[#72aee6] focus-visible:bg-wp-menu-sub focus-visible:text-[#72aee6]',
+          ]"
+          :aria-current="isActive(item) ? 'page' : undefined"
+          :title="collapsed ? item.label : undefined"
+        >
+          <span
+            :class="[item.icon, 'size-5 shrink-0', isActive(item) ? 'text-white' : 'text-wp-menu-muted group-hover:text-[#72aee6]']"
+            aria-hidden="true"
+          />
+          <span v-if="!collapsed" class="min-w-0 flex-1 truncate">{{ item.label }}</span>
+          <Tooltip v-if="countOf(item) && !collapsed" :text="item.countTooltip" :disabled="!item.countTooltip">
             <span
-              class="mr-2 text-xs tabular-nums"
-              :class="item.countTheme === 'red' ? 'font-medium text-ink-red-5' : 'text-ink-gray-5'"
+              class="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-[5px] text-[9px] font-semibold tabular-nums leading-none text-white"
+              :class="item.countTheme === 'red' ? 'bg-wp-red' : 'bg-[#646970]'"
             >
               {{ countOf(item) }}
             </span>
           </Tooltip>
-        </template>
-      </SidebarItem>
-    </div>
+          <!-- The notch: a triangle in the page colour pointing at the current page -->
+          <span
+            v-if="isActive(item)"
+            class="pointer-events-none absolute right-0 top-1/2 -mt-2 border-y-8 border-r-8 border-y-transparent border-r-desk-bg"
+            aria-hidden="true"
+          />
+        </component>
+      </li>
+    </ul>
 
-    <div class="flex flex-col gap-0.5 border-t border-outline-gray-2 p-2">
-      <UserMenu :collapsed="collapsed" />
-      <SidebarCollapseToggle />
-    </div>
-  </Sidebar>
+    <button
+      type="button"
+      class="flex h-[34px] shrink-0 items-center gap-2 text-[13px] text-wp-menu-muted hover:text-[#72aee6] focus:outline-none focus-visible:text-[#72aee6]"
+      :class="collapsed ? 'justify-center' : 'pl-2'"
+      :aria-label="collapsed ? 'Expand menu' : 'Collapse menu'"
+      :aria-expanded="!collapsed"
+      @click="collapsed = !collapsed"
+    >
+      <span :class="collapsed ? 'lucide-circle-chevron-right' : 'lucide-circle-chevron-left'" class="size-5" aria-hidden="true" />
+      <span v-if="!collapsed">Collapse menu</span>
+    </button>
+  </nav>
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { Sidebar, SidebarCollapseToggle, SidebarHeader, SidebarItem, Tooltip, createResource } from 'frappe-ui'
+import { Tooltip } from 'frappe-ui'
 import { useSessionStore } from '@/stores/session'
 import { NAV_ITEMS } from '@/utils/nav'
 import { getPreference, setPreference } from '@/utils/storage'
-import UserMenu from './UserMenu.vue'
 
-defineEmits(['open-search'])
+const props = defineProps({
+  /** frontend_api.get_sidebar_counts resource (AppLayout's useNavCounts). */
+  counts: { type: Object, default: null },
+})
 
 const session = useSessionStore()
 const route = useRoute()
 
 const navItems = computed(() => NAV_ITEMS.filter((item) => session.canSee(item)))
 
-// A customer login shows no counts (its nav has none), so it never fetches or polls them.
-const counts = createResource({
-  url: 'field_sales_woocommerce.frontend_api.get_sidebar_counts',
-  auto: !session.isRetailer,
-})
-
 function countOf(item) {
-  return item.count ? counts.data?.[item.count] || 0 : 0
+  return item.count ? props.counts?.data?.[item.count] || 0 : 0
 }
 
 function isActive(item) {
-  // Detail pages (e.g. /retailers/RET-0001) keep their list's item highlighted.
-  return !!item.route && (route.name === item.route || route.meta.parent === item.route)
+  // Detail pages (e.g. /retailers/RET-0001) keep their list's item highlighted; an item may
+  // also own sibling pages (Status: Logs and Failures).
+  if (!item.route) return false
+  return [item.route, ...(item.also || [])].some((name) => route.name === name || route.meta.parent === name)
 }
 
 // Collapsed state survives reloads; it is a per-browser preference.
 const collapsed = ref(getPreference('fs:sidebar-collapsed') === '1')
 watch(collapsed, (v) => setPreference('fs:sidebar-collapsed', v ? '1' : '0'))
-
-// Counts change as people work; refresh them when moving between pages.
-watch(
-  () => route.name,
-  () => !session.isRetailer && counts.reload(),
-)
-// The Notifications page announces read/unread changes made without leaving it.
-const reloadCounts = () => counts.reload()
-// There is no realtime connection, so poll while the tab is in view to pick up new notifications.
-let poll = null
-onMounted(() => {
-  window.addEventListener('fs:notifications-changed', reloadCounts)
-  poll = setInterval(() => {
-    if (!session.isRetailer && document.visibilityState === 'visible') counts.reload()
-  }, 60000)
-})
-onBeforeUnmount(() => {
-  window.removeEventListener('fs:notifications-changed', reloadCounts)
-  clearInterval(poll)
-})
 </script>
