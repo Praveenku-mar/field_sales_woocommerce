@@ -517,6 +517,43 @@ class WooCommerceConnector(BaseConnector):
 			return None
 		return f"{self.base_url}/wp-admin/post.php?post={order_id}&action=edit"
 
+	def get_payable_order(self, order_id: str) -> dict:
+		"""The fields a store checkout payment needs, read fresh from WooCommerce (raises on 404)."""
+		order = self._request("GET", f"/orders/{order_id}", operation="Checkout Order")
+		return {
+			"id": order.get("id"),
+			"number": order.get("number"),
+			"status": order.get("status"),
+			"total": order.get("total"),
+			"currency": order.get("currency"),
+			"date_paid": order.get("date_paid"),
+			"billing": {k: (order.get("billing") or {}).get(k) for k in ("first_name", "last_name", "email", "phone")},
+		}
+
+	def mark_checkout_paid(self, order_id: str, payment_id: str | None, gateway_id: str) -> dict:
+		"""
+		Mark a WooCommerce order paid with a Razorpay checkout payment that the store did not
+		hear about (the customer closed the browser before returning). An order already paid,
+		or no longer payable (cancelled, refunded, trashed), is left alone.
+		"""
+		order = self._request("GET", f"/orders/{order_id}", operation="Mark Order Paid")
+		if order.get("date_paid") or order.get("status") in UNPAYABLE_ORDER_STATUSES | PAID_ORDER_STATUSES:
+			return {"already_paid": bool(order.get("date_paid")), "status": order.get("status")}
+		body = {"set_paid": True, "payment_method": gateway_id, "payment_method_title": "Razorpay"}
+		if payment_id:
+			body["transaction_id"] = payment_id
+		order = self._request("PUT", f"/orders/{order_id}", operation="Mark Order Paid", json_body=body)
+		try:
+			self._request(
+				"POST",
+				f"/orders/{order_id}/notes",
+				operation="Mark Order Paid",
+				json_body={"note": _("Razorpay payment {0} confirmed by Agamsale (webhook).").format(payment_id or ""), "customer_note": False},
+			)
+		except ConnectorError:
+			pass
+		return {"already_paid": False, "status": order.get("status")}
+
 	def get_order(self, external_id: str) -> dict:
 		try:
 			order = self._request("GET", f"/orders/{external_id}", operation="Commission")
@@ -860,7 +897,8 @@ def _payment_details(field_order: Document) -> dict:
 		method, title = _PAYMENT_METHODS.get(manual, ("other", manual))
 		reference = (field_order.get("manual_payment_reference") or "").strip()
 	else:
-		method, title = "razorpay", "Razorpay"
+		# The plugin's gateway: WooCommerce then offers "Refund via Razorpay" on the order.
+		method, title = "agamsale_razorpay", "Razorpay"
 		reference = (field_order.get("razorpay_payment_id") or "").strip()
 	amount = frappe.utils.fmt_money(field_order.get("amount_paid") or field_order.grand_total, currency=site_currency())
 	note = _("Paid in Agamsale (Field Order {0}): {1} by {2}.").format(field_order.name, amount, _(title))

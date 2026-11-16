@@ -532,6 +532,27 @@ def webhook():
 		"payload": raw_body.decode("utf-8", "replace"),
 	}
 
+	# Store checkout payments and refunds (payments/checkout.py); payment links below.
+	from field_sales_woocommerce.payments.checkout import CHECKOUT_EVENTS, handle_webhook_event
+
+	if record["event"] in CHECKOUT_EVENTS:
+		user = frappe.session.user
+		try:
+			frappe.set_user("Administrator")
+			if _already_handled(event_id, payload_hash):
+				return _respond(200, "duplicate")
+			status, note = handle_webhook_event(record["event"], payload, record)
+			_record_event(record, status, error=note)
+		except Exception as e:
+			frappe.db.rollback()
+			frappe.log_error(title=f"Razorpay webhook failed: {event_id or record['event']}")
+			_record_event(record, "Error", error=str(e)[:1000])
+			frappe.db.commit()  # keep the Error row; the 500 asks Razorpay to retry
+			return _respond(500, "error")
+		finally:
+			frappe.set_user(user)
+		return {"status": "ok"} if status == "Processed" else _respond(200, "ignored")
+
 	field_order = None
 	if record["event"] in WEBHOOK_EVENTS and link.get("id"):
 		field_order = frappe.db.get_value(

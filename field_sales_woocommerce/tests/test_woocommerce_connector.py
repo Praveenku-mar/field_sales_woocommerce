@@ -442,5 +442,5 @@ class TestMarkOrderPaid(IntegrationTestCase):
 			{"id": 501, "status": "pending"}, manual_payment_method=None, manual_payment_reference=None, razorpay_payment_id="pay_ABC"
 		)
 		put = next(c for c in calls if c[0] == "PUT")
-		self.assertEqual(put[2]["payment_method"], "razorpay")
+		self.assertEqual(put[2]["payment_method"], "agamsale_razorpay")
 		self.assertEqual(put[2]["transaction_id"], "pay_ABC")
