@@ -47,7 +47,7 @@
 
     <div v-if="!inWpAdmin" class="flex-1" />
     <!-- Inside a store admin's frame there is no account menu: its own login signs the app in. -->
-    <UserMenu v-if="!embedded" />
+    <UserMenu v-if="!embedded && !inWpAdmin" />
   </header>
 </template>
 

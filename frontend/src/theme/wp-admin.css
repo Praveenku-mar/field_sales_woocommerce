@@ -359,3 +359,12 @@ input[type='checkbox'].form-checkbox {
     grid-column: span 2;
   }
 }
+/* Wide screens: a short last row stretches to the end instead of leaving a grey gap. */
+@media (min-width: 1024px) {
+  .wc-summary.lg\:grid-cols-3 > .fs-card:last-child:nth-child(3n + 1) {
+    grid-column: span 3;
+  }
+  .wc-summary.lg\:grid-cols-3 > .fs-card:last-child:nth-child(3n + 2) {
+    grid-column: span 2;
+  }
+}

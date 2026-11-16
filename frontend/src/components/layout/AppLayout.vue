@@ -27,11 +27,11 @@ import MobileTabBar from './MobileTabBar.vue'
 import CommandPalette from './CommandPalette.vue'
 import EmbeddedNav from '@/shopify/EmbeddedNav.vue'
 import { isEmbedded } from '@/shopify/embedded'
-import { isWpEmbedded } from '@/wordpress/embed'
+import { isInWpAdmin } from '@/wordpress/embed'
 import { useNavCounts } from '@/composables/useNavCounts'
 
 const embedded = isEmbedded()
-const inWpAdmin = isWpEmbedded()
+const inWpAdmin = isInWpAdmin()
 const counts = useNavCounts()
 
 const searchOpen = ref(false)
