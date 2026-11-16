@@ -104,7 +104,7 @@
       <section class="border-t border-desk-border p-4">
         <h3 class="text-base font-medium text-ink-gray-9">Webhook</h3>
         <p class="mt-1 text-sm text-ink-gray-5">
-          In the Razorpay Dashboard, add a webhook with this URL for the <span class="font-mono">payment_link.paid</span> event, then enter the secret you chose there.
+          In the Razorpay Dashboard, add a webhook with this URL for the events <span class="font-mono">payment_link.paid, payment_link.partially_paid, payment_link.expired, payment_link.cancelled, payment.captured, payment.failed, order.paid, refund.processed and refund.failed</span>, then enter the secret you chose there.
         </p>
         <div class="mt-6 grid grid-cols-1 gap-x-10 gap-y-8 md:grid-cols-2">
           <TextInput :model-value="webhookUrl.data || d.webhook_url || ''" label="Webhook URL" readonly>
