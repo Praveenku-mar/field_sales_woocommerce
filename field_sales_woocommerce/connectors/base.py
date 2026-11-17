@@ -281,6 +281,17 @@ class BaseConnector:
 		"""
 		raise NotImplementedError
 
+	def get_store_payment(self, external_order_id: str) -> dict | None:
+		"""
+		The payment the customer made on the store for this order (its checkout or pay page, or
+		one the merchant recorded there), as the store counts it — see payments/store_payments.py.
+
+		:return: ``None`` when the store does not count the order as paid, else
+			``{"amount": float, "currency": str, "method": str | None, "reference": str | None,
+			"paid_at": UTC timestamp | None}``. By default ``get_order()``'s ``store_payment``.
+		"""
+		return (self.get_order(external_order_id) or {}).get("store_payment")
+
 	def get_draft_names(self, draft_ids: list) -> dict:
 		"""
 		The store's own numbers for drafts (e.g. ``#D5``).

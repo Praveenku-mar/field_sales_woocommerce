@@ -885,6 +885,30 @@ def _tax_line(field_order: Document) -> list[dict]:
 
 # WooCommerce statuses set_paid (payment_complete) would wrongly reopen as Processing.
 UNPAYABLE_ORDER_STATUSES = {"cancelled", "refunded", "trash"}
+# Payments Agamsale records itself (the plugin's gateway), not store payments.
+STORE_PAYMENT_SKIP_METHODS = {"agamsale_razorpay"}
+
+
+def _store_payment(order: dict) -> dict | None:
+	"""
+	Paid on WooCommerce: a paid date with a real payment method. WooCommerce stamps a paid date
+	whenever an order reaches Processing, so these do not count: an order with no payment method
+	(Agamsale's Confirmed-mode orders), the plugin's own Razorpay gateway (Agamsale records those
+	payments itself), cash on delivery until the order is Completed.
+	"""
+	method = order.get("payment_method") or ""
+	status = order.get("status") or ""
+	if not order.get("date_paid") or status in UNPAYABLE_ORDER_STATUSES:
+		return None
+	if not method or method in STORE_PAYMENT_SKIP_METHODS or (method == "cod" and status != "completed"):
+		return None
+	return {
+		"amount": frappe.utils.flt(order.get("total")),
+		"currency": order.get("currency"),
+		"method": order.get("payment_method_title") or method,
+		"reference": order.get("transaction_id") or None,
+		"paid_at": order.get("date_paid_gmt") or order.get("date_paid"),
+	}
 # WooCommerce counts these as paid already (Confirmed-mode orders are created Processing).
 PAID_ORDER_STATUSES = {"processing", "completed"}
 
@@ -959,6 +983,7 @@ def _normalize_order(order: dict) -> dict:
 		"external_order_id": str(order.get("id")),
 		"currency": order.get("currency") or "",
 		"financial_status": financial,
+		"store_payment": _store_payment(order),
 		"fulfillment_status": fulfillment,
 		"cancelled": status == "cancelled",
 		"lines": lines,
