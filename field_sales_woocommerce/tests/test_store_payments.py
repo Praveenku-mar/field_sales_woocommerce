@@ -75,7 +75,30 @@ class TestStorePayments(links.LinkFixture, IntegrationTestCase):
 		self.assertEqual(self.saved("amount_paid").amount_paid, self.total)
 
 	def test_already_paid_in_agamsale_is_left_alone(self):
+		frappe.db.set_value(
+			"Field Order",
+			self.order.name,
+			{"payment_status": "Paid", "amount_paid": self.total, "store_marked_paid_on": "2026-11-16 10:00:00"},
+		)
+		self.assertIn("Ignored", store_payments.apply_store_payment(self.conn, "7001")["note"])
+		self.conn.get_store_payment.assert_not_called()
+
+	def test_paid_in_agamsale_then_on_the_store_is_noted_once(self):
 		frappe.db.set_value("Field Order", self.order.name, {"payment_status": "Paid", "amount_paid": self.total})
+		self.conn.get_store_payment.return_value = None
+		self.assertIn("not paid on the store yet", store_payments.apply_store_payment(self.conn, "7001")["note"])
+		self.assertIsNone(self.saved("store_marked_paid_on").store_marked_paid_on)
+
+		# The merchant records the cash payment on the store.
+		self.conn.get_store_payment.return_value = self.paid(self.total, method="Cash on Delivery (COD)")
+		self.assertEqual(store_payments.apply_store_payment(self.conn, "7001")["note"], "Paid on the store too")
+		o = self.saved("store_marked_paid_on", "amount_paid", "payment_status")
+		self.assertIsNotNone(o.store_marked_paid_on)
+		self.assertEqual((o.payment_status, o.amount_paid), ("Paid", self.total))
+		self.assertEqual(self.history(), [])  # no second payment
+		self.notify.assert_not_called()
+
+		self.conn.get_store_payment.reset_mock()
 		self.assertIn("Ignored", store_payments.apply_store_payment(self.conn, "7001")["note"])
 		self.conn.get_store_payment.assert_not_called()
 
