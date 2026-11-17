@@ -9,13 +9,12 @@
         <Button icon="lucide-refresh-cw" variant="ghost" aria-label="Refresh" :loading="loading" @click="reload" />
       </template>
     </PageHeader>
+    <WpNavTabs v-model="tab" label="Commission" :tabs="tabs" class="shrink-0" />
 
     <div
-      class="flex min-h-0 flex-1 flex-col gap-3 px-5 pb-5"
+      class="flex min-h-0 flex-1 flex-col gap-3 px-5 pb-5 pt-4"
       :class="tab === 'mine' && 'overflow-y-auto xl:overflow-hidden'"
     >
-      <div class="shrink-0"><TabButtons v-model="tab" :options="tabs" /></div>
-
       <!-- My Commission -->
       <template v-if="tab === 'mine'">
         <div class="grid shrink-0 grid-cols-2 gap-4 md:grid-cols-4">
@@ -179,6 +178,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Button, TabButtons, Tooltip, createResource } from 'frappe-ui'
+import WpNavTabs from '@/components/wp/WpNavTabs.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import NumberCard from '@/components/NumberCard.vue'
 import SectionCard from '@/components/SectionCard.vue'

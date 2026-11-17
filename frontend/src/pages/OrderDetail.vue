@@ -1,7 +1,9 @@
 <template>
   <div>
     <PageHeader :title="name" :status="d.name ? orderStatus(d) : null">
-      <template #actions>
+      <!-- Wide screens: these live in the "Order actions" box at the top of the side column,
+           as on WooCommerce's edit-order screen. -->
+      <template v-if="!form || !wide" #actions>
         <Dropdown v-if="d.name" :options="moreActions" align="end">
           <Button variant="ghost" icon="lucide-ellipsis" aria-label="More actions" />
         </Dropdown>
@@ -24,7 +26,7 @@
 
     <div v-else-if="!form" class="flex justify-center py-16 text-ink-gray-5"><LoadingIndicator class="size-5" /></div>
 
-    <div v-else class="grid grid-cols-1 items-start gap-4 px-5 pb-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+    <div v-else class="grid grid-cols-1 items-start gap-5 px-5 pb-6 lg:grid-cols-[minmax(0,1fr)_300px]">
       <!-- Order -->
       <div class="fs-card">
         <div class="grid grid-cols-1 gap-4 border-b border-desk-border p-5 sm:grid-cols-2 lg:grid-cols-4">
@@ -298,8 +300,32 @@
         </div>
       </div>
 
-      <!-- Side column: store sync, payment, invoice -->
-      <div class="space-y-4">
+      <!-- Side column: order actions, store sync, payment, invoice (WooCommerce metaboxes) -->
+      <div class="space-y-5">
+        <!-- Order actions (WooCommerce's "Order actions" / publish box) -->
+        <div v-if="wide && d.name" class="fs-card">
+          <div class="flex items-center gap-2 border-b border-desk-border px-3 py-2">
+            <h2 class="flex-1 text-[14px] font-semibold text-ink-gray-8">Order actions</h2>
+          </div>
+          <div class="flex items-center gap-2 p-3">
+            <Dropdown :options="moreActions" align="start">
+              <Button label="Choose an action…" icon-right="lucide-chevron-down" class="flex-1" />
+            </Dropdown>
+            <a
+              class="wp-link ml-auto"
+              :href="`/printview?doctype=Field%20Order&name=${encodeURIComponent(name)}&format=Field%20Sales%20Order`"
+              target="_blank"
+              rel="noopener"
+            >
+              Preview
+            </a>
+          </div>
+          <div v-if="editable" class="flex items-center justify-end gap-2 border-t border-desk-border bg-wp-table-alt px-3 py-2.5">
+            <Button v-if="dirty" label="Save" variant="solid" :loading="saving" @click="save" />
+            <Button v-else label="Submit" variant="solid" :loading="saving" @click="confirmSubmit" />
+          </div>
+        </div>
+
         <!-- Store sync -->
         <div class="fs-card">
           <div class="flex items-center gap-2 border-b border-desk-border px-4 py-3">
@@ -550,6 +576,7 @@ import { isEmbedded } from '@/shopify/embedded'
 const embedded = isEmbedded()
 import { useSessionStore } from '@/stores/session'
 import { useSellLocations } from '@/composables/useSellLocations'
+import { useMediaQuery } from '@/composables/useMediaQuery'
 import { onDocEvent, onDoctypeEvent } from '@/composables/useRealtime'
 import { callMethod, findProductByBarcode } from '@/utils/api'
 import { copyText } from '@/utils/clipboard'
@@ -599,6 +626,8 @@ const doc = createDocumentResource({
   onSuccess: () => resetForm(),
 })
 const d = computed(() => doc.doc || {})
+// Two columns (lg): the header actions move into the side column's Order actions box.
+const wide = useMediaQuery('(min-width: 1024px)')
 const errorText = computed(() => String(doc.get.error?.messages?.[0] || doc.get.error || ''))
 const editable = computed(() => d.value.docstatus === 0)
 
@@ -1213,8 +1242,10 @@ const manualPaymentOptions = [
   { label: 'Cash', value: 'Cash' },
   { label: 'Bank Transfer / UPI', value: 'Bank Transfer / UPI' },
 ]
+// Money came in (refunds included): no new link, store checkout or manual payment.
+const HAS_PAYMENT = ['Paid', 'Partially Paid', 'Partially Refunded', 'Refunded']
 const canMarkPaid = computed(() => d.value.docstatus === 1 && pay.value.can_mark_paid &&
-  pay.value.grand_total > 0 && !['Paid', 'Partially Paid'].includes(pay.value.payment_status))
+  pay.value.grand_total > 0 && !HAS_PAYMENT.includes(pay.value.payment_status))
 
 function openManualPayment() {
   manualPayment.method = ''
@@ -1247,7 +1278,7 @@ const paymentRows = computed(() => {
   const rows = [
     { label: 'Amount Paid', value: `${formatCurrency(o.amount_paid || 0)} of ${formatCurrency(o.grand_total ?? d.value.grand_total ?? 0)}`, muted: !o.amount_paid },
   ]
-  if (o.payment_status !== 'Paid') {
+  if (!HAS_PAYMENT.includes(o.payment_status) || o.payment_status === 'Partially Paid') {
     if (o.razorpay_payment_link_url) rows.push({ label: 'Payment Link', value: o.razorpay_payment_link_id || 'Open', href: o.razorpay_payment_link_url })
     else if (storeCheckout.value) rows.push({ label: 'Store Checkout', value: 'Pay online', href: o.store_checkout_url })
     else rows.push({ label: 'Payment Link', value: 'Not created', muted: true })
@@ -1257,6 +1288,7 @@ const paymentRows = computed(() => {
   if (o.manual_payment_method) rows.push({ label: 'Payment Method', value: o.manual_payment_method })
   if (o.manual_payment_reference) rows.push({ label: 'Reference No.', value: o.manual_payment_reference })
   if (o.razorpay_payment_id) rows.push({ label: 'Payment ID', value: o.razorpay_payment_id })
+  if (o.amount_refunded) rows.push({ label: 'Refunded', value: formatCurrency(o.amount_refunded) })
   if (o.store_marked_paid_on) rows.push({ label: 'Store', value: `Marked paid ${when(o.store_marked_paid_on)}` })
   return rows
 })
@@ -1274,7 +1306,7 @@ const linkActive = computed(
 const linkAction = computed(() => {
   const o = pay.value
   if (!o.razorpay_enabled || !o.can_create_link || o.payment_links_available === false || !(o.grand_total > 0)) return null
-  if (o.payment_status === 'Paid' || o.payment_status === 'Partially Paid') return null
+  if (HAS_PAYMENT.includes(o.payment_status)) return null
   return linkActive.value ? 'New Link' : 'Create Link'
 })
 
@@ -1282,7 +1314,7 @@ const linkAction = computed(() => {
 // edition's only payment link; direct installs get it when Razorpay has no link yet).
 const storeCheckout = computed(() => {
   const o = pay.value
-  return !!o.store_checkout_url && !['Paid', 'Partially Paid'].includes(o.payment_status)
+  return !!o.store_checkout_url && !HAS_PAYMENT.includes(o.payment_status)
 })
 
 function openStoreCheckout() {

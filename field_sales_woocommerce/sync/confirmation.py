@@ -59,7 +59,7 @@ def send_order_confirmation(field_order: str, resend: bool = False) -> str:
 	pay_link = None
 	if frappe.db.get_value("Retailer", doc.retailer, "email"):
 		pay_link = link_for_confirmation(doc)
-		if not pay_link and doc.store_checkout_url and doc.payment_status not in ("Paid", "Partially Paid"):
+		if not pay_link and doc.store_checkout_url and doc.payment_status not in ("Paid", "Partially Paid", "Partially Refunded", "Refunded"):
 			# The store's own checkout: a payment link every install may use.
 			pay_link = {"url": doc.store_checkout_url, "expires_on": None}
 

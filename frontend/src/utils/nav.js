@@ -28,8 +28,9 @@ export const NAV_ITEMS = [
   // Everyone: a rep sees their own commission; managers also see the team and statements.
   { label: 'Commission', route: 'Commission', icon: 'lucide-wallet', feature: 'commission', roles: STAFF },
   { label: 'Reports', route: 'Reports', icon: 'lucide-chart-column', roles: MANAGERS },
-  { label: 'Sync Log', route: 'SyncLogs', icon: 'lucide-scroll-text', roles: MANAGERS },
-  { label: 'Sync Failures', route: 'SyncFailures', icon: 'lucide-triangle-alert', roles: MANAGERS },
+  // WooCommerce → Status: one menu item, "Logs | Failures" tabs on its pages (`also` keeps it
+  // highlighted on the second page).
+  { label: 'Status', route: 'SyncLogs', also: ['SyncFailures', 'SyncLogEntry'], icon: 'lucide-activity', roles: MANAGERS },
   { label: 'Settings', route: 'Settings', icon: 'lucide-settings', roles: MANAGERS },
   // The customer login: its own orders, read only.
   { label: 'My Orders', route: 'MyOrders', icon: 'lucide-shopping-cart', retailerOnly: true },

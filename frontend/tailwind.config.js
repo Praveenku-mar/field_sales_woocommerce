@@ -5,12 +5,24 @@ export default {
   content: ['./index.html', './src/**/*.{vue,js,ts}', ...frappeUIContent],
   theme: {
     extend: {
-      // Frappe desk look: page background, card borders, 8px corners.
+      // wp-admin look: page background and postbox borders (src/theme/wp-admin.css has the rest).
       colors: {
-        desk: { bg: '#F4F5F6', border: '#EDEDED' },
+        desk: { bg: '#F0F0F1', border: '#C3C4C7' },
+        wp: {
+          blue: '#2271B1',
+          'blue-dark': '#135E96',
+          menu: '#1D2327',
+          'menu-sub': '#2C3338',
+          'menu-text': '#F0F0F1',
+          'menu-muted': '#A7AAAD',
+          muted: '#646970',
+          divider: '#DCDCDE',
+          'table-alt': '#F6F7F7',
+          red: '#D63638',
+        },
       },
-      width: { sidebar: '224px' },
-      height: { topbar: '48px' },
+      width: { sidebar: '160px' },
+      height: { topbar: '46px', adminbar: '32px' },
     },
   },
 }

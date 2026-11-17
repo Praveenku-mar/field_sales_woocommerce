@@ -6,10 +6,10 @@
         <Button v-if="pageTab === 'visits'" label="New Visit" icon-left="lucide-plus" variant="solid" @click="newVisitOpen = true" />
       </template>
     </PageHeader>
-    <div v-if="session.isManager" class="shrink-0 px-5 pb-3"><TabButtons v-model="pageTab" :options="pageTabs" /></div>
+    <WpNavTabs v-if="session.isManager" v-model="pageTab" label="Visits" :tabs="pageTabs" class="mb-4 shrink-0" />
     <VisitImport v-if="pageTab === 'import'" />
     <div v-show="pageTab === 'visits'" class="flex min-h-0 flex-1 flex-col gap-3 px-5 pb-5">
-      <ListFilters v-model="model" search-placeholder="Search shop" :tabs="tabs" :fields="fields">
+      <ListFilters v-model="model" search-label="Search Visits" search-placeholder="Search shop" :tabs="tabs" :counts="tabCounts" :fields="fields">
         <PresetChip :label="presetLabel" />
       </ListFilters>
       <DataTable
@@ -43,7 +43,8 @@
 
 <script setup>
 import { computed, ref } from 'vue'
-import { Button, TabButtons } from 'frappe-ui'
+import { Button } from 'frappe-ui'
+import WpNavTabs from '@/components/wp/WpNavTabs.vue'
 import { useRoute, useRouter } from 'vue-router'
 import PageHeader from '@/components/PageHeader.vue'
 import ListFilters from '@/components/ListFilters.vue'
@@ -74,10 +75,10 @@ const pageTab = computed({
 })
 
 const tabs = [
+  { label: 'All', value: 'all' },
   { label: 'Today', value: 'today' },
   { label: 'Upcoming', value: 'upcoming' },
   { label: 'Past', value: 'past' },
-  { label: 'All', value: 'all' },
 ]
 const fields = [{ fieldname: 'status', label: 'Status', options: ['', 'Planned', 'In Progress', 'Completed', 'Cancelled'] }]
 const columns = [
@@ -99,7 +100,8 @@ function buildFilters(m) {
   return filters
 }
 
-const { model, list, count, presetLabel, pageSize } = useDocList({
+const { model, list, count, presetLabel, pageSize, tabCounts } = useDocList({
+  tabs: tabs.map((t) => t.value),
   doctype: 'Visit',
   fields: ['name', 'retailer_name', 'city', 'sales_rep_name', 'visit_date', 'status', 'check_in_time', 'time_on_site_min', 'within_geofence', 'distance_from_retailer_m'],
   orderBy: 'visit_date desc, modified desc',

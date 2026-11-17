@@ -375,16 +375,27 @@ async function testConnection() {
       ? {
           ok: true,
           title: 'Connection successful.',
-          text: `Shop: ${result.shop_name || '—'} (${result.shop_domain || d.value.store_url})`,
+          text: `Shop: ${result.shop_name || '—'} (${result.shop_domain || d.value.store_url}). ${webhooksText(result.webhooks)}`,
         }
       : { ok: false, title: 'Connection failed.', text: result.message }
     if (result.ok) toast.success(result.message)
     else toast.error(result.message)
+    if (result.ok && result.webhooks && !result.webhooks.ok) {
+      toast.warning(`Webhooks not set up: ${result.webhooks.message}`)
+    }
     await doc.reload()
   } catch {
   } finally {
     testing.value = false
   }
+}
+
+/** One line on the store's webhooks after Test Connection registered them (api._register_webhooks). */
+function webhooksText(webhooks) {
+  if (!webhooks) return ''
+  if (!webhooks.ok) return `Webhooks not set up: ${webhooks.message}`
+  const count = Object.keys(webhooks.topics || {}).length
+  return `Live updates: ${count} webhooks deliver to ${webhooks.delivery_url}.`
 }
 
 function nowSql() {

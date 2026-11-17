@@ -1,8 +1,9 @@
 <template>
+  <!-- WooCommerce → Settings: nav tabs across the top, form-table rows, "Save changes" at the
+       bottom of the form. -->
   <div>
     <PageHeader title="Settings">
       <template #meta>
-        <TabButtons v-model="tab" :options="TABS" />
         <StatusPill
           v-if="tab === 'store' && storeForm?.titleStatus"
           :status="storeForm.titleStatus.status"
@@ -11,36 +12,25 @@
         />
       </template>
       <template #actions>
-        <Button variant="ghost" label="Help" icon-left="lucide-circle-help" href="/help" />
-        <Button variant="ghost" label="Privacy" icon-left="lucide-shield" href="/privacy" />
-        <template v-if="canEdit && activeForm?.isDirty">
-          <Button
-            variant="ghost"
-            label="Discard"
-            :disabled="activeForm.saving || activeForm.testing"
-            @click="activeForm.discard()"
-          />
-          <Button
-            variant="solid"
-            label="Save Changes"
-            :loading="activeForm.saving"
-            :disabled="activeForm.testing"
-            @click="activeForm.save()"
-          />
-        </template>
         <Button
           v-if="canEditStore && tab === 'store'"
-          :variant="storeForm?.isDirty ? 'subtle' : 'solid'"
           label="Fetch Locations"
           icon-left="lucide-refresh-cw"
           :loading="!!storeForm?.fetchingLocations"
           :disabled="!storeForm"
           @click="storeForm?.fetchLocations()"
         />
+        <Button variant="ghost" label="Help" icon-left="lucide-circle-help" href="/help" />
+        <Button variant="ghost" label="Privacy" icon-left="lucide-shield" href="/privacy" />
       </template>
     </PageHeader>
-    <div class="px-5 pb-5">
-      
+    <WpNavTabs v-model="tab" label="Settings" :tabs="TABS" />
+
+    <div class="wp-form-table px-5 pb-5 pt-4">
+      <WpNotice v-if="canEdit && activeForm?.isDirty" type="warning" class="mb-4">
+        You have unsaved changes on this tab.
+      </WpNotice>
+
       <MobilePushSettings v-if="tab === 'mobile-push' && canEdit" ref="mobilePushForm" />
       <!-- Sales Managers may also edit Razorpay; push is System Manager only -->
       <RazorpaySettings v-else-if="tab === 'razorpay' && canEdit" ref="razorpayForm" />
@@ -60,6 +50,24 @@
         >
         </EmptyState>
       </div>
+
+      <!-- `p.submit`: the form's save button sits under the fields (the Email tab saves in its
+           own dialog). -->
+      <div v-if="canEdit && activeForm" class="mt-5 flex items-center gap-2">
+        <Button
+          variant="solid"
+          label="Save changes"
+          :loading="activeForm.saving"
+          :disabled="!activeForm.isDirty || activeForm.testing"
+          @click="activeForm.save()"
+        />
+        <Button
+          v-if="activeForm.isDirty"
+          label="Discard"
+          :disabled="activeForm.saving || activeForm.testing"
+          @click="activeForm.discard()"
+        />
+      </div>
     </div>
   </div>
 </template>
@@ -67,7 +75,9 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Button, TabButtons } from 'frappe-ui'
+import { Button } from 'frappe-ui'
+import WpNavTabs from '@/components/wp/WpNavTabs.vue'
+import WpNotice from '@/components/wp/WpNotice.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import StatusPill from '@/components/StatusPill.vue'
@@ -89,12 +99,12 @@ const razorpayForm = ref(null)
 const mobilePushForm = ref(null)
 
 const TABS = [
-  { label: 'Store Connection', value: 'store' },
+  { label: 'Store', value: 'store' },
   { label: 'Invoice', value: 'invoice' },
   { label: 'Commission', value: 'commission' },
-  { label: 'Email Account', value: 'email' },
-  { label: 'Razorpay', value: 'razorpay' },
-  { label: 'Notification', value: 'mobile-push' },
+  { label: 'Emails', value: 'email' },
+  { label: 'Payments', value: 'razorpay' },
+  { label: 'Notifications', value: 'mobile-push' },
 ]
 const NOT_ADMIN = {
   store: { icon: 'lucide-store', title: 'Store Connection', what: 'the store connection' },

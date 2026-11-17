@@ -3,7 +3,7 @@
   <div class="flex h-full flex-col">
     <PageHeader :title="session.retailer?.retailer_name || 'My Orders'" />
     <div class="flex min-h-0 flex-1 flex-col gap-3 px-5 pb-5">
-      <ListFilters v-model="model" search-placeholder="Search order" :tabs="tabs" />
+      <ListFilters v-model="model" search-label="Search Orders" search-placeholder="Search order" :tabs="tabs" :counts="tabCounts" />
       <DataTable
         :columns="columns"
         :rows="list.data || []"
@@ -65,7 +65,8 @@ function statusOf(row) {
   return row.payment_status || 'Unpaid'
 }
 
-const { model, list, count, pageSize } = useDocList({
+const { model, list, count, pageSize, tabCounts } = useDocList({
+  tabs: tabs.map((t) => t.value),
   doctype: 'Field Order',
   fields: ['name', 'order_date', 'invoice_no', 'total_qty', 'grand_total', 'docstatus', 'payment_status'],
   orderBy: 'order_date desc, creation desc',

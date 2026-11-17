@@ -1,0 +1,192 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "hash",
+ "creation": "2026-11-16 15:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "in_create": 1,
+ "module": "Field Sales Woocommerce",
+ "name": "Payment Transaction",
+ "owner": "Administrator",
+ "modified": "2026-11-16 15:00:00.000000",
+ "modified_by": "Administrator",
+ "field_order": [
+  "transaction_type",
+  "status",
+  "source",
+  "amount",
+  "currency",
+  "occurred_on",
+  "column_break_1",
+  "reference_order",
+  "store_order_id",
+  "method",
+  "reference",
+  "razorpay_section",
+  "razorpay_payment_link_id",
+  "razorpay_order_id",
+  "column_break_2",
+  "razorpay_payment_id",
+  "razorpay_refund_id",
+  "section_break_3",
+  "error",
+  "transaction_key"
+ ],
+ "fields": [
+  {
+   "fieldname": "transaction_type",
+   "fieldtype": "Select",
+   "label": "Type",
+   "read_only": 1,
+   "options": "Payment Link\nCheckout Order\nPayment\nRefund",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "read_only": 1,
+   "options": "Created\nPending\nAuthorized\nCaptured\nPartially Paid\nPaid\nFailed\nExpired\nCancelled\nProcessed",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "source",
+   "fieldtype": "Select",
+   "label": "Source",
+   "read_only": 1,
+   "options": "Payment Link\nStore Checkout\nManual",
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "amount",
+   "fieldtype": "Currency",
+   "label": "Amount",
+   "read_only": 1,
+   "options": "currency",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "currency",
+   "fieldtype": "Data",
+   "label": "Currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "occurred_on",
+   "fieldtype": "Datetime",
+   "label": "Occurred On",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "reference_order",
+   "fieldtype": "Link",
+   "label": "Field Order",
+   "read_only": 1,
+   "options": "Field Order",
+   "in_standard_filter": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "store_order_id",
+   "fieldtype": "Data",
+   "label": "Store Order ID",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "method",
+   "fieldtype": "Data",
+   "label": "Method",
+   "read_only": 1
+  },
+  {
+   "fieldname": "reference",
+   "fieldtype": "Data",
+   "label": "Reference",
+   "read_only": 1
+  },
+  {
+   "fieldname": "razorpay_section",
+   "fieldtype": "Section Break",
+   "label": "Razorpay"
+  },
+  {
+   "fieldname": "razorpay_payment_link_id",
+   "fieldtype": "Data",
+   "label": "Payment Link ID",
+   "read_only": 1
+  },
+  {
+   "fieldname": "razorpay_order_id",
+   "fieldtype": "Data",
+   "label": "Razorpay Order ID",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "column_break_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "razorpay_payment_id",
+   "fieldtype": "Data",
+   "label": "Payment ID",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "razorpay_refund_id",
+   "fieldtype": "Data",
+   "label": "Refund ID",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_3",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "error",
+   "fieldtype": "Small Text",
+   "label": "Error",
+   "read_only": 1
+  },
+  {
+   "fieldname": "transaction_key",
+   "fieldtype": "Data",
+   "label": "Key",
+   "read_only": 1,
+   "unique": 1,
+   "hidden": 1,
+   "description": "Idempotency key: one row per Razorpay object (link, order, payment, refund) or manual payment."
+  }
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Sales Manager",
+   "read": 1,
+   "report": 1,
+   "export": 1
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "transaction_type",
+ "track_changes": 0,
+ "links": []
+}

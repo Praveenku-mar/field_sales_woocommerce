@@ -35,6 +35,7 @@ from frappe.utils import (
 from field_sales_woocommerce.field_sales_woocommerce.doctype.sync_log.sync_log import log_sync, log_sync_durable
 from field_sales_woocommerce.push.notify import notify_users
 from field_sales_woocommerce.sync.notify import users_with_roles
+from field_sales_woocommerce.payments import transactions
 from field_sales_woocommerce.utils.money import site_currency
 from field_sales_woocommerce.utils.urls import public_url
 
@@ -60,6 +61,7 @@ PAYMENT_EVENT = "field_order_payment_updated"  # realtime; open forms reload on 
 PAYMENT_FIELDS = (
 	"payment_status",
 	"amount_paid",
+	"amount_refunded",
 	"razorpay_payment_id",
 	"paid_on",
 	"manual_payment_method",
@@ -70,6 +72,8 @@ PAYMENT_FIELDS = (
 	"payment_link_expires_on",
 	"store_marked_paid_on",
 )
+# Money came in (and maybe went back out): never ask for the full total again.
+PAID_STATES = ("Paid", "Partially Refunded", "Refunded")
 RECONCILE_DAYS = 7
 RECONCILE_BATCH = 50
 
@@ -326,7 +330,7 @@ def create_link_for_order(field_order: str, replace: bool = False) -> dict:
 		frappe.throw(_("Submit the order before creating a payment link"))
 	if flt(doc.grand_total) <= 0:
 		frappe.throw(_("The order total must be more than zero"))
-	if doc.payment_status == "Paid":
+	if doc.payment_status in PAID_STATES:
 		frappe.throw(_("This order is already paid"))
 
 	if (
@@ -356,7 +360,7 @@ def link_for_confirmation(doc) -> dict | None:
 	if payment_links_disabled_reason() is not None:
 		return None
 	settings = get_settings()
-	if not settings.enabled or flt(doc.grand_total) <= 0 or doc.payment_status in ("Paid", "Partially Paid"):
+	if not settings.enabled or flt(doc.grand_total) <= 0 or doc.payment_status in ("Partially Paid", *PAID_STATES):
 		return None
 	if doc.payment_status == "Link Sent" and doc.razorpay_payment_link_url and not _expired(doc):
 		return _link_result(doc)
@@ -411,6 +415,7 @@ def _replace_link(doc, settings, notify: bool = True) -> dict:
 			escape_html(link.get("short_url") or link.get("id") or "")
 		),
 	)
+	_record_link(doc, link, "Created")
 	return _link_result(doc)
 
 
@@ -454,6 +459,7 @@ def _retire_link(doc, settings) -> tuple[str | None, bool]:
 	if status in OPEN_LINK_STATES:
 		cancel_payment_link(doc.razorpay_payment_link_id, field_order=doc.name, settings=settings)
 		cancelled = True
+		_record_link(doc, {**old, "status": "cancelled"})
 	return old.get("reference_id"), cancelled
 
 
@@ -527,6 +533,27 @@ def webhook():
 		"payload_hash": payload_hash,
 		"payload": raw_body.decode("utf-8", "replace"),
 	}
+
+	# Store checkout payments and refunds (payments/checkout.py); payment links below.
+	from field_sales_woocommerce.payments.checkout import CHECKOUT_EVENTS, handle_webhook_event
+
+	if record["event"] in CHECKOUT_EVENTS:
+		user = frappe.session.user
+		try:
+			frappe.set_user("Administrator")
+			if _already_handled(event_id, payload_hash):
+				return _respond(200, "duplicate")
+			status, note = handle_webhook_event(record["event"], payload, record)
+			_record_event(record, status, error=note)
+		except Exception as e:
+			frappe.db.rollback()
+			frappe.log_error(title=f"Razorpay webhook failed: {event_id or record['event']}")
+			_record_event(record, "Error", error=str(e)[:1000])
+			frappe.db.commit()  # keep the Error row; the 500 asks Razorpay to retry
+			return _respond(500, "error")
+		finally:
+			frappe.set_user(user)
+		return {"status": "ok"} if status == "Processed" else _respond(200, "ignored")
 
 	field_order = None
 	if record["event"] in WEBHOOK_EVENTS and link.get("id"):
@@ -620,6 +647,7 @@ def cancel_link_for_cancelled_order(doc) -> None:
 		return
 	doc.db_set("payment_status", "Link Cancelled", update_modified=False)
 	doc.add_comment("Info", _("Payment link cancelled on Razorpay with the order."))
+	_record_link(doc, {"id": doc.razorpay_payment_link_id, "status": "cancelled"})
 
 
 def reconcile_open_links() -> None:
@@ -664,7 +692,12 @@ def _apply_link_state(doc, link_entity: dict, payment_entity: dict | None = None
 
 	:return: whether anything changed
 	"""
-	if doc.payment_status == "Paid" or _stale_link(doc, link_entity):
+	# History first: even news about an old link, or for an order already Paid, belongs in it.
+	_record_link(doc, link_entity)
+	if payment_entity and payment_entity.get("id"):
+		_record_payment(doc, payment_entity, link_entity)
+
+	if doc.payment_status in ("Paid", "Partially Refunded", "Refunded") or _stale_link(doc, link_entity):
 		return False
 
 	link_status = link_entity.get("status")
@@ -707,7 +740,7 @@ def _apply_link_state(doc, link_entity: dict, payment_entity: dict | None = None
 				_(doc.payment_status),
 			),
 		)
-		_notify_payment(doc)
+		notify_payment_received(doc)
 		if doc.payment_status == "Paid":
 			# Imported here: sync.orders imports sync.confirmation, which imports this module.
 			from field_sales_woocommerce.sync.orders import enqueue_mark_store_paid
@@ -719,6 +752,59 @@ def _apply_link_state(doc, link_entity: dict, payment_entity: dict | None = None
 		PAYMENT_EVENT, _payment_fields(doc), doctype="Field Order", docname=doc.name, after_commit=True
 	)
 	return True
+
+
+LINK_HISTORY_STATES = {
+	"created": "Created",
+	"partially_paid": "Partially Paid",
+	"paid": "Paid",
+	"expired": "Expired",
+	"cancelled": "Cancelled",
+}
+
+
+def _record_link(doc, link_entity: dict, status: str | None = None) -> None:
+	"""Payment history row for a payment link (one per link id)."""
+	link_id = link_entity.get("id")
+	if not link_id:
+		return
+	transactions.record(
+		f"link:{link_id}",
+		transaction_type="Payment Link",
+		source="Payment Link",
+		status=status or LINK_HISTORY_STATES.get(link_entity.get("status")),
+		amount=transactions.rupees(link_entity["amount"]) if link_entity.get("amount") else doc.grand_total,
+		currency=link_entity.get("currency"),
+		reference_order=doc.name,
+		store_order_id=doc.external_order_id,
+		razorpay_payment_link_id=link_id,
+		razorpay_order_id=link_entity.get("order_id"),
+		reference=link_entity.get("short_url"),
+		occurred_on=_from_unix(link_entity.get("created_at")),
+	)
+
+
+def _record_payment(doc, payment_entity: dict, link_entity: dict | None = None) -> None:
+	"""Payment history row for a Razorpay payment made on one of the order's links."""
+	status = {"captured": "Captured", "authorized": "Authorized", "failed": "Failed"}.get(
+		payment_entity.get("status"), "Captured"
+	)
+	transactions.record(
+		f"payment:{payment_entity['id']}",
+		transaction_type="Payment",
+		source="Payment Link",
+		status=status,
+		amount=transactions.rupees(payment_entity["amount"]) if payment_entity.get("amount") else None,
+		currency=payment_entity.get("currency"),
+		method=payment_entity.get("method"),
+		reference_order=doc.name,
+		store_order_id=doc.external_order_id,
+		razorpay_payment_link_id=(link_entity or {}).get("id"),
+		razorpay_order_id=payment_entity.get("order_id"),
+		razorpay_payment_id=payment_entity["id"],
+		error=payment_entity.get("error_description"),
+		occurred_on=_from_unix(payment_entity.get("created_at")),
+	)
 
 
 def _stale_link(doc, link_entity: dict) -> bool:
@@ -736,7 +822,7 @@ def _stale_link(doc, link_entity: dict) -> bool:
 	)
 
 
-def _notify_payment(doc) -> None:
+def notify_payment_received(doc) -> None:
 	"""Bell notification and a realtime event for the order's rep and every Sales Manager."""
 	users = {doc.sales_rep, *users_with_roles(PAYMENT_NOTIFY_ROLES)} - {None, "", "Guest", "Administrator"}
 	users = [u for u in sorted(users) if frappe.db.get_value("User", u, "enabled")]

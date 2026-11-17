@@ -1,10 +1,11 @@
 <template>
+  <!-- wp-admin .postbox: white box, title bar with a hairline under it. -->
   <section class="fs-card">
-    <header v-if="title || $slots.actions" class="flex items-center justify-between gap-2 border-b border-desk-border px-4 py-2.5">
-      <h2 class="text-base font-medium text-ink-gray-9">{{ title }}</h2>
+    <header v-if="title || $slots.actions" class="flex min-h-[36px] items-center justify-between gap-2 border-b border-wp-divider px-3 py-1.5">
+      <h2 class="text-[14px] font-semibold leading-[1.4] text-ink-gray-8">{{ title }}</h2>
       <div class="flex items-center gap-2"><slot name="actions" /></div>
     </header>
-    <div :class="flush ? '' : 'p-4'"><slot /></div>
+    <div :class="flush ? '' : 'p-3'"><slot /></div>
   </section>
 </template>
 

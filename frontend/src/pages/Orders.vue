@@ -7,7 +7,7 @@
       </template>
     </PageHeader>
     <div class="flex min-h-0 flex-1 flex-col gap-3 px-5 pb-5">
-      <ListFilters v-model="model" search-placeholder="Search order or retailer" :tabs="tabs" :fields="filterFields">
+      <ListFilters v-model="model" search-label="Search Orders" search-placeholder="Search order or retailer" :tabs="tabs" :counts="tabCounts" :fields="filterFields">
         <PresetChip :label="presetLabel" />
       </ListFilters>
       <DataTable
@@ -31,6 +31,9 @@
             <StatusPill :status="orderStatus(row)" />
           </Tooltip>
         </template>
+        <template #row-actions="{ row }">
+          <WpRowActions :actions="rowActions(row)" />
+        </template>
         <template #cell-payment_status="{ row }">
           <StatusPill v-if="row.docstatus === 1 && row.payment_status" :status="row.payment_status" />
           <span v-else class="text-ink-gray-4">—</span>
@@ -42,8 +45,8 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
-import { Button, Tooltip } from 'frappe-ui'
+import { computed, reactive, ref } from 'vue'
+import { Button, Tooltip, toast } from 'frappe-ui'
 import NewOrderDialog from '@/components/NewOrderDialog.vue'
 
 const newOrderOpen = ref(false)
@@ -53,6 +56,8 @@ import ListFilters from '@/components/ListFilters.vue'
 import PresetChip from '@/components/PresetChip.vue'
 import DataTable from '@/components/DataTable.vue'
 import StatusPill from '@/components/StatusPill.vue'
+import WpRowActions from '@/components/wp/WpRowActions.vue'
+import { callMethod } from '@/utils/api'
 import { useDocList } from '@/composables/useDocList'
 import { useSellLocations } from '@/composables/useSellLocations'
 import { formatCurrency, formatDate, formatNumber, orderStatus } from '@/utils/format'
@@ -90,7 +95,7 @@ function buildFilters(m) {
   return filters
 }
 
-const PAYMENT_STATUSES = ['Unpaid', 'Link Sent', 'Partially Paid', 'Paid', 'Link Expired', 'Link Cancelled']
+const PAYMENT_STATUSES = ['Unpaid', 'Link Sent', 'Partially Paid', 'Paid', 'Link Expired', 'Link Cancelled', 'Partially Refunded', 'Refunded']
 const paymentFilter = {
   fieldname: 'payment_status',
   label: 'Payment',
@@ -107,7 +112,8 @@ const filterFields = computed(() => [
 ])
 
 const route = useRoute()
-const { model, list, count, presetLabel, pageSize } = useDocList({
+const { model, list, count, presetLabel, pageSize, tabCounts } = useDocList({
+  tabs: tabs.map((t) => t.value),
   doctype: 'Field Order',
   fields: ['name', 'retailer_name', 'sales_rep', 'sales_rep.full_name as sales_rep_name', 'order_date', 'location_id', 'location_name', 'total_qty', 'grand_total', 'docstatus', 'sync_status', 'sync_error', 'payment_status'],
   orderBy: 'order_date desc, creation desc',
@@ -118,4 +124,29 @@ const { model, list, count, presetLabel, pageSize } = useDocList({
   initial: { tab: route.query.preset ? 'all' : route.query.tab || 'all' },
   preset: route.query.preset || null,
 })
+
+// wp-admin row actions under the order: View, and Retry sync when the store push failed
+// (the same server method as the order page's Retry Sync).
+const retrying = reactive({})
+function rowActions(row) {
+  return [
+    { label: 'View', route: { name: 'Order', params: { name: row.name } } },
+    {
+      label: retrying[row.name] ? 'Retrying…' : 'Retry sync',
+      hide: !(row.docstatus === 1 && row.sync_status === 'Failed'),
+      disabled: !!retrying[row.name],
+      onClick: () => retry(row.name),
+    },
+  ]
+}
+async function retry(name) {
+  retrying[name] = true
+  try {
+    const r = await callMethod('field_sales_woocommerce.api.retry_sync', { field_order: name })
+    toast.success(r.message)
+    setTimeout(() => list.reload(), 4000)
+  } finally {
+    retrying[name] = false
+  }
+}
 </script>

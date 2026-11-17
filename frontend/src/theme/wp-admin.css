@@ -1,0 +1,370 @@
+/*
+ * WordPress admin / WooCommerce look for Agamsale.
+ *
+ * frappe-ui draws everything from CSS variables, so the WP admin palette is mapped onto them
+ * here (`:root:root` outranks frappe-ui's own `:root` block, which Tailwind's base layer emits
+ * after this import). Component rules below then shape frappe-ui's buttons, inputs, dialogs
+ * and toasts like wp-admin's `.button`, form fields, modals and the WooCommerce snackbar.
+ * Colours: https://make.wordpress.org/design/handbook/design-guide/foundations/colors/
+ */
+:root:root {
+  --wp-admin-theme-color: #2271b1;
+  --wp-admin-theme-color-darker-10: #135e96;
+  --wp-admin-theme-color-darker-20: #0a4b78;
+  --wp-page-bg: #f0f0f1;
+  --wp-border: #c3c4c7;
+  --wp-border-light: #dcdcde;
+  --wp-input-border: #8c8f94;
+  --wp-text: #1d2327;
+  --wp-text-muted: #646970;
+  --wp-menu-bg: #1d2327;
+  --wp-menu-submenu-bg: #2c3338;
+  --wp-menu-text: #f0f0f1;
+  --wp-menu-highlight: #2271b1;
+  --wp-notification: #d63638;
+
+  --ink-blue-link: #2271b1;
+  --surface-sidebar: #1d2327;
+  --surface-gray-1: #f6f7f7;
+  --surface-gray-2: #f0f0f1;
+  --surface-gray-3: #dcdcde;
+  --surface-gray-4: #c3c4c7;
+  --surface-gray-5: #a7aaad;
+  --surface-gray-6: #8c8f94;
+  --surface-gray-7: #646970;
+  --surface-gray-8: #3c434a;
+  --surface-gray-9: #2c3338;
+  --surface-gray-10: #1d2327;
+  --ink-gray-1: #f0f0f1;
+  --ink-gray-2: #dcdcde;
+  --ink-gray-3: #c3c4c7;
+  --ink-gray-4: #a7aaad;
+  --ink-gray-5: #646970;
+  --ink-gray-6: #50575e;
+  --ink-gray-7: #3c434a;
+  --ink-gray-8: #1d2327;
+  --ink-gray-9: #101517;
+  --outline-gray-1: #f0f0f1;
+  --outline-gray-2: #dcdcde;
+  --outline-gray-3: #c3c4c7;
+  --outline-gray-4: #8c8f94;
+  --outline-gray-5: #787c82;
+  --outline-gray-6: #50575e;
+  --outline-gray-7: #3c434a;
+  --outline-gray-8: #1d2327;
+  --outline-gray-9: #101517;
+  --surface-blue-1: #f0f6fc;
+  --surface-blue-2: #c5d9ed;
+  --surface-blue-3: #9ec2e6;
+  --surface-blue-4: #72aee6;
+  --surface-blue-5: #4f94d4;
+  --surface-blue-6: #2271b1;
+  --surface-blue-7: #135e96;
+  --surface-blue-8: #0a4b78;
+  --surface-blue-9: #043959;
+  --surface-blue-10: #01263a;
+  --ink-blue-1: #c5d9ed;
+  --ink-blue-2: #9ec2e6;
+  --ink-blue-3: #72aee6;
+  --ink-blue-4: #4f94d4;
+  --ink-blue-5: #2271b1;
+  --ink-blue-6: #135e96;
+  --ink-blue-7: #0a4b78;
+  --ink-blue-8: #043959;
+  --ink-blue-9: #01263a;
+  --outline-blue-1: #c5d9ed;
+  --outline-blue-2: #9ec2e6;
+  --outline-blue-3: #72aee6;
+  --outline-blue-4: #4f94d4;
+  --outline-blue-5: #2271b1;
+  --outline-blue-6: #135e96;
+  --outline-blue-7: #0a4b78;
+  --outline-blue-8: #043959;
+  --outline-blue-9: #01263a;
+  --outline-blue-10: #01263a;
+  --surface-red-1: #fcf0f1;
+  --surface-red-2: #facfd2;
+  --surface-red-3: #ffabaf;
+  --surface-red-4: #ff8085;
+  --surface-red-5: #f86368;
+  --surface-red-6: #d63638;
+  --surface-red-7: #b32d2e;
+  --surface-red-8: #8a2424;
+  --surface-red-9: #691c1c;
+  --surface-red-10: #451313;
+  --ink-red-1: #facfd2;
+  --ink-red-2: #ffabaf;
+  --ink-red-3: #ff8085;
+  --ink-red-4: #f86368;
+  --ink-red-5: #d63638;
+  --ink-red-6: #b32d2e;
+  --ink-red-7: #8a2424;
+  --ink-red-8: #691c1c;
+  --ink-red-9: #451313;
+  --outline-red-1: #facfd2;
+  --outline-red-2: #ffabaf;
+  --outline-red-3: #ff8085;
+  --outline-red-4: #f86368;
+  --outline-red-5: #d63638;
+  --outline-red-6: #b32d2e;
+  --outline-red-7: #8a2424;
+  --outline-red-8: #691c1c;
+  --outline-red-9: #451313;
+  --outline-red-10: #451313;
+  --surface-green-1: #edfaef;
+  --surface-green-2: #b8e6bf;
+  --surface-green-3: #68de7c;
+  --surface-green-4: #1ed14b;
+  --surface-green-5: #00ba37;
+  --surface-green-6: #00a32a;
+  --surface-green-7: #008a20;
+  --surface-green-8: #007017;
+  --surface-green-9: #005c12;
+  --surface-green-10: #003008;
+  --ink-green-1: #b8e6bf;
+  --ink-green-2: #68de7c;
+  --ink-green-3: #1ed14b;
+  --ink-green-4: #00ba37;
+  --ink-green-5: #00a32a;
+  --ink-green-6: #008a20;
+  --ink-green-7: #007017;
+  --ink-green-8: #005c12;
+  --ink-green-9: #003008;
+  --outline-green-1: #b8e6bf;
+  --outline-green-2: #68de7c;
+  --outline-green-3: #1ed14b;
+  --outline-green-4: #00ba37;
+  --outline-green-5: #00a32a;
+  --outline-green-6: #008a20;
+  --outline-green-7: #007017;
+  --outline-green-8: #005c12;
+  --outline-green-9: #003008;
+  --outline-green-10: #003008;
+  --surface-amber-1: #fcf9e8;
+  --surface-amber-2: #f5e6ab;
+  --surface-amber-3: #f2d675;
+  --surface-amber-4: #f0c33c;
+  --surface-amber-5: #dba617;
+  --surface-amber-6: #bd8600;
+  --surface-amber-7: #996800;
+  --surface-amber-8: #755100;
+  --surface-amber-9: #614200;
+  --surface-amber-10: #4a3200;
+  --ink-amber-1: #f5e6ab;
+  --ink-amber-2: #f2d675;
+  --ink-amber-3: #f0c33c;
+  --ink-amber-4: #dba617;
+  --ink-amber-5: #bd8600;
+  --ink-amber-6: #996800;
+  --ink-amber-7: #755100;
+  --ink-amber-8: #614200;
+  --ink-amber-9: #4a3200;
+  --outline-amber-1: #f5e6ab;
+  --outline-amber-2: #f2d675;
+  --outline-amber-3: #f0c33c;
+  --outline-amber-4: #dba617;
+  --outline-amber-5: #bd8600;
+  --outline-amber-6: #996800;
+  --outline-amber-7: #755100;
+  --outline-amber-8: #614200;
+  --outline-amber-9: #4a3200;
+  --outline-amber-10: #4a3200;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu, Cantarell,
+    'Helvetica Neue', sans-serif;
+}
+
+/* ---- Buttons (wp-admin .button / .button-primary) ---- */
+button.h-7,
+a.h-7 {
+  height: 30px;
+  border-radius: 3px;
+}
+button.bg-surface-gray-10,
+a.bg-surface-gray-10 {
+  background-color: var(--wp-admin-theme-color);
+  border: 1px solid var(--wp-admin-theme-color);
+  color: #fff;
+}
+button.bg-surface-gray-10:hover,
+a.bg-surface-gray-10:hover {
+  background-color: var(--wp-admin-theme-color-darker-10);
+  border-color: var(--wp-admin-theme-color-darker-10);
+}
+/* Secondary: white-ish with the theme colour border and text. */
+button.bg-surface-gray-2:not([role='tab']):not([role='radio']),
+a.bg-surface-gray-2 {
+  background-color: #f6f7f7;
+  border: 1px solid var(--wp-admin-theme-color);
+  color: var(--wp-admin-theme-color);
+}
+button.bg-surface-gray-2:not([role='tab']):not([role='radio']):hover,
+a.bg-surface-gray-2:hover {
+  background-color: #f0f0f1;
+  border-color: var(--wp-admin-theme-color-darker-10);
+  color: var(--wp-admin-theme-color-darker-10);
+}
+button[class*='bg-surface-red-7'] {
+  background-color: #d63638;
+  border: 1px solid #d63638;
+}
+/* Toggles are blue when on, like WP's ToggleControl. */
+button[role='switch'].bg-surface-gray-10 {
+  border: 0;
+}
+
+/* ---- Form fields (white, #8c8f94 border, 4px radius, blue focus) ---- */
+input.bg-surface-gray-2,
+textarea.bg-surface-gray-2,
+select.bg-surface-gray-2,
+button[role='combobox'].bg-surface-gray-2,
+.form-input,
+.form-textarea,
+.form-select {
+  background-color: #fff;
+  border: 1px solid var(--wp-input-border);
+  border-radius: 4px;
+  color: var(--wp-text);
+}
+input.bg-surface-gray-2:hover,
+textarea.bg-surface-gray-2:hover,
+select.bg-surface-gray-2:hover,
+button[role='combobox'].bg-surface-gray-2:hover {
+  background-color: #fff;
+  border-color: var(--wp-input-border);
+}
+input.bg-surface-gray-2:focus,
+textarea.bg-surface-gray-2:focus,
+select.bg-surface-gray-2:focus,
+.form-input:focus,
+.form-textarea:focus,
+.form-select:focus {
+  border-color: var(--wp-admin-theme-color);
+  box-shadow: 0 0 0 1px var(--wp-admin-theme-color);
+  outline: 2px solid transparent;
+}
+input.h-7,
+select.h-7 {
+  height: 30px;
+}
+input[type='checkbox'].form-checkbox {
+  border: 1px solid var(--wp-input-border);
+  border-radius: 4px;
+  background-color: #fff;
+}
+
+/* ---- Dialogs (WP modal: 2px corners, title bar, grey footer) ---- */
+.dialog-content {
+  border-radius: 2px;
+  box-shadow: 0 3px 30px rgb(0 0 0 / 0.2);
+}
+.dialog-content header h3,
+.dialog-content [class*='text-2xl-semibold'] {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--wp-text);
+}
+
+/* ---- Toasts: the WooCommerce snackbar (dark, square-ish) ---- */
+[class*='bg-surface-gray-9'][class*='rounded-5'][class*='shadow-xl'] {
+  background-color: #1e1e1e;
+  border-radius: 2px;
+}
+
+/* ---- Tooltips ---- */
+[class*='rounded-4'][class*='bg-surface-gray-10'][class*='text-xs'] {
+  background-color: #1e1e1e;
+  border-radius: 2px;
+}
+
+/* ---- Shared WP utility classes used by components/wp/* ---- */
+.wp-link {
+  color: var(--wp-admin-theme-color);
+  text-decoration: none;
+}
+.wp-link:hover {
+  color: var(--wp-admin-theme-color-darker-10);
+  text-decoration: underline;
+}
+.wp-description {
+  color: var(--wp-text-muted);
+  font-size: 13px;
+  font-style: normal;
+  margin-top: 4px;
+}
+
+/* ---- Settings: wp-admin `.form-table` ----
+ * The settings forms lay frappe-ui fields out in 2-column grids with the label above each
+ * field. Inside `.wp-form-table` (pages/Settings.vue) wide screens get the WooCommerce
+ * settings layout instead: one field per row, bold label in a 200px column on the left,
+ * field and its description on the right. Phones keep the stacked layout, as wp-admin does.
+ */
+.wp-form-table h3 {
+  font-size: 1.3em;
+  font-weight: 600;
+  color: var(--wp-text);
+}
+@media (min-width: 782px) {
+  .wp-form-table .grid.md\:grid-cols-2,
+  .wp-form-table .grid.lg\:grid-cols-2 {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 1rem;
+  }
+  .wp-form-table .space-y-1\.5:has(> label:first-child) {
+    display: grid;
+    grid-template-columns: 200px minmax(0, 28rem);
+    column-gap: 20px;
+    align-items: start;
+  }
+  .wp-form-table .space-y-1\.5:has(> label:first-child) > * {
+    grid-column: 2;
+    margin-top: 0 !important;
+  }
+  .wp-form-table .space-y-1\.5:has(> label:first-child) > label:first-child {
+    grid-column: 1;
+    grid-row: 1 / span 3;
+    padding-top: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--wp-text);
+  }
+  .wp-form-table .space-y-1\.5:has(> label:first-child) > * + * {
+    margin-top: 4px !important;
+  }
+}
+
+/* ---- Postbox titles on detail pages (WooCommerce metaboxes) ---- */
+.fs-card h2.text-base {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--wp-text);
+}
+
+/* ---- WooCommerce Analytics summary: tiles joined into one bordered strip ---- */
+.wc-summary {
+  gap: 1px;
+  border: 1px solid var(--wp-border);
+  background-color: var(--wp-border-light);
+  box-shadow: 0 1px 1px rgb(0 0 0 / 0.04);
+}
+.wc-summary > .fs-card {
+  border: 0;
+  box-shadow: none;
+}
+/* Two tiles a row on phones: an odd last tile fills its row instead of leaving a gap. */
+@media (max-width: 1023px) {
+  .wc-summary.grid-cols-2 > .fs-card:last-child:nth-child(odd) {
+    grid-column: span 2;
+  }
+}
+/* Wide screens: a short last row stretches to the end instead of leaving a grey gap. */
+@media (min-width: 1024px) {
+  .wc-summary.lg\:grid-cols-3 > .fs-card:last-child:nth-child(3n + 1) {
+    grid-column: span 3;
+  }
+  .wc-summary.lg\:grid-cols-3 > .fs-card:last-child:nth-child(3n + 2) {
+    grid-column: span 2;
+  }
+}

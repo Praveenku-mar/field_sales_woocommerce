@@ -34,6 +34,9 @@ def receive():
 		return _respond(200, "ignored")
 
 	headers = frappe.request.headers
+	if conn.is_ping(headers, raw_body):
+		# The store's unsigned test delivery for a new webhook: nothing to verify or process.
+		return _respond(200, "ping")
 	if not conn.verify_webhook(headers, raw_body):
 		_log_invalid_signature(conn.platform)
 		return _respond(401, "invalid signature")

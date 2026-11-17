@@ -47,6 +47,7 @@ CLIENT_TEMP_ID = re.compile(r"[A-Za-z0-9._:-]{1,140}")
 PAYMENT_FIELDS = (
 	"payment_status",
 	"amount_paid",
+	"amount_refunded",
 	"razorpay_payment_link_id",
 	"razorpay_payment_link_url",
 	"razorpay_payment_id",

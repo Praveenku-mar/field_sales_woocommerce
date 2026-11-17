@@ -8,8 +8,8 @@
 
     <div v-if="doc.get.error" class="px-5"><div class="fs-card"><EmptyState icon="lucide-circle-alert" title="Product not found" :description="errorText" /></div></div>
 
-    <div v-else class="grid grid-cols-1 gap-5 px-5 pb-6 xl:grid-cols-3">
-      <div class="space-y-5 xl:col-span-2">
+    <div v-else class="grid grid-cols-1 items-start gap-5 px-5 pb-6 lg:grid-cols-[minmax(0,1fr)_300px]">
+      <div class="min-w-0 space-y-5">
         <SectionCard>
           <div class="flex gap-5">
             <img v-if="d.image" :src="d.image" :alt="d.product_title" class="size-36 shrink-0 rounded-4 border border-desk-border object-cover" />

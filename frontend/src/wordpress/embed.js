@@ -17,6 +17,19 @@ export function isWpEmbedded() {
   return typeof window !== 'undefined' && window.wp_embedded === true && window.parent !== window
 }
 
+// The plugin opens the frame with ?wp_embed=1 (read once: the router drops it on navigation).
+const OPENED_BY_PLUGIN =
+  typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('wp_embed') === '1'
+
+/**
+ * True when the page sits in the WordPress plugin's frame, however it signed in: with the
+ * plugin's token, or with the app's own cookie when both run on the same site. wp-admin's
+ * menu is the navigation then, so the app hides its own.
+ */
+export function isInWpAdmin() {
+  return typeof window !== 'undefined' && window.parent !== window && (window.wp_embedded === true || OPENED_BY_PLUGIN)
+}
+
 /** Inside a store admin's frame (Shopify or WordPress): no Frappe cookie, no login page. */
 export function isTokenSession() {
   return isEmbedded() || isWpEmbedded()
@@ -121,4 +134,19 @@ export function installWpAuth() {
         }
       })
   }
+}
+
+/**
+ * Tell the plugin page which app page is open ({type:'agamsale:navigated', path, title}), so
+ * wp-admin keeps it in its own URL (a reload or a shared link reopens it) and highlights the
+ * matching Agamsale submenu. Only the store's wp-admin can frame the app (frame-ancestors),
+ * and the path holds nothing the signed-in user cannot already see there.
+ */
+export function announceRoutes(router) {
+  router.afterEach((to) => {
+    window.parent.postMessage(
+      { type: 'agamsale:navigated', path: to.fullPath.replace(/^\/+/, ''), title: to.meta.title || '' },
+      '*',
+    )
+  })
 }

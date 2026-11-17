@@ -523,10 +523,19 @@ def get_order_payment_info(field_order: str) -> dict:
 			doc.has_permission("write")
 			and doc.docstatus == 1
 			and flt(doc.grand_total) > 0
-			and doc.payment_status not in ("Paid", "Partially Paid")
+			and doc.payment_status not in ("Paid", "Partially Paid", "Partially Refunded", "Refunded")
 		),
 		"whatsapp_number": whatsapp,
+		# Payment history: links, store checkout attempts, payments and refunds, newest first.
+		"transactions": payment_history(doc),
 	}
+
+
+def payment_history(doc) -> list[dict]:
+	"""The order's Payment Transaction rows (and its store order's checkout rows)."""
+	from field_sales_woocommerce.payments.transactions import history
+
+	return history(field_order=doc.name, store_order_id=doc.external_order_id)
 
 
 def _check_access():

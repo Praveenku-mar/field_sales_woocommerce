@@ -18,8 +18,10 @@ the store until it is edited there), ``Confirmed`` as ``processing``.
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import hmac
+import re
 import time
 from typing import TYPE_CHECKING
 import frappe
@@ -37,6 +39,7 @@ from field_sales_woocommerce.connectors.base import (
 	BaseConnector,
 	ConnectorError,
 )
+from field_sales_woocommerce.utils.money import site_currency
 
 if TYPE_CHECKING:
 	from frappe.model.document import Document
@@ -46,6 +49,18 @@ PAGE_SIZE = 100
 #: The single stock pool, as a location the app can select.
 STOCK_LOCATION_ID = "woo"
 STOCK_LOCATION_NAME = "WooCommerce Stock"
+#: Webhook topics the app acts on (see _map_topic); ensure_webhooks subscribes the app to each.
+WEBHOOK_TOPICS = (
+	"product.updated",
+	"product.deleted",
+	"product.restored",
+	"order.updated",
+	"order.deleted",
+	"order.restored",
+)
+WEBHOOK_NAME = "Agamsale: {topic}"
+#: WooCommerce's unsigned test delivery when a webhook is created or saved.
+PING_BODY = re.compile(rb"webhook_id=\d+")
 
 
 class WooCommerceConnector(BaseConnector):
@@ -437,22 +452,112 @@ class WooCommerceConnector(BaseConnector):
 		body = {k: v for k, v in body.items() if v is not None}
 
 		data = self._request("POST", "/orders", operation="Confirm Order" if status == "processing" else "Create Order", json_body=body, ref=field_order)
-		return {"draft_id": None, "order_id": str(data["id"]), "order_name": f"#{data['number']}"}
+		result = {"draft_id": None, "order_id": str(data["id"]), "order_name": f"#{data['number']}"}
+		# A Pending payment order can be paid on the store's own pay page (the plugin's Razorpay
+		# gateway): the app offers it as the store checkout link.
+		if status == "pending" and str(data.get("payment_url") or "").startswith("https://"):
+			result["checkout_url"] = data["payment_url"]
+		return result
 
 	def mark_order_paid(self, field_order: Document) -> dict:
-		data = self._request(
-			"PUT",
-			f"/orders/{field_order.external_order_id}",
-			operation="Mark Order Paid",
-			json_body={"set_paid": True},
-			ref=field_order,
-		)
-		return {"financial_status": "paid" if data.get("date_paid") else "pending", "already_paid": False}
+		"""
+		Mark the WooCommerce order paid for a payment taken in Agamsale (cash, bank transfer /
+		UPI, or Razorpay), and say how in the order: payment method, transaction id and a note.
+
+		The order is read first. A cancelled, refunded or trashed order is refused
+		(``CANNOT_MARK_PAID``): ``set_paid`` would run WooCommerce's payment_complete(), which
+		reopens it as Processing. An order WooCommerce already counts as paid (a paid date, or
+		Processing / Completed, as Confirmed-mode orders are created) keeps its status and only
+		gets the note, plus the payment method when it has none.
+		"""
+		order_id = field_order.external_order_id
+		try:
+			order = self._request("GET", f"/orders/{order_id}", operation="Mark Order Paid", ref=field_order)
+		except ConnectorError as e:
+			if e.http_status == 404:
+				raise ConnectorError(
+					_("WooCommerce order {0} no longer exists").format(order_id), code="NOT_FOUND", http_status=404
+				) from e
+			raise
+
+		status = order.get("status") or ""
+		if status in UNPAYABLE_ORDER_STATUSES:
+			raise ConnectorError(
+				_("WooCommerce order #{0} is {1}; it was not marked paid. Reopen it in WooCommerce, then retry.").format(
+					order.get("number") or order_id, status
+				),
+				code="CANNOT_MARK_PAID",
+			)
+
+		payment = _payment_details(field_order)
+		already_paid = bool(order.get("date_paid")) or status in PAID_ORDER_STATUSES
+		body = {}
+		# Never overwrite how the store says it was paid (e.g. the customer paid online).
+		if not order.get("payment_method") and not order.get("payment_method_title"):
+			body.update(payment_method=payment["method"], payment_method_title=payment["title"])
+			if payment["reference"] and not order.get("transaction_id"):
+				body["transaction_id"] = payment["reference"]
+		if not already_paid:
+			body["set_paid"] = True
+		if body:
+			order = self._request("PUT", f"/orders/{order_id}", operation="Mark Order Paid", json_body=body, ref=field_order)
+
+		# The note is a record only: the order is already marked, so a failure here (logged by
+		# _request) must not make the job report the payment as not reaching the store.
+		try:
+			self._request(
+				"POST",
+				f"/orders/{order_id}/notes",
+				operation="Mark Order Paid",
+				json_body={"note": payment["note"], "customer_note": False},
+				ref=field_order,
+			)
+		except ConnectorError:
+			pass
+
+		return {"financial_status": "paid" if order.get("date_paid") or already_paid else "pending", "already_paid": already_paid}
 
 	def get_order_url(self, order_id: str | None, draft_id: str | None = None) -> str | None:
 		if not order_id:
 			return None
 		return f"{self.base_url}/wp-admin/post.php?post={order_id}&action=edit"
+
+	def get_payable_order(self, order_id: str) -> dict:
+		"""The fields a store checkout payment needs, read fresh from WooCommerce (raises on 404)."""
+		order = self._request("GET", f"/orders/{order_id}", operation="Checkout Order")
+		return {
+			"id": order.get("id"),
+			"number": order.get("number"),
+			"status": order.get("status"),
+			"total": order.get("total"),
+			"currency": order.get("currency"),
+			"date_paid": order.get("date_paid"),
+			"billing": {k: (order.get("billing") or {}).get(k) for k in ("first_name", "last_name", "email", "phone")},
+		}
+
+	def mark_checkout_paid(self, order_id: str, payment_id: str | None, gateway_id: str) -> dict:
+		"""
+		Mark a WooCommerce order paid with a Razorpay checkout payment that the store did not
+		hear about (the customer closed the browser before returning). An order already paid,
+		or no longer payable (cancelled, refunded, trashed), is left alone.
+		"""
+		order = self._request("GET", f"/orders/{order_id}", operation="Mark Order Paid")
+		if order.get("date_paid") or order.get("status") in UNPAYABLE_ORDER_STATUSES | PAID_ORDER_STATUSES:
+			return {"already_paid": bool(order.get("date_paid")), "status": order.get("status")}
+		body = {"set_paid": True, "payment_method": gateway_id, "payment_method_title": "Razorpay"}
+		if payment_id:
+			body["transaction_id"] = payment_id
+		order = self._request("PUT", f"/orders/{order_id}", operation="Mark Order Paid", json_body=body)
+		try:
+			self._request(
+				"POST",
+				f"/orders/{order_id}/notes",
+				operation="Mark Order Paid",
+				json_body={"note": _("Razorpay payment {0} confirmed by Agamsale (webhook).").format(payment_id or ""), "customer_note": False},
+			)
+		except ConnectorError:
+			pass
+		return {"already_paid": False, "status": order.get("status")}
 
 	def get_order(self, external_id: str) -> dict:
 		try:
@@ -487,12 +592,77 @@ class WooCommerceConnector(BaseConnector):
 	# ------------------------------------------------------------------
 
 	def verify_webhook(self, headers, raw_body: bytes) -> bool:
-		signature = (headers.get("X-WC-Webhook-Signature") or "").encode()
-		if not signature:
+		"""
+		WooCommerce signs a delivery with base64(HMAC-SHA256(body)) keyed with the webhook's own
+		secret; ``ensure_webhooks`` sets that secret to the Consumer Secret on every webhook it
+		registers, so that is the key here.
+		"""
+		signature = (headers.get("X-WC-Webhook-Signature") or "").strip().encode()
+		if not signature or not self.consumer_secret:
 			return False
-		# WooCommerce sends the HMAC-SHA256 of the body as a hex digest.
-		expected = hmac.new(self.consumer_secret.encode(), raw_body, hashlib.sha256).hexdigest().encode()
-		return hmac.compare_digest(expected, signature)
+		digest = hmac.new(self.consumer_secret.encode(), raw_body, hashlib.sha256).digest()
+		return hmac.compare_digest(base64.b64encode(digest), signature)
+
+	def is_ping(self, headers, raw_body: bytes) -> bool:
+		"""The unsigned ``webhook_id=<n>`` POST WooCommerce sends when a webhook is created or saved."""
+		return not headers.get("X-WC-Webhook-Signature") and bool(PING_BODY.fullmatch((raw_body or b"").strip()))
+
+	def ensure_webhooks(self, delivery_url: str) -> dict:
+		"""
+		Subscribe ``delivery_url`` to every topic in ``WEBHOOK_TOPICS``, signed with the Consumer
+		Secret (what ``verify_webhook`` checks).
+
+		A webhook already pointing at ``delivery_url`` for a topic is reused: set active and given
+		the secret again (WooCommerce disables a webhook after repeated failed deliveries, and one
+		added by hand in WooCommerce has a secret of its own). Webhooks to other URLs are left alone.
+
+		:return: ``{topic: "created" | "updated" | "reactivated"}``
+		:raises ConnectorError: the store refused or could not be reached; topics done before
+			that stay done.
+		"""
+		target = _normalize_url(delivery_url)
+		existing = [w for w in self._list_webhooks() if _normalize_url(w.get("delivery_url")) == target]
+		results = {}
+		for topic in WEBHOOK_TOPICS:
+			hooks = [w for w in existing if w.get("topic") == topic]
+			for hook in hooks:
+				self._request(
+					"PUT",
+					f"/webhooks/{hook['id']}",
+					operation="Register Webhooks",
+					json_body={"status": "active", "secret": self.consumer_secret},
+				)
+			if hooks:
+				results[topic] = "updated" if all(h.get("status") == "active" for h in hooks) else "reactivated"
+				continue
+			self._request(
+				"POST",
+				"/webhooks",
+				operation="Register Webhooks",
+				json_body={
+					"name": WEBHOOK_NAME.format(topic=topic),
+					"topic": topic,
+					"delivery_url": delivery_url,
+					"secret": self.consumer_secret,
+					"status": "active",
+				},
+			)
+			results[topic] = "created"
+		return results
+
+	def _list_webhooks(self) -> list[dict]:
+		hooks, page = [], 1
+		while True:
+			batch = self._request(
+				"GET", "/webhooks", operation="Register Webhooks", params={"per_page": PAGE_SIZE, "page": page}
+			)
+			if not isinstance(batch, list):
+				break
+			hooks.extend(batch)
+			if len(batch) < PAGE_SIZE:
+				break
+			page += 1
+		return hooks
 
 	def parse_webhook(self, headers, raw_body: bytes) -> dict:
 		import json as _json
@@ -502,7 +672,8 @@ class WooCommerceConnector(BaseConnector):
 		return {
 			"topic": _map_topic(topic, payload),
 			"platform_topic": topic,
-			"event_id": headers.get("X-WC-Webhook-ID") or headers.get("X-WC-Delivery-ID"),
+			# Per delivery; X-WC-Webhook-ID is the webhook's own id, the same on every delivery.
+			"event_id": headers.get("X-WC-Webhook-Delivery-ID") or None,
 			"updated_at": payload.get("date_modified") or payload.get("date_created"),
 			"payload": payload,
 		}
@@ -712,6 +883,35 @@ def _tax_line(field_order: Document) -> list[dict]:
 	]
 
 
+# WooCommerce statuses set_paid (payment_complete) would wrongly reopen as Processing.
+UNPAYABLE_ORDER_STATUSES = {"cancelled", "refunded", "trash"}
+# WooCommerce counts these as paid already (Confirmed-mode orders are created Processing).
+PAID_ORDER_STATUSES = {"processing", "completed"}
+
+# Agamsale payment method -> (WooCommerce gateway id, title shown as "Payment via ...").
+_PAYMENT_METHODS = {
+	"Cash": ("cod", "Cash"),
+	"Bank Transfer / UPI": ("bacs", "Bank Transfer / UPI"),
+}
+
+
+def _payment_details(field_order: Document) -> dict:
+	"""How the Field Order was paid, for the WooCommerce order: method, title, reference and note."""
+	manual = field_order.get("manual_payment_method")
+	if manual:
+		method, title = _PAYMENT_METHODS.get(manual, ("other", manual))
+		reference = (field_order.get("manual_payment_reference") or "").strip()
+	else:
+		# The plugin's gateway: WooCommerce then offers "Refund via Razorpay" on the order.
+		method, title = "agamsale_razorpay", "Razorpay"
+		reference = (field_order.get("razorpay_payment_id") or "").strip()
+	amount = frappe.utils.fmt_money(field_order.get("amount_paid") or field_order.grand_total, currency=site_currency())
+	note = _("Paid in Agamsale (Field Order {0}): {1} by {2}.").format(field_order.name, amount, _(title))
+	if reference:
+		note += " " + _("Reference: {0}.").format(reference)
+	return {"method": method, "title": title, "reference": reference, "note": note}
+
+
 def _variation_title(variation: dict | None) -> str | None:
 	if not variation:
 		return None
@@ -806,6 +1006,10 @@ def _error_code(response) -> str:
 def _email_taken_code(error: ConnectorError) -> bool:
 	"""WooCommerce rejects a duplicate email with HTTP 400 and an email error."""
 	return error.http_status == 400 and "email" in error.message.lower()
+
+
+def _normalize_url(url: str | None) -> str:
+	return (url or "").strip().rstrip("/").lower()
 
 
 def _safe_payload(payload) -> str | None:

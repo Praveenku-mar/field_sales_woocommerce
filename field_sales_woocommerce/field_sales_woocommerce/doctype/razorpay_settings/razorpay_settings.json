@@ -69,7 +69,7 @@
    "fieldtype": "Data",
    "label": "Webhook URL",
    "read_only": 1,
-   "description": "Add this URL as a webhook in the Razorpay Dashboard (event payment_link.paid)."
+   "description": "Add this URL as a webhook in the Razorpay Dashboard for the events payment_link.paid, payment_link.partially_paid, payment_link.expired, payment_link.cancelled, payment.captured, payment.failed, order.paid, refund.processed and refund.failed."
   },
   {
    "fieldname": "col_break_webhook",
