@@ -86,6 +86,7 @@
             <span class="text-ink-gray-5">active shops assigned</span>
           </div>
         </SectionCard>
+        <OrderNotes doctype="Sales Rep" :name="name" :version="d.modified || null" />
       </div>
     </div>
 
@@ -241,6 +242,7 @@ import {
   toast,
 } from 'frappe-ui'
 import PageHeader from '@/components/PageHeader.vue'
+import OrderNotes from '@/components/wp/OrderNotes.vue'
 import SectionCard from '@/components/SectionCard.vue'
 import InfoGrid from '@/components/InfoGrid.vue'
 import DataTable from '@/components/DataTable.vue'

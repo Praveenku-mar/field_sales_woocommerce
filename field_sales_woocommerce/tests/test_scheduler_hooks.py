@@ -32,6 +32,9 @@ SHARED_JOBS = {
 # Only for platforms with draft orders (WooCommerce's Draft mode makes a real `pending` order).
 DRAFT_JOBS = {"sync.orders.link_completed_drafts"}
 HAS_DRAFTS = {"field_sales": True, "field_sales_woocommerce": False, "field_sales_odoo": True}
+# Only for platforms that send no webhooks: their order / product / stock changes are polled.
+POLLING_JOBS = {"sync.polling.poll_store_changes"}
+NEEDS_POLLING = {"field_sales": False, "field_sales_woocommerce": False, "field_sales_odoo": True}
 
 
 def scheduled_methods() -> list[str]:
@@ -48,7 +51,11 @@ def scheduled_methods() -> list[str]:
 
 class TestSchedulerHooks(UnitTestCase):
 	def test_every_expected_job_is_scheduled(self):
-		expected = SHARED_JOBS | (DRAFT_JOBS if HAS_DRAFTS[APP] else set())
+		expected = (
+			SHARED_JOBS
+			| (DRAFT_JOBS if HAS_DRAFTS[APP] else set())
+			| (POLLING_JOBS if NEEDS_POLLING[APP] else set())
+		)
 		scheduled = {m.removeprefix(f"{APP}.") for m in scheduled_methods()}
 		self.assertEqual(sorted(expected - scheduled), [], "jobs missing from hooks.scheduler_events")
 		if not HAS_DRAFTS[APP]:

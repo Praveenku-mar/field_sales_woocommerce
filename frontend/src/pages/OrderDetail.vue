@@ -392,6 +392,11 @@
           <div v-if="canMarkPaid" class="p-4 pt-2">
             <Button class="w-full" label="Mark as Paid" icon-left="lucide-check-circle" @click="openManualPayment" />
           </div>
+          <!-- Managers: refund what is left of the order's Razorpay payment -->
+          <div v-if="pay.can_refund" class="p-4 pt-1">
+            <Button class="w-full" theme="red" label="Refund" icon-left="lucide-undo-2" @click="refundOpen = true" />
+          </div>
+          <PaymentHistory v-if="pay.transactions?.length" :transactions="pay.transactions" class="border-t border-outline-gray-1 px-4 py-3" />
           <div v-if="pay.razorpay_enabled && (pay.razorpay_payment_link_url || linkAction)" class="space-y-2 p-4 pt-1">
             <div v-if="pay.razorpay_payment_link_url" class="flex gap-2">
               <Button class="flex-1" label="Copy" icon-left="lucide-copy" @click="copyPaymentLink" />
@@ -466,6 +471,7 @@
             />
           </div>
         </div>
+        <OrderNotes doctype="Field Order" :name="name" :version="d.modified || null" />
       </div>
     </div>
 
@@ -518,6 +524,7 @@
         </div>
       </template>
     </Dialog>
+    <RefundDialog v-model="refundOpen" :field-order="name" :max-amount="pay.refundable_amount || 0" @refunded="onRefunded" />
 
     <Dialog v-model="manualCopyOpen" title="Copy link">
       <p class="mb-3 text-sm text-ink-gray-6">Your browser blocked automatic copying. Select the link below and copy it.</p>
@@ -567,6 +574,9 @@ import {
   toast,
 } from 'frappe-ui'
 import PageHeader from '@/components/PageHeader.vue'
+import OrderNotes from '@/components/wp/OrderNotes.vue'
+import PaymentHistory from '@/components/PaymentHistory.vue'
+import RefundDialog from '@/components/RefundDialog.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import StatusPill from '@/components/StatusPill.vue'
 import LinkField from '@/components/LinkField.vue'
@@ -1231,6 +1241,12 @@ watch(
   { immediate: true },
 )
 const pay = computed(() => paymentInfo.data || {})
+// Refund (managers; payments/refunds.py): the dialog, then the card and the order reload.
+const refundOpen = ref(false)
+async function onRefunded() {
+  await reloadPayment()
+  doc.reload()
+}
 const creatingLink = ref(false)
 const refreshingPayment = ref(false)
 

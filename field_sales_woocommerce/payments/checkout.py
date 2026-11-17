@@ -36,11 +36,9 @@ import frappe
 from frappe import _
 from frappe.utils import cint, flt, fmt_money, now_datetime
 
-from field_sales_woocommerce.payments import transactions
-from field_sales_woocommerce.utils.money import site_currency
+from field_sales_woocommerce.payments import refunds, transactions
 from field_sales_woocommerce.payments.razorpay import (
 	PAYMENT_EVENT,
-	PLATFORM,
 	RazorpayError,
 	_from_unix,
 	_logged,
@@ -300,55 +298,19 @@ def _verify_checkout_payment(body: dict) -> dict:
 
 
 def _refund_checkout_payment(body: dict) -> dict:
+	# The refund itself (idempotent per refund_request_id) is payments/refunds.py's, shared with
+	# the Refund button on the order page.
 	store_order_id = _store_order_id(body)
-	request_id = str(body.get("refund_request_id") or "").strip()
-	if not NONCE_RE.fullmatch(request_id):
-		raise CheckoutError(400, "BAD_REQUEST", _("A refund needs a refund_request_id"))
-	amount = flt(body.get("amount"))
-	if amount <= 0:
-		raise CheckoutError(400, "BAD_AMOUNT", _("The refund amount must be more than zero"))
-	reason = str(body.get("reason") or "")[:200]
-
-	# The same WooCommerce refund sent again (a timeout, a double click) is not refunded twice.
-	done = frappe.db.get_value(
-		"Payment Transaction",
-		{"transaction_key": f"refundreq:{request_id}"},
-		["razorpay_refund_id", "status", "amount"],
-		as_dict=True,
-	)
-	if done:
-		return {"refund_id": done.razorpay_refund_id, "status": done.status.lower(), "amount": done.amount}
-
-	field_order = _field_order_for(store_order_id)
-	payment = _refundable_payment(store_order_id, field_order, amount)
-	payload = {
-		"amount": transactions.paise(amount),
-		"receipt": request_id[:40],
-		"notes": {"store_order_id": store_order_id, "reason": reason, "field_order": field_order or ""},
-	}
-	refund = _logged(
-		"Refund Payment",
-		field_order,
-		payload,
-		lambda: request("POST", f"/payments/{payment.razorpay_payment_id}/refund", json=payload),
-	)
-	status = "Processed" if refund.get("status") == "processed" else "Pending"
-	transactions.record(
-		f"refundreq:{request_id}",
-		transaction_type="Refund",
-		source=payment.source,
-		status=status,
-		amount=amount,
-		currency=payment.currency,
-		store_order_id=store_order_id,
-		reference_order=field_order,
-		razorpay_payment_id=payment.razorpay_payment_id,
-		razorpay_refund_id=refund.get("id"),
-		reference=reason,
-	)
-	if field_order:
-		_apply_refund_to_order(field_order)
-	return {"refund_id": refund.get("id"), "status": status.lower(), "amount": amount}
+	try:
+		return refunds.refund_payment(
+			amount=body.get("amount"),
+			request_id=body.get("refund_request_id"),
+			reason=body.get("reason"),
+			field_order=_field_order_for(store_order_id),
+			store_order_id=store_order_id,
+		)
+	except refunds.RefundError as e:
+		raise CheckoutError(400 if e.code in ("BAD_REQUEST", "BAD_AMOUNT") else 409, e.code, e.message) from e
 
 
 # ----------------------------------------------------------------------
@@ -441,37 +403,6 @@ def _mark_field_order_paid(field_order: str, payment: dict) -> None:
 	frappe.publish_realtime(PAYMENT_EVENT, _payment_fields(doc), doctype="Field Order", docname=doc.name, after_commit=True)
 
 
-def _apply_refund_to_order(field_order: str) -> None:
-	"""Field Order Amount Refunded and status from its refund history (Pending + Processed)."""
-	doc = frappe.get_doc("Field Order", field_order, for_update=True)
-	refunded = sum(
-		flt(r.amount)
-		for r in frappe.get_all(
-			"Payment Transaction",
-			filters={"reference_order": field_order, "transaction_type": "Refund", "status": ("in", ("Pending", "Processed"))},
-			fields=["amount"],
-		)
-	)
-	values = {"amount_refunded": refunded}
-	if refunded > 0 and flt(doc.amount_paid) > 0:
-		values["payment_status"] = "Refunded" if refunded >= flt(doc.amount_paid) else "Partially Refunded"
-	elif refunded <= 0 and doc.payment_status in ("Refunded", "Partially Refunded"):
-		values["payment_status"] = "Paid"
-	changed = {k: v for k, v in values.items() if doc.get(k) != v}
-	if not changed:
-		return
-	doc.db_set(changed, update_modified=False)
-	doc.add_comment(
-		"Info",
-		_("Refunded {0} of {1}. Payment status: {2}.").format(
-			fmt_money(refunded, currency=site_currency()),
-			fmt_money(doc.amount_paid, currency=site_currency()),
-			_(doc.payment_status),
-		),
-	)
-	frappe.publish_realtime(PAYMENT_EVENT, _payment_fields(doc), doctype="Field Order", docname=doc.name, after_commit=True)
-
-
 # ----------------------------------------------------------------------
 # Webhook events (from payments/razorpay.py -> webhook)
 # ----------------------------------------------------------------------
@@ -485,14 +416,13 @@ def handle_webhook_event(event: str, payload: dict, record: dict) -> tuple[str, 
 		payments this app did not start (e.g. payment links, handled by their own events).
 	"""
 	payment = (payload.get("payment") or {}).get("entity") or {}
-	if event.startswith("refund."):
-		refund = (payload.get("refund") or {}).get("entity") or {}
-		return _webhook_refund(event, refund)
+	if event in refunds.REFUND_EVENTS:
+		return refunds.handle_webhook_event(event, payload, record)
 
 	row = _checkout_row(payment.get("order_id")) if payment.get("order_id") else None
 	if not row:
 		if event == "payment.failed":
-			return _webhook_link_payment_failed(payment)
+			return refunds.webhook_link_payment_failed(payment, record)
 		return "Ignored", "not a store checkout payment"
 	record["reference_order"] = row.reference_order
 	if event == "payment.failed":
@@ -503,69 +433,6 @@ def handle_webhook_event(event: str, payload: dict, record: dict) -> tuple[str, 
 	if result["status"] == "paid":
 		enqueue_mark_checkout_paid(row.store_order_id, payment.get("id"))
 	return "Processed", None if result["status"] == "paid" else result["message"]
-
-
-def _webhook_link_payment_failed(payment: dict) -> tuple[str, str | None]:
-	"""A failed attempt on a payment link: history only (the link stays payable)."""
-	field_order = (payment.get("notes") or {}).get("field_order") if isinstance(payment.get("notes"), dict) else None
-	if not field_order or not frappe.db.exists("Field Order", field_order) or not payment.get("id"):
-		return "Ignored", "payment is not for a known order"
-	transactions.record(
-		f"payment:{payment['id']}",
-		transaction_type="Payment",
-		source="Payment Link",
-		status="Failed",
-		amount=cint(payment.get("amount")) / 100,
-		currency=payment.get("currency"),
-		method=payment.get("method"),
-		reference_order=field_order,
-		store_order_id=frappe.db.get_value("Field Order", field_order, "external_order_id"),
-		razorpay_order_id=payment.get("order_id"),
-		razorpay_payment_id=payment["id"],
-		error=payment.get("error_description"),
-		occurred_on=_from_unix(payment.get("created_at")),
-	)
-	return "Processed", None
-
-
-def _webhook_refund(event: str, refund: dict) -> tuple[str, str | None]:
-	refund_id = refund.get("id")
-	name = refund_id and frappe.db.get_value(
-		"Payment Transaction", {"razorpay_refund_id": refund_id}, ["name", "reference_order", "status"], as_dict=True
-	)
-	if not name:
-		# Refunded in the Razorpay Dashboard: record it against the payment if it is ours.
-		payment = frappe.db.get_value(
-			"Payment Transaction",
-			{"razorpay_payment_id": refund.get("payment_id"), "transaction_type": "Payment"},
-			["reference_order", "store_order_id", "source", "currency"],
-			as_dict=True,
-		)
-		if not payment:
-			return "Ignored", "refund for a payment this app does not know"
-		transactions.record(
-			f"refund:{refund_id}",
-			transaction_type="Refund",
-			source=payment.source,
-			status="Processed" if event == "refund.processed" else "Failed",
-			amount=cint(refund.get("amount")) / 100,
-			currency=refund.get("currency") or payment.currency,
-			reference_order=payment.reference_order,
-			store_order_id=payment.store_order_id,
-			razorpay_payment_id=refund.get("payment_id"),
-			razorpay_refund_id=refund_id,
-			reference=_("Refunded on Razorpay"),
-		)
-		if payment.reference_order:
-			_apply_refund_to_order(payment.reference_order)
-		return "Processed", None
-
-	status = "Processed" if event == "refund.processed" else "Failed"
-	if name.status != status:
-		frappe.db.set_value("Payment Transaction", name.name, "status", status)
-		if name.reference_order:
-			_apply_refund_to_order(name.reference_order)
-	return "Processed", None
 
 
 # ----------------------------------------------------------------------
@@ -642,33 +509,3 @@ def _checkout_row(razorpay_order_id: str | None):
 		as_dict=True,
 		for_update=True,
 	)
-
-
-def _refundable_payment(store_order_id: str, field_order: str | None, amount: float):
-	"""The captured Razorpay payment with enough left to refund (newest first)."""
-	filters = {"transaction_type": "Payment", "status": "Captured", "razorpay_payment_id": ("is", "set")}
-	or_filters = {"store_order_id": store_order_id}
-	if field_order:
-		or_filters["reference_order"] = field_order
-	payments = frappe.get_all(
-		"Payment Transaction",
-		filters=filters,
-		or_filters=or_filters,
-		fields=["razorpay_payment_id", "amount", "currency", "source"],
-		order_by="occurred_on desc",
-	)
-	payments = [p for p in payments if p.source in ("Store Checkout", "Payment Link")]
-	if not payments:
-		raise CheckoutError(409, "NO_RAZORPAY_PAYMENT", _("This order has no Razorpay payment to refund"))
-	for payment in payments:
-		refunded = sum(
-			flt(r.amount)
-			for r in frappe.get_all(
-				"Payment Transaction",
-				filters={"transaction_type": "Refund", "razorpay_payment_id": payment.razorpay_payment_id, "status": ("in", ("Pending", "Processed"))},
-				fields=["amount"],
-			)
-		)
-		if flt(payment.amount) - refunded + 0.005 >= amount:
-			return payment
-	raise CheckoutError(409, "AMOUNT_TOO_HIGH", _("The refund is more than what is left to refund on the Razorpay payment"))

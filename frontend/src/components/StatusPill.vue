@@ -52,6 +52,12 @@ const TONES = {
   'Link Cancelled': 'failed',
   'Partially Refunded': 'hold',
   Refunded: 'failed',
+  // Payment history (Payment Transaction)
+  Captured: 'processing',
+  Processed: 'processing',
+  Authorized: 'hold',
+  Expired: 'hold',
+  Created: 'completed',
   Draft: 'pending',
   Unpaid: 'pending',
   Inactive: 'pending',

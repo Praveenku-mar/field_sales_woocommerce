@@ -228,12 +228,16 @@ def _process_product_delete(platform: str, event: dict) -> dict:
 
 
 def _process_order_event(conn, event: dict) -> dict:
-	"""Paid / fulfilled / cancelled / refund: re-read the order and reconcile its commission entries."""
+	"""Paid / fulfilled / cancelled / refund: re-read the order; reconcile its commission entries and payment."""
 	external_order_id = conn.order_id_from_event(event.get("payload") or {})
 	if not external_order_id:
 		return {"note": "Ignored: no order id"}
 
-	return reconcile_order(external_order_id)
+	result = reconcile_order(external_order_id)
+	# Paid on the store itself (its checkout or pay page): the Field Order follows.
+	from field_sales_woocommerce.payments.store_payments import apply_store_payment
+
+	return {**result, "payment": apply_store_payment(conn, external_order_id)}
 
 
 def _log_fields(platform: str, event: dict, start: float) -> dict:
