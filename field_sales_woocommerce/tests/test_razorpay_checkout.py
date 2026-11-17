@@ -75,7 +75,7 @@ class TestRazorpayCheckout(IntegrationTestCase):
 		self.total = frappe.db.get_value("Field Order", self.order.name, "grand_total")
 
 		self.rzp = FakeCheckoutRazorpay()
-		for target in ("field_sales_woocommerce.payments.checkout.request",):
+		for target in ("field_sales_woocommerce.payments.checkout.request", "field_sales_woocommerce.payments.refunds.request"):
 			p = patch(target, side_effect=self.rzp)
 			p.start()
 			self.addCleanup(p.stop)

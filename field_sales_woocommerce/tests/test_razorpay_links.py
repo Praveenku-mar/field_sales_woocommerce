@@ -494,7 +494,18 @@ class TestRazorpayLinks(IntegrationTestCase):
 			frappe.set_user("Administrator")
 
 
-class TestPaymentHistory(TestRazorpayLinks):
+class LinkFixture:
+	"""The link tests' order, rep and faked Razorpay, without their test methods (subclasses of
+	TestRazorpayLinks would run all of those again)."""
+
+	_user = TestRazorpayLinks._user
+	order_values = TestRazorpayLinks.order_values
+	create_as_rep = TestRazorpayLinks.create_as_rep
+	setUp = TestRazorpayLinks.setUp
+	tearDown = TestRazorpayLinks.tearDown
+
+
+class TestPaymentHistory(LinkFixture, IntegrationTestCase):
 	"""Payment Transaction rows: one per link / payment, updated in place, shown by the APIs."""
 
 	def rows(self):
@@ -547,7 +558,7 @@ class TestPaymentHistory(TestRazorpayLinks):
 		self.assertEqual((row.source, row.method, row.reference, row.status), ("Manual", "Bank Transfer / UPI", "UTR-9", "Captured"))
 
 
-class TestRefundedOrdersGetNoNewLink(TestRazorpayLinks):
+class TestRefundedOrdersGetNoNewLink(LinkFixture, IntegrationTestCase):
 	def test_refunded_order_cannot_get_a_new_link(self):
 		for status in ("Partially Refunded", "Refunded"):
 			frappe.db.set_value("Field Order", self.order.name, "payment_status", status)
