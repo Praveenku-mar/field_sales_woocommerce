@@ -471,6 +471,7 @@
             />
           </div>
         </div>
+        <OrderNotes doctype="Field Order" :name="name" :version="d.modified || null" />
       </div>
     </div>
 
@@ -573,6 +574,7 @@ import {
   toast,
 } from 'frappe-ui'
 import PageHeader from '@/components/PageHeader.vue'
+import OrderNotes from '@/components/wp/OrderNotes.vue'
 import PaymentHistory from '@/components/PaymentHistory.vue'
 import RefundDialog from '@/components/RefundDialog.vue'
 import EmptyState from '@/components/EmptyState.vue'

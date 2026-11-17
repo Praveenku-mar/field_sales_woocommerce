@@ -72,6 +72,7 @@
           :fallback-email="d.email || ''"
           @updated="doc.reload()"
         />
+        <OrderNotes doctype="Retailer" :name="name" :version="d.modified || null" />
       </div>
     </div>
 
@@ -86,6 +87,7 @@ import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { Button, Dropdown, createDocumentResource, createListResource, createResource, toast } from 'frappe-ui'
 import PageHeader from '@/components/PageHeader.vue'
+import OrderNotes from '@/components/wp/OrderNotes.vue'
 import SectionCard from '@/components/SectionCard.vue'
 import InfoGrid from '@/components/InfoGrid.vue'
 import MapEmbed from '@/components/MapEmbed.vue'

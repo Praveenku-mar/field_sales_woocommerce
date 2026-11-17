@@ -73,6 +73,7 @@
           <InfoGrid :items="outcome" :columns="1" />
           <p v-if="d.notes" class="mt-3 whitespace-pre-line text-ink-gray-8">{{ d.notes }}</p>
         </SectionCard>
+        <OrderNotes doctype="Visit" :name="name" :version="d.modified || null" />
       </div>
     </div>
 
@@ -105,6 +106,7 @@
 import { computed, ref } from 'vue'
 import { Button, Dialog, FormControl, createDocumentResource, createResource, toast } from 'frappe-ui'
 import PageHeader from '@/components/PageHeader.vue'
+import OrderNotes from '@/components/wp/OrderNotes.vue'
 import SectionCard from '@/components/SectionCard.vue'
 import InfoGrid from '@/components/InfoGrid.vue'
 import MapEmbed from '@/components/MapEmbed.vue'
