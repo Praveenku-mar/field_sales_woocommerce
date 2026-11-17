@@ -48,7 +48,10 @@ def apply_store_payment(conn, external_order_id: str) -> dict:
 	name = frappe.db.get_value("Field Order", {"external_order_id": external_order_id, "docstatus": 1}, "name")
 	if not name:
 		return {"note": "Ignored: not a submitted Field Sales order"}
-	if frappe.db.get_value("Field Order", name, "payment_status") in PAID_STATES:
+	state = frappe.db.get_value("Field Order", name, ["payment_status", "store_marked_paid_on"], as_dict=True)
+	if state.payment_status in PAID_STATES:
+		if state.payment_status == "Paid" and not state.store_marked_paid_on:
+			return _note_store_caught_up(conn, name, external_order_id)
 		return {"note": "Ignored: already paid in Agamsale"}
 
 	payment = conn.get_store_payment(external_order_id)
@@ -99,6 +102,24 @@ def apply_store_payment(conn, external_order_id: str) -> dict:
 	notify_payment_received(doc)
 	frappe.publish_realtime(PAYMENT_EVENT, _payment_fields(doc), doctype="Field Order", docname=doc.name, after_commit=True)
 	return {"field_order": doc.name, "payment_status": values["payment_status"], "amount_paid": amount}
+
+
+def _note_store_caught_up(conn, name: str, external_order_id: str) -> dict:
+	"""
+	Paid in Agamsale (cash, bank, Razorpay) and the store did not show it yet: once the store
+	counts the order paid too (the merchant recorded it there, or the mark-paid job did), note
+	that on the order (``store_marked_paid_on``). Never a second payment.
+	"""
+	payment = conn.get_store_payment(external_order_id)
+	if not payment or flt(payment.get("amount")) <= 0:
+		return {"note": "Ignored: already paid in Agamsale; not paid on the store yet"}
+	doc = frappe.get_doc("Field Order", name, for_update=True)
+	if doc.store_marked_paid_on:
+		return {"note": "Ignored: already paid in Agamsale"}
+	doc.db_set("store_marked_paid_on", now_datetime(), update_modified=False)
+	doc.add_comment("Info", _("The store order now shows as paid too."))
+	frappe.publish_realtime(PAYMENT_EVENT, _payment_fields(doc), doctype="Field Order", docname=doc.name, after_commit=True)
+	return {"field_order": doc.name, "note": "Paid on the store too"}
 
 
 def _retire_open_link(doc) -> bool:
