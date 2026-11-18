@@ -7,6 +7,7 @@ from functools import partial
 import frappe
 from frappe import _
 from frappe.model.document import Document
+from field_sales_woocommerce.utils.db import safe_commit
 
 SERVICE_ACCOUNT_KEYS = ("type", "project_id", "private_key", "client_email")
 MAX_KEY_FILE_SIZE = 64 * 1024
@@ -84,7 +85,7 @@ def _discard_upload(file_name: str) -> None:
 	"""After a rolled-back save: remove the uploaded key file (row and file on disk) for good."""
 	if frappe.db.exists("File", file_name):
 		frappe.delete_doc("File", file_name, ignore_permissions=True, force=True)
-		frappe.db.commit()
+		safe_commit()
 
 
 @frappe.whitelist(methods=["GET"])

@@ -11,6 +11,7 @@ Sync Log, and the open form is told to reload.
 
 import time
 
+from contextlib import suppress
 import frappe
 from frappe import _
 from frappe.utils import add_to_date, cint, now_datetime
@@ -22,6 +23,7 @@ from field_sales_woocommerce.push.events import notify_order_synced
 from field_sales_woocommerce.sync.confirmation import enqueue_order_confirmation
 from field_sales_woocommerce.sync.customers import push_retailer
 from field_sales_woocommerce.sync.notify import notify_order_sync_failure, notify_sync_result
+from field_sales_woocommerce.utils.db import safe_commit
 
 # The scheduler stops retrying an order after this many attempts; Retry Sync still works.
 MAX_AUTO_ATTEMPTS = 5
@@ -73,7 +75,7 @@ def push_order(field_order: str):
 		},
 		update_modified=False,
 	)
-	frappe.db.commit()
+	safe_commit()
 
 	platform = None
 	operation = "Create Order"
@@ -125,7 +127,7 @@ def push_order(field_order: str):
 				error_message=sync_error,
 				external_id=result.get("order_id") or result.get("draft_id"),
 			)
-			frappe.db.commit()
+			safe_commit()
 			_notify(doc)
 			return
 	except Exception as e:
@@ -151,7 +153,7 @@ def push_order(field_order: str):
 			error_message=message,
 			external_id=draft_id,
 		)
-		frappe.db.commit()
+		safe_commit()
 		_notify(doc)
 		if not isinstance(e, ConnectorError):
 			raise
@@ -190,7 +192,7 @@ def push_order(field_order: str):
 		notify_order_synced(field_order)
 		if doc.payment_status == "Paid":  # paid on Razorpay before the push finished
 			enqueue_mark_store_paid(field_order)
-	frappe.db.commit()
+	safe_commit()
 	_notify(doc)
 
 
@@ -258,25 +260,33 @@ def retry_store_payments():
 	Hourly: queue ``mark_store_order_paid`` again for confirmed orders paid on Razorpay in the
 	last 7 days that the store does not show as paid yet (50 a run).
 	"""
-	if not frappe.db.get_single_value("Store Connection", "enabled"):
-		return  # e.g. uninstalled; each job would only find the connection disabled
+	try:
+		if not frappe.db.get_single_value("Store Connection", "enabled"):
+			return  # e.g. uninstalled; each job would only find the connection disabled
 
-	names = frappe.get_all(
-		"Field Order",
-		filters={
-			"docstatus": 1,
-			"payment_status": "Paid",
-			"external_order_id": ("is", "set"),
-			"external_draft_id": ("is", "not set"),
-			"store_marked_paid_on": ("is", "not set"),
-			"paid_on": (">=", add_to_date(now_datetime(), days=-7)),
-		},
-		order_by="paid_on asc",
-		limit=50,
-		pluck="name",
-	)
-	for name in names:
-		enqueue_mark_store_paid(name)
+		names = frappe.get_all(
+			"Field Order",
+			filters={
+				"docstatus": 1,
+				"payment_status": "Paid",
+				"external_order_id": ("is", "set"),
+				"external_draft_id": ("is", "not set"),
+				"store_marked_paid_on": ("is", "not set"),
+				"paid_on": (">=", add_to_date(now_datetime(), days=-7)),
+			},
+			order_by="paid_on asc",
+			limit=50,
+			pluck="name",
+		)
+		for name in names:
+			enqueue_mark_store_paid(name)
+	except Exception:
+		# Keep a record of the failure (the job rolls back), then fail the job as before.
+		frappe.db.rollback()
+		frappe.log_error(title="Field Sales scheduled job failed: retry_store_payments")
+		safe_commit()
+		raise
+
 
 
 def retry_failed_orders():
@@ -285,28 +295,36 @@ def retry_failed_orders():
 	fewer than ``MAX_AUTO_ATTEMPTS`` times, and for each order stuck Pending
 	because its job was lost.
 	"""
-	if not frappe.db.get_single_value("Store Connection", "enabled"):
-		return
+	try:
+		if not frappe.db.get_single_value("Store Connection", "enabled"):
+			return
 
-	failed = frappe.get_all(
-		"Field Order",
-		filters={"docstatus": 1, "sync_status": "Failed", "sync_attempts": ("<", MAX_AUTO_ATTEMPTS)},
-		pluck="name",
-	)
+		failed = frappe.get_all(
+			"Field Order",
+			filters={"docstatus": 1, "sync_status": "Failed", "sync_attempts": ("<", MAX_AUTO_ATTEMPTS)},
+			pluck="name",
+		)
 
-	stale_before = add_to_date(now_datetime(), minutes=-STALE_PENDING_MINUTES)
-	stuck = frappe.get_all(
-		"Field Order",
-		filters={"docstatus": 1, "sync_status": "Pending", "modified": ("<", stale_before)},
-		or_filters=[
-			["last_sync_attempt", "is", "not set"],
-			["last_sync_attempt", "<", stale_before],
-		],
-		pluck="name",
-	)
+		stale_before = add_to_date(now_datetime(), minutes=-STALE_PENDING_MINUTES)
+		stuck = frappe.get_all(
+			"Field Order",
+			filters={"docstatus": 1, "sync_status": "Pending", "modified": ("<", stale_before)},
+			or_filters=[
+				["last_sync_attempt", "is", "not set"],
+				["last_sync_attempt", "<", stale_before],
+			],
+			pluck="name",
+		)
 
-	for name in failed + stuck:
-		enqueue_push_order(name)
+		for name in failed + stuck:
+			enqueue_push_order(name)
+	except Exception:
+		# Keep a record of the failure (the job rolls back), then fail the job as before.
+		frappe.db.rollback()
+		frappe.log_error(title="Field Sales scheduled job failed: retry_failed_orders")
+		safe_commit()
+		raise
+
 
 
 def link_completed_drafts():
@@ -320,57 +338,64 @@ def link_completed_drafts():
 	Only drafts pushed in the last ``DRAFT_LINK_DAYS`` days are checked (newest first, at most
 	``DRAFT_LINK_BATCH``): a draft completed later than that is not linked automatically.
 	"""
-	if not frappe.db.get_single_value("Store Connection", "enabled"):
-		return
+	try:
+		if not frappe.db.get_single_value("Store Connection", "enabled"):
+			return
 
-	drafts = frappe.get_all(
-		"Field Order",
-		filters={
-			"docstatus": 1,
-			"sync_status": "Synced",
-			"external_draft_id": ("is", "set"),
-			"external_order_id": ("is", "not set"),
-			"last_sync_attempt": (">=", add_to_date(now_datetime(), days=-DRAFT_LINK_DAYS)),
-		},
-		fields=["name", "external_draft_id"],
-		order_by="last_sync_attempt desc",
-		limit=DRAFT_LINK_BATCH,
-	)
-	if not drafts:
-		return
+		drafts = frappe.get_all(
+			"Field Order",
+			filters={
+				"docstatus": 1,
+				"sync_status": "Synced",
+				"external_draft_id": ("is", "set"),
+				"external_order_id": ("is", "not set"),
+				"last_sync_attempt": (">=", add_to_date(now_datetime(), days=-DRAFT_LINK_DAYS)),
+			},
+			fields=["name", "external_draft_id"],
+			order_by="last_sync_attempt desc",
+			limit=DRAFT_LINK_BATCH,
+		)
+		if not drafts:
+			return
 
-	conn = get_connector()
-	completed = conn.get_completed_drafts([d.external_draft_id for d in drafts])
+		conn = get_connector()
+		completed = conn.get_completed_drafts([d.external_draft_id for d in drafts])
 
-	for d in drafts:
-		order_id = completed.get(d.external_draft_id)
-		if not order_id:
-			continue
-		# One draft's failure must not stop the rest: the next run would list the same draft
-		# first again (newest attempt first) and block every draft after it.
-		try:
-			frappe.db.set_value("Field Order", d.name, "external_order_id", order_id, update_modified=False)
+		for d in drafts:
+			order_id = completed.get(d.external_draft_id)
+			if not order_id:
+				continue
+			# One draft's failure must not stop the rest: the next run would list the same draft
+			# first again (newest attempt first) and block every draft after it.
 			try:
-				# Shopify does not copy a draft's fields to the order made from it.
-				conn.set_order_metafields(order_id, frappe.get_doc("Field Order", d.name))
-			except ConnectorError:
-				pass  # logged by the connector; the order itself is linked either way
-			enqueue_create_entries(d.name)
-			enqueue_order_confirmation(d.name)
-			log_sync(
-				platform=conn.settings.platform,
-				operation="Confirm Order",
-				reference_doctype="Field Order",
-				reference_name=d.name,
-				status="Success",
-				external_id=order_id,
-			)
-			notify_order_synced(d.name)
-			frappe.db.commit()
-			notify_sync_result("field_order_synced", "Field Order", d.name, "Synced")
-		except Exception:
-			frappe.db.rollback()
-			frappe.log_error(title=f"Linking completed draft failed: {d.name}")
+				frappe.db.set_value("Field Order", d.name, "external_order_id", order_id, update_modified=False)
+				# Logged by the connector; the order itself is linked either way.
+				with suppress(ConnectorError):
+					# Shopify does not copy a draft's fields to the order made from it.
+					conn.set_order_metafields(order_id, frappe.get_doc("Field Order", d.name))
+				enqueue_create_entries(d.name)
+				enqueue_order_confirmation(d.name)
+				log_sync(
+					platform=conn.settings.platform,
+					operation="Confirm Order",
+					reference_doctype="Field Order",
+					reference_name=d.name,
+					status="Success",
+					external_id=order_id,
+				)
+				notify_order_synced(d.name)
+				safe_commit()
+				notify_sync_result("field_order_synced", "Field Order", d.name, "Synced")
+			except Exception:
+				frappe.db.rollback()
+				frappe.log_error(title=f"Linking completed draft failed: {d.name}")
+	except Exception:
+		# Keep a record of the failure (the job rolls back), then fail the job as before.
+		frappe.db.rollback()
+		frappe.log_error(title="Field Sales scheduled job failed: link_completed_drafts")
+		safe_commit()
+		raise
+
 
 
 def _ensure_store_customer(retailer: str):

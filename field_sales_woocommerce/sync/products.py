@@ -20,6 +20,7 @@ from field_sales_woocommerce.connectors import get_connector
 from field_sales_woocommerce.field_sales_woocommerce.doctype.sync_log.sync_log import log_sync
 from field_sales_woocommerce.push.events import crossed_low_stock, notify_low_stock
 from field_sales_woocommerce.sync.stock import get_sell_locations, set_location_stock
+from field_sales_woocommerce.utils.db import safe_commit
 
 JOB_ID = "field_sales:product_sync"
 REALTIME_EVENT = "product_sync_done"
@@ -57,22 +58,30 @@ def scheduled_sync():
 	at least ``product_sync_frequency`` has passed since the last product sync
 	activity (manual or scheduled, successful or not).
 	"""
-	settings = frappe.db.get_singles_dict("Store Connection", cast=True)
-	if not settings.enabled or not settings.default_location_id:
-		return
+	try:
+		settings = frappe.db.get_singles_dict("Store Connection", cast=True)
+		if not settings.enabled or not settings.default_location_id:
+			return
 
-	interval = SYNC_INTERVALS.get(settings.product_sync_frequency)
-	if not interval:
-		return
+		interval = SYNC_INTERVALS.get(settings.product_sync_frequency)
+		if not interval:
+			return
 
-	last_run = frappe.db.get_value(
-		"Sync Log", {"operation": "Product Sync"}, "creation", order_by="creation desc"
-	)
-	due_after = add_to_date(now_datetime(), minutes=-(interval - SCHEDULE_SLACK_MINUTES))
-	if last_run and get_datetime(last_run) > due_after:
-		return
+		last_run = frappe.db.get_value(
+			"Sync Log", {"operation": "Product Sync"}, "creation", order_by="creation desc"
+		)
+		due_after = add_to_date(now_datetime(), minutes=-(interval - SCHEDULE_SLACK_MINUTES))
+		if last_run and get_datetime(last_run) > due_after:
+			return
 
-	enqueue_sync()
+		enqueue_sync()
+	except Exception:
+		# Keep a record of the failure (the job rolls back), then fail the job as before.
+		frappe.db.rollback()
+		frappe.log_error(title="Field Sales scheduled job failed: scheduled_sync")
+		safe_commit()
+		raise
+
 
 
 def sync_products() -> dict:
@@ -115,14 +124,14 @@ def sync_products() -> dict:
 
 			names = _upsert_page(platform, location_id, items, stock, seen, summary, low_stock)
 			_save_location_stock(conn, location_id, items, names, stock)
-			frappe.db.commit()
+			safe_commit()
 
 			cursor = page["next_cursor"]
 			if not cursor:
 				break
 
 		summary["archived"] = _archive_missing(platform, seen)
-		frappe.db.commit()
+		safe_commit()
 
 	except Exception as e:
 		# Drop the half-written page; earlier pages are already committed.
@@ -138,7 +147,7 @@ def sync_products() -> dict:
 			error_message=message,
 			response_payload=frappe.as_json(summary),
 		)
-		frappe.db.commit()
+		safe_commit()
 		frappe.publish_realtime(REALTIME_EVENT, {"ok": False, "message": message, **summary}, doctype="Platform Product")
 		raise
 
@@ -150,7 +159,7 @@ def sync_products() -> dict:
 		response_payload=frappe.as_json(summary),
 	)
 	notify_low_stock(low_stock, digest=True)
-	frappe.db.commit()
+	safe_commit()
 	frappe.publish_realtime(REALTIME_EVENT, {"ok": True, **summary}, doctype="Platform Product")
 	return summary
 

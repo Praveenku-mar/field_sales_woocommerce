@@ -9,6 +9,7 @@ from frappe.utils import escape_html, fmt_money, formatdate, get_url, nowdate
 
 from field_sales_woocommerce.field_sales_woocommerce.report.rep_performance.rep_performance import get_rep_stats, get_reps_in_scope
 from field_sales_woocommerce.permissions import clear_allowed_reps_cache
+from field_sales_woocommerce.utils.db import safe_commit
 
 
 def send_daily_summary():
@@ -18,13 +19,21 @@ def send_daily_summary():
 
 	Managers whose team had no activity and no failures get no email.
 	"""
-	today = nowdate()
-	for manager in _get_managers():
-		try:
-			_send_to_manager(manager, today)
-		except Exception:
-			# One bad manager record must not stop the others' summaries.
-			frappe.log_error(title=f"Field Sales daily summary failed for {manager.user}")
+	try:
+		today = nowdate()
+		for manager in _get_managers():
+			try:
+				_send_to_manager(manager, today)
+			except Exception:
+				# One bad manager record must not stop the others' summaries.
+				frappe.log_error(title=f"Field Sales daily summary failed for {manager.user}")
+	except Exception:
+		# Keep a record of the failure (the job rolls back), then fail the job as before.
+		frappe.db.rollback()
+		frappe.log_error(title="Field Sales scheduled job failed: send_daily_summary")
+		safe_commit()
+		raise
+
 
 
 def _get_managers() -> list:

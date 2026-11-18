@@ -49,8 +49,8 @@ def receive():
 		return _respond(200, "duplicate")
 
 	try:
-		# The job argument is `webhook`, not `event`: frappe.enqueue has its own `event`
-		# parameter (job-clearing label), so `event=` would be swallowed and never reach the job.
+		# The job argument is named webhook, not event: Frappe's enqueue has its own event
+		# parameter (a job-clearing label) that would swallow it before it reached the job.
 		frappe.enqueue(
 			"field_sales_woocommerce.sync.webhooks.process_event",
 			queue="short",

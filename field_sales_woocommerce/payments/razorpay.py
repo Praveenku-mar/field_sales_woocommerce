@@ -15,6 +15,7 @@ import hmac
 import json
 import re
 import time
+from contextlib import contextmanager
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -38,6 +39,7 @@ from field_sales_woocommerce.sync.notify import users_with_roles
 from field_sales_woocommerce.payments import transactions
 from field_sales_woocommerce.utils.money import site_currency
 from field_sales_woocommerce.utils.urls import public_url
+from field_sales_woocommerce.utils.db import safe_commit
 
 API_BASE = "https://api.razorpay.com/v1"
 REQUEST_TIMEOUT = 20  # seconds
@@ -396,7 +398,7 @@ def _replace_link(doc, settings, notify: bool = True) -> dict:
 			# The old link is gone on Razorpay: record that even though creating failed.
 			frappe.db.rollback()
 			doc.db_set("payment_status", "Link Cancelled", update_modified=False)
-			frappe.db.commit()
+			safe_commit()
 		raise
 
 	doc.db_set(
@@ -422,6 +424,7 @@ def _replace_link(doc, settings, notify: bool = True) -> dict:
 @frappe.whitelist(methods=["GET"])
 def get_payment_config() -> dict:
 	"""Whether payment links can be created; never returns the keys."""
+	frappe.has_permission("Field Order", "read", throw=True)
 	from field_sales_woocommerce.frontend_api import _check_access
 
 	_check_access()
@@ -493,6 +496,20 @@ def _reference_number(name: str, reference_id: str) -> int:
 # ----------------------------------------------------------------------
 
 
+@contextmanager
+def _as_administrator():
+	"""
+	A verified webhook's work runs as Administrator: Razorpay is not a user, and the order,
+	payment and log rows it writes are not the guest's to write. The guest is restored after.
+	"""
+	user = frappe.session.user
+	frappe.set_user("Administrator")
+	try:
+		yield
+	finally:
+		frappe.set_user(user)
+
+
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 def webhook():
 	"""
@@ -541,21 +558,18 @@ def webhook():
 	from field_sales_woocommerce.payments.checkout import CHECKOUT_EVENTS, handle_webhook_event
 
 	if record["event"] in CHECKOUT_EVENTS:
-		user = frappe.session.user
-		try:
-			frappe.set_user("Administrator")
-			if _already_handled(event_id, payload_hash):
-				return _respond(200, "duplicate")
-			status, note = handle_webhook_event(record["event"], payload, record)
-			_record_event(record, status, error=note)
-		except Exception as e:
-			frappe.db.rollback()
-			frappe.log_error(title=f"Razorpay webhook failed: {event_id or record['event']}")
-			_record_event(record, "Error", error=str(e)[:1000])
-			frappe.db.commit()  # keep the Error row; the 500 asks Razorpay to retry
-			return _respond(500, "error")
-		finally:
-			frappe.set_user(user)
+		with _as_administrator():
+			try:
+				if _already_handled(event_id, payload_hash):
+					return _respond(200, "duplicate")
+				status, note = handle_webhook_event(record["event"], payload, record)
+				_record_event(record, status, error=note)
+			except Exception as e:
+				frappe.db.rollback()
+				frappe.log_error(title=f"Razorpay webhook failed: {event_id or record['event']}")
+				_record_event(record, "Error", error=str(e)[:1000])
+				safe_commit()  # keep the Error row; the 500 asks Razorpay to retry
+				return _respond(500, "error")
 		return {"status": "ok"} if status == "Processed" else _respond(200, "ignored")
 
 	field_order = None
@@ -577,35 +591,32 @@ def webhook():
 		)
 		return _respond(200, "ignored: currency mismatch")
 
-	user = frappe.session.user
-	try:
-		frappe.set_user("Administrator")
-		doc = frappe.get_doc("Field Order", field_order, for_update=True)
-		# Another delivery of this event may have finished while this one waited for the lock.
-		if _already_handled(event_id, payload_hash):
-			return _respond(200, "duplicate")
-		if _stale_link(doc, link):
-			# The order moved to a new link while this event waited for the lock
-			# (New Link cancels the old one, and Razorpay reports that cancel).
-			_record_event(record, "Ignored")
-			return _respond(200, "ignored: not the order's current link")
-		_apply_link_state(doc, link, payment)
-		_record_event(record, "Processed")
-		log_sync(
-			platform=PLATFORM,
-			operation="Payment Webhook",
-			reference_doctype="Field Order",
-			reference_name=field_order,
-			external_id=link["id"],
-		)
-	except Exception as e:
-		frappe.db.rollback()
-		frappe.log_error(title=f"Razorpay webhook failed: {event_id or link['id']}")
-		_record_event(record, "Error", error=str(e)[:1000])
-		frappe.db.commit()  # keep the Error row; the 500 asks Razorpay to retry
-		return _respond(500, "error")
-	finally:
-		frappe.set_user(user)
+	with _as_administrator():
+		try:
+			doc = frappe.get_doc("Field Order", field_order, for_update=True)
+			# Another delivery of this event may have finished while this one waited for the lock.
+			if _already_handled(event_id, payload_hash):
+				return _respond(200, "duplicate")
+			if _stale_link(doc, link):
+				# The order moved to a new link while this event waited for the lock
+				# (New Link cancels the old one, and Razorpay reports that cancel).
+				_record_event(record, "Ignored")
+				return _respond(200, "ignored: not the order's current link")
+			_apply_link_state(doc, link, payment)
+			_record_event(record, "Processed")
+			log_sync(
+				platform=PLATFORM,
+				operation="Payment Webhook",
+				reference_doctype="Field Order",
+				reference_name=field_order,
+				external_id=link["id"],
+			)
+		except Exception as e:
+			frappe.db.rollback()
+			frappe.log_error(title=f"Razorpay webhook failed: {event_id or link['id']}")
+			_record_event(record, "Error", error=str(e)[:1000])
+			safe_commit()  # keep the Error row; the 500 asks Razorpay to retry
+			return _respond(500, "error")
 	return {"status": "ok"}
 
 
@@ -658,33 +669,41 @@ def reconcile_open_links() -> None:
 	Hourly: re-read Link Sent links made in the last 7 days (oldest first, 50 a run) and apply their
 	state, for webhooks that never arrived. One order's failure does not stop the others.
 	"""
-	if not cint(frappe.db.get_single_value("Razorpay Settings", "enabled")):
-		return
-	cutoff = frappe.utils.add_days(now_datetime(), -RECONCILE_DAYS)
-	fo = frappe.qb.DocType("Field Order")
-	link_created = Coalesce(fo.payment_link_created_on, fo.creation)
-	names = (
-		frappe.qb.from_(fo)
-		.select(fo.name)
-		.where(fo.docstatus != 0)
-		.where(fo.payment_status == "Link Sent")
-		.where(fo.razorpay_payment_link_id.isnotnull())
-		.where(link_created >= cutoff)
-		.orderby(link_created)
-		.limit(RECONCILE_BATCH)
-	).run(pluck=True)
+	try:
+		if not cint(frappe.db.get_single_value("Razorpay Settings", "enabled")):
+			return
+		cutoff = frappe.utils.add_days(now_datetime(), -RECONCILE_DAYS)
+		fo = frappe.qb.DocType("Field Order")
+		link_created = Coalesce(fo.payment_link_created_on, fo.creation)
+		names = (
+			frappe.qb.from_(fo)
+			.select(fo.name)
+			.where(fo.docstatus != 0)
+			.where(fo.payment_status == "Link Sent")
+			.where(fo.razorpay_payment_link_id.isnotnull())
+			.where(link_created >= cutoff)
+			.orderby(link_created)
+			.limit(RECONCILE_BATCH)
+		).run(pluck=True)
 
-	settings = get_settings()
-	for name in names:
-		try:
-			doc = frappe.get_doc("Field Order", name, for_update=True)
-			if doc.payment_status == "Link Sent" and doc.razorpay_payment_link_id:
-				link = fetch_payment_link(doc.razorpay_payment_link_id, settings=settings)
-				_apply_link_state(doc, link, _latest_payment(link))
-			frappe.db.commit()
-		except Exception:
-			frappe.db.rollback()
-			frappe.log_error(title=f"Razorpay reconcile failed: {name}")
+		settings = get_settings()
+		for name in names:
+			try:
+				doc = frappe.get_doc("Field Order", name, for_update=True)
+				if doc.payment_status == "Link Sent" and doc.razorpay_payment_link_id:
+					link = fetch_payment_link(doc.razorpay_payment_link_id, settings=settings)
+					_apply_link_state(doc, link, _latest_payment(link))
+				safe_commit()
+			except Exception:
+				frappe.db.rollback()
+				frappe.log_error(title=f"Razorpay reconcile failed: {name}")
+	except Exception:
+		# Keep a record of the failure (the job rolls back), then fail the job as before.
+		frappe.db.rollback()
+		frappe.log_error(title="Field Sales scheduled job failed: reconcile_open_links")
+		safe_commit()
+		raise
+
 
 
 def _apply_link_state(doc, link_entity: dict, payment_entity: dict | None = None) -> bool:

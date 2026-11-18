@@ -170,8 +170,8 @@ class Retailer(Document):
 
 	def _validate_coordinates(self):
 
-		# flt(): the value may still be a string at validate time (e.g. set_value
-		# from a client form), and comparing a str with int raises.
+		# Converted to a number first: at validate time the value may still be a string
+		# (a value set from a client form), and comparing a string with a number raises.
 		if self.latitude and not (-90 <= flt(self.latitude) <= 90):
 			frappe.throw(
 				_("Latitude must be between -90 and 90. Received: {0}").format(self.latitude)

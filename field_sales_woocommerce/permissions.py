@@ -98,7 +98,7 @@ def get_allowed_reps(user: str | None = None) -> list[str]:
 	own_rep = get_own_rep(user)
 	if own_rep:
 		reports = defaultdict(list)
-		# One query for the whole hierarchy; frappe.get_all bypasses these permission hooks.
+		# One query for the whole hierarchy, read without these permission hooks (no recursion).
 		for rep in frappe.get_all("Sales Rep", fields=["name", "reports_to"], filters={"reports_to": ("is", "set")}):
 			reports[rep.reports_to].append(rep.name)
 
@@ -195,6 +195,36 @@ def payment_transaction_query(user: str | None = None) -> str:
 		" or (ifnull(`tabPayment Transaction`.`reference_order`, '') = ''"
 		f" and `tabPayment Transaction`.`store_order_id` in ({store_orders})))"
 	)
+
+
+# Sentinel of scope_criterion: the user may see no row of the doctype.
+NO_ROWS = object()
+
+
+def scope_criterion(doctype: str, table, user: str | None = None):
+	"""
+	The row rule of the ``*_query`` functions above as a ``frappe.qb`` condition on ``table``,
+	for queries written with the query builder (values bound, never formatted into SQL).
+
+	:param doctype: "Visit", "Field Order", "Retailer" or "Sales Rep".
+	:param table: ``frappe.qb.DocType(doctype)`` the query reads from.
+	:return: ``None`` when every row may be seen, ``NO_ROWS`` when none may, else a condition.
+	"""
+	user = user or frappe.session.user
+	if is_admin(user):
+		return None
+	if doctype in ("Field Order", "Retailer") and is_retailer_user(user):
+		own = get_own_retailer(user)
+		if not own:
+			return NO_ROWS
+		return (table.retailer if doctype == "Field Order" else table.name) == own
+	if doctype == "Retailer":
+		# Every retailer is listed to staff (retailer_query).
+		return None
+	reps = get_allowed_reps(user)
+	if not reps:
+		return NO_ROWS
+	return table[REP_FIELD[doctype]].isin(reps)
 
 
 def hierarchy_filters(doctype: str, user: str | None = None) -> list:

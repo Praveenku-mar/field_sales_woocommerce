@@ -9,6 +9,7 @@ import frappe
 from frappe import _
 
 from field_sales_woocommerce.permissions import is_retailer_user
+from field_sales_woocommerce.utils.db import safe_commit
 
 no_cache = 1
 
@@ -36,7 +37,7 @@ def get_context(context):
 		frappe.throw(_("You do not have access to Agamsale"), frappe.PermissionError)
 
 	# get_csrf_token may create the token on this GET request; keep it.
-	frappe.db.commit()
+	safe_commit()
 	context.boot = get_boot()
 	return context
 

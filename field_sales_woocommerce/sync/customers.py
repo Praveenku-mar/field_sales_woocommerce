@@ -20,6 +20,7 @@ from frappe.utils import cint, now_datetime
 from field_sales_woocommerce.connectors import ConnectorError, get_connector
 from field_sales_woocommerce.field_sales_woocommerce.doctype.sync_log.sync_log import log_sync
 from field_sales_woocommerce.sync.notify import notify_customer_sync_failure, notify_sync_result
+from field_sales_woocommerce.utils.db import safe_commit
 
 # Retailer fields sent to the store; a change to any of them triggers a push.
 SYNCED_FIELDS = (
@@ -76,7 +77,7 @@ def push_retailer(retailer_name: str):
 		{"sync_status": "Pending", "last_sync_attempt": now_datetime()},
 		update_modified=False,
 	)
-	frappe.db.commit()
+	safe_commit()
 
 	doc = frappe.get_doc("Retailer", retailer_name)
 	operation = "Update Customer" if doc.external_customer_id else "Create Customer"
@@ -102,7 +103,7 @@ def push_retailer(retailer_name: str):
 			error_code=getattr(e, "code", None) or type(e).__name__,
 			error_message=message,
 		)
-		frappe.db.commit()
+		safe_commit()
 		if not isinstance(e, ConnectorError):
 			raise
 		return
@@ -129,7 +130,7 @@ def push_retailer(retailer_name: str):
 		external_id=result["id"],
 		error_message=result.get("warning"),
 	)
-	frappe.db.commit()
+	safe_commit()
 
 
 def _record_result(retailer_name: str, values: dict):
@@ -221,7 +222,7 @@ def import_customers() -> dict:
 					summary["failed"] += 1
 					if len(failures) < MAX_LISTED_FAILURES:
 						failures.append(f"#{customer['external_customer_id']}: {_plain(e)}")
-			frappe.db.commit()
+			safe_commit()
 
 			cursor = page["next_cursor"]
 			if not cursor:
@@ -240,7 +241,7 @@ def import_customers() -> dict:
 			error_message=_plain(e),
 			response_payload=frappe.as_json(summary),
 		)
-		frappe.db.commit()
+		safe_commit()
 		raise
 
 	log_sync(
@@ -252,7 +253,7 @@ def import_customers() -> dict:
 		error_message="\n".join(failures) or None,
 		response_payload=frappe.as_json(summary),
 	)
-	frappe.db.commit()
+	safe_commit()
 	return summary
 
 
