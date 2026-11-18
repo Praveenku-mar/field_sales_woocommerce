@@ -72,11 +72,12 @@ def get_team_commission(period: str = "this_month") -> list[dict]:
 		"reversed", "override", "net"}, ...]`` sorted by net, highest first. Every rep of the team is
 		listed, with zeros when they have no commission.
 	"""
+	frappe.has_permission("Commission Entry", "read", throw=True)
 	from field_sales_woocommerce.frontend_api import _check_access
 
 	_check_access()
 	if is_admin():
-		reps = frappe.get_all("Sales Rep", pluck="name")
+		reps = frappe.get_list("Sales Rep", pluck="name", limit_page_length=0)
 	else:
 		reps = get_allowed_reps()
 	if not reps:
@@ -86,8 +87,11 @@ def get_team_commission(period: str = "this_month") -> list[dict]:
 	totals = _totals(reps, start, end)
 	info = {
 		r.name: r
-		for r in frappe.get_all(
-			"Sales Rep", filters={"name": ("in", reps)}, fields=["name", "full_name", "commission_plan", "commission_active"]
+		for r in frappe.get_list(
+			"Sales Rep",
+			filters={"name": ("in", reps)},
+			fields=["name", "full_name", "commission_plan", "commission_active"],
+			limit_page_length=0,
 		)
 	}
 	rows = [
@@ -113,6 +117,7 @@ def get_commission_entries(filters: dict | str | None = None, page: int = 1, pag
 	:param page_length: Rows per page (at most 2500).
 	:return: ``{"entries": [...], "page", "page_length", "total"}``
 	"""
+	frappe.has_permission("Commission Entry", "read", throw=True)
 	from field_sales_woocommerce.frontend_api import _check_access
 
 	_check_access()
@@ -163,6 +168,7 @@ def get_commission_statements(filters: dict | str | None = None, page: int = 1, 
 	:param page_length: Rows per page (at most 2500).
 	:return: ``{"statements": [...], "page", "page_length", "total"}``; each row has ``full_name`` of the rep.
 	"""
+	frappe.has_permission("Commission Statement", "read", throw=True)
 	from field_sales_woocommerce.frontend_api import _check_access
 
 	_check_access()

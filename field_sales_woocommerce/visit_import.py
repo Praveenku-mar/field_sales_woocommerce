@@ -84,6 +84,7 @@ def _get_customers(active_only: bool = True) -> list[dict]:
 @frappe.whitelist()
 def download_visit_template() -> None:
 	"""Excel template: a "Visits" sheet to fill in and a "Lists" sheet with the valid reps, customers and purposes."""
+	frappe.only_for(list(IMPORT_ROLES))
 	_check_import_access()
 	reps = _get_reps()
 	customers = _get_customers()
@@ -145,18 +146,18 @@ def _get_file(file_url: str):
 	return frappe.get_doc("File", name)
 
 
-def _read_rows(file) -> list[list]:
+def _read_rows(file_doc) -> list[list]:
 	"""All rows of the first sheet (or of the CSV) as lists of raw cell values."""
-	ext = (file.file_name or "").rsplit(".", 1)[-1].lower()
+	ext = (file_doc.file_name or "").rsplit(".", 1)[-1].lower()
 	try:
 		if ext == "xlsx":
-			wb = load_workbook(filename=file.get_full_path(), data_only=True, read_only=True)
+			wb = load_workbook(filename=file_doc.get_full_path(), data_only=True, read_only=True)
 			try:
 				return [list(row) for row in wb.worksheets[0].iter_rows(values_only=True)]
 			finally:
 				wb.close()
 		if ext == "csv":
-			return read_csv_content(file.get_content(), use_sniffer=True)
+			return read_csv_content(file_doc.get_content(), use_sniffer=True)
 	except Exception:
 		frappe.log_error("Visit import: unreadable file")
 		frappe.throw(_("Could not read the file. Use the template (.xlsx) or a CSV."), title=_("Invalid File"))
@@ -218,8 +219,8 @@ def _parse_date(value) -> str | None:
 
 def _validate_file(file_url: str) -> list[dict]:
 	"""Resolve and check every row of the upload; each result has ``error`` set (or None when ready)."""
-	file = _get_file(file_url)
-	rows = _read_rows(file)
+	file_doc = _get_file(file_url)
+	rows = _read_rows(file_doc)
 	if not rows:
 		frappe.throw(_("The file is empty."), title=_("Invalid File"))
 
@@ -348,6 +349,7 @@ def _check_row(result, date_cell, purpose, reps, customers, valid_purposes, seen
 @frappe.whitelist()
 def preview_visit_import(file_url: str) -> dict:
 	"""Check an uploaded file row by row without creating anything."""
+	frappe.only_for(list(IMPORT_ROLES))
 	_check_import_access()
 	rows = _validate_file(file_url)
 	errors = sum(1 for r in rows if r["error"])
@@ -364,6 +366,7 @@ def create_visits_from_import(file_url: str) -> dict:
 	deleted, so private spreadsheets of customers and reps do not pile up. When nothing
 	was created it is kept, so the user can fix the data and try again.
 	"""
+	frappe.only_for(list(IMPORT_ROLES))
 	_check_import_access()
 	rows = _validate_file(file_url)
 	created, skipped = [], []
@@ -398,6 +401,6 @@ def create_visits_from_import(file_url: str) -> dict:
 		)
 
 	if created:
-		file = _get_file(file_url)
-		frappe.delete_doc("File", file.name, ignore_permissions=True, force=True)
+		file_doc = _get_file(file_url)
+		frappe.delete_doc("File", file_doc.name, ignore_permissions=True, force=True)
 	return {"created": created, "skipped": skipped}

@@ -23,12 +23,10 @@ from field_sales_woocommerce.field_sales_woocommerce.doctype.sales_rep.sales_rep
 from field_sales_woocommerce.permissions import (
 	RETAILER_ROLE,
 	STAFF_ROLES,
-	field_order_query,
 	get_allowed_reps,
 	hierarchy_filters,
 	is_admin,
 	is_manager_or_admin,
-	visit_query,
 )
 from field_sales_woocommerce.sync.customers import enqueue_import, push_retailers
 from field_sales_woocommerce.sync.notify import MONITOR_ROLES
@@ -973,7 +971,13 @@ def get_sync_failures() -> dict:
 
 	reps = {r.sales_rep for r in orders + retailers if r.sales_rep}
 	rep_names = dict(
-		frappe.get_all("Sales Rep", filters={"name": ("in", list(reps))}, fields=["name", "full_name"], as_list=True)
+		frappe.get_list(
+			"Sales Rep",
+			filters={"name": ("in", list(reps))},
+			fields=["name", "full_name"],
+			as_list=True,
+			limit_page_length=0,
+		)
 	) if reps else {}
 	for row in orders + retailers:
 		row.sales_rep_name = rep_names.get(row.sales_rep)
@@ -1030,6 +1034,7 @@ def get_sync_failure_count(filters: str | list | dict | None = None) -> dict:
 @frappe.whitelist()
 def get_territories(txt: str | None = None) -> list[str]:
 	"""Territories in use on Sales Rep (a free-text field), for the report's Territory filter."""
+	frappe.has_permission("Sales Rep", "read", throw=True)
 	filters = {"territory": ("is", "set")}
 	if txt:
 		filters["territory"] = ("like", f"%{txt}%")
@@ -1041,6 +1046,7 @@ def get_territories(txt: str | None = None) -> list[str]:
 @frappe.whitelist()
 def get_retailer_cities(txt: str | None = None) -> list[str]:
 	"""Cities in use on Retailer, for the report's City filter."""
+	frappe.has_permission("Retailer", "read", throw=True)
 	filters = {"city": ("is", "set")}
 	if txt:
 		filters["city"] = ("like", f"%{txt}%")
@@ -1061,25 +1067,39 @@ def get_retailer_summary(retailer: str) -> dict:
 	since = frappe.utils.add_days(frappe.utils.nowdate(), -30)
 	user = frappe.session.user
 
-	visit_scope = visit_query(user) or "1=1"
-	visits = frappe.db.sql(
-		f"""
-		SELECT COUNT(*) FROM `tabVisit`
-		WHERE `tabVisit`.`retailer` = %(retailer)s AND `tabVisit`.`status` = 'Completed'
-			AND `tabVisit`.`visit_date` >= %(since)s AND ({visit_scope})
-		""",
-		{"retailer": retailer, "since": since},
-	)[0][0]
+	from frappe.query_builder.functions import Count, Sum
 
-	order_scope = field_order_query(user) or "1=1"
-	orders, value = frappe.db.sql(
-		f"""
-		SELECT COUNT(*), SUM(`tabField Order`.`grand_total`) FROM `tabField Order`
-		WHERE `tabField Order`.`retailer` = %(retailer)s AND `tabField Order`.`docstatus` = 1
-			AND `tabField Order`.`order_date` >= %(since)s AND ({order_scope})
-		""",
-		{"retailer": retailer, "since": since},
-	)[0]
+	from field_sales_woocommerce.permissions import NO_ROWS, scope_criterion
+
+	visit = frappe.qb.DocType("Visit")
+	visit_scope = scope_criterion("Visit", visit, user)
+	visits = 0
+	if visit_scope is not NO_ROWS:
+		query = (
+			frappe.qb.from_(visit)
+			.select(Count("*"))
+			.where(visit.retailer == retailer)
+			.where(visit.status == "Completed")
+			.where(visit.visit_date >= since)
+		)
+		if visit_scope is not None:
+			query = query.where(visit_scope)
+		visits = query.run()[0][0]
+
+	order = frappe.qb.DocType("Field Order")
+	order_scope = scope_criterion("Field Order", order, user)
+	orders, value = 0, 0
+	if order_scope is not NO_ROWS:
+		query = (
+			frappe.qb.from_(order)
+			.select(Count("*"), Sum(order.grand_total))
+			.where(order.retailer == retailer)
+			.where(order.docstatus == 1)
+			.where(order.order_date >= since)
+		)
+		if order_scope is not None:
+			query = query.where(order_scope)
+		orders, value = query.run()[0]
 
 	return {"visits_30d": visits, "orders_30d": orders, "value_30d": flt(value)}
 

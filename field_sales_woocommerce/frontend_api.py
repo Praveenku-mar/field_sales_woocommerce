@@ -4,6 +4,7 @@
 """Endpoints for the Field Sales desktop app (frontend/). Lists go through
 frappe.get_list, so the Sales Rep hierarchy rules apply as they do in the desk."""
 
+from contextlib import suppress
 import frappe
 from frappe import _
 from frappe.rate_limiter import rate_limit
@@ -109,6 +110,7 @@ def get_list_preset(key: str) -> dict:
 	preset = get_attention_presets().get(key) or get_card_presets().get(key)
 	if not preset:
 		frappe.throw(_("Unknown list preset: {0}").format(key), frappe.DoesNotExistError)
+	frappe.has_permission(preset["doctype"], "read", throw=True)
 	return {"key": key, **preset}
 
 
@@ -177,6 +179,12 @@ def get_sidebar_counts() -> dict:
 def get_notifications(limit: int = 50) -> list[dict]:
 	"""The current user's latest Notification Log rows, newest first (subject as plain text)."""
 	_check_access()
+	return _own_notifications(limit)
+
+
+def _own_notifications(limit: int) -> list[dict]:
+	"""The signed-in user's own Notification Log rows (``for_user``): retailer logins have no
+	Notification Log permission, so the rows are read here, limited to the user's own."""
 	rows = frappe.get_all(
 		"Notification Log",
 		filters={"for_user": frappe.session.user},
@@ -223,6 +231,7 @@ def get_dashboard() -> dict:
 
 	:return: ``{"currency", "today": {...}, "attention": {...}, "visits_today", "recent_orders", "team"}``
 	"""
+	frappe.has_permission("Field Order", "read", throw=True)
 	_check_access()
 	today = nowdate()
 
@@ -339,14 +348,13 @@ def get_order_sync_info(field_order: str) -> dict:
 	) or (None, None, None)
 	order_url = draft_url = None
 	if doc.external_order_id or doc.external_draft_id:
-		try:
+		# Store disconnected: the panel shows the IDs without a link.
+		with suppress(ConnectorError):
 			conn = get_connector()
 			if doc.external_order_id:
 				order_url = conn.get_order_url(doc.external_order_id)
 			if doc.external_draft_id:
 				draft_url = conn.get_order_url(None, doc.external_draft_id)
-		except ConnectorError:
-			pass  # store disconnected: the panel shows the IDs without a link
 	return {
 		"location_name": doc.location_name
 		or (location_name if doc.location_id in (None, "", location_id) else doc.location_id),
@@ -366,6 +374,7 @@ def get_rep_month_stats(sales_rep: str | None = None) -> dict:
 
 	:return: ``{rep: {"completed_visits", "orders", "order_value", "achievement_pct", ...}}``
 	"""
+	frappe.has_permission("Sales Rep", "read", throw=True)
 	_check_access()
 	from field_sales_woocommerce.field_sales_woocommerce.report.rep_performance.rep_performance import (
 		get_rep_stats,

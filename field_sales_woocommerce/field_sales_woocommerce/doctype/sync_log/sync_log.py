@@ -6,6 +6,7 @@ import re
 import frappe
 from frappe.model.document import Document
 from frappe.utils import add_days, cint, nowdate
+from field_sales_woocommerce.utils.db import safe_commit
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -203,7 +204,7 @@ def log_sync_durable(**fields) -> str:
 		def reinsert():
 			if not frappe.db.exists("Sync Log", name):
 				log_sync(**fields)
-				frappe.db.commit()
+				safe_commit()
 
 		after_rollback.add(reinsert)
 
@@ -221,19 +222,27 @@ def clear_old_logs() -> None:
 
 	Registered in hooks.py under ``scheduler_events["daily"]``.
 	"""
-	cutoff: str = add_days(nowdate(), -30)
+	try:
+		cutoff: str = add_days(nowdate(), -30)
 
-	frappe.db.delete(
-		"Sync Log",
-		{
-			"status": "Success",
-			"creation": ["<", cutoff],
-		},
-	)
-	failed_days = cint(frappe.db.get_single_value("Store Connection", "failed_log_retention_days"))
-	if failed_days > 0:
 		frappe.db.delete(
 			"Sync Log",
-			{"status": ["in", ["Failed", "Retrying"]], "creation": ["<", add_days(nowdate(), -failed_days)]},
+			{
+				"status": "Success",
+				"creation": ["<", cutoff],
+			},
 		)
-	frappe.db.commit()
+		failed_days = cint(frappe.db.get_single_value("Store Connection", "failed_log_retention_days"))
+		if failed_days > 0:
+			frappe.db.delete(
+				"Sync Log",
+				{"status": ["in", ["Failed", "Retrying"]], "creation": ["<", add_days(nowdate(), -failed_days)]},
+			)
+		safe_commit()
+	except Exception:
+		# Keep a record of the failure (the job rolls back), then fail the job as before.
+		frappe.db.rollback()
+		frappe.log_error(title="Field Sales scheduled job failed: clear_old_logs")
+		safe_commit()
+		raise
+

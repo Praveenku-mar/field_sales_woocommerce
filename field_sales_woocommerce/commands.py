@@ -37,18 +37,22 @@ def field_sales_demo(context):
 	"""
 	import frappe
 
+	from field_sales_woocommerce.utils.db import safe_commit
+
 	site = get_site(context)
 	frappe.init(site=site)
 	frappe.connect()
+	previous_user = frappe.session.user
 	try:
 		frappe.set_user("Administrator")
 		summary = create_demo_data()
-		frappe.db.commit()
+		safe_commit()
 		click.echo(frappe.as_json(summary))
 	except DemoRefused as e:
 		frappe.db.rollback()
 		raise click.ClickException(str(e)) from e
 	finally:
+		frappe.set_user(previous_user)
 		frappe.destroy()
 
 

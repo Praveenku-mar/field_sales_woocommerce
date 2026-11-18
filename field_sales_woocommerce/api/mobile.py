@@ -625,10 +625,11 @@ def get_products_list(
 		loc_id = location_id.strip()
 		tracked_names = [it["name"] for it in res["items"] if it.get("track_inventory")]
 		if tracked_names:
-			stock_rows = frappe.get_all(
+			stock_rows = frappe.get_list(
 				"Product Stock",
 				filters={"product": ["in", tracked_names], "location_id": loc_id},
 				fields=["product", "available_qty"],
+				limit_page_length=0,
 			)
 			stock_map = {row["product"]: flt(row["available_qty"]) for row in stock_rows}
 			for item in res["items"]:
@@ -927,6 +928,35 @@ def get_order_detail(order_id: str) -> dict:
 	return detail
 
 
+def _outstanding_balance(retailer: str) -> float:
+	"""
+	What the retailer still owes on submitted orders the user may see: every rep reads every
+	retailer, but another team's orders are not theirs to total. A Partially Paid order counts
+	only its remainder; an order without a payment status (older orders) counts as Unpaid.
+	"""
+	from frappe.query_builder.functions import Coalesce, IfNull, Sum
+	from pypika.terms import Function
+
+	from field_sales_woocommerce.permissions import NO_ROWS, scope_criterion
+
+	order = frappe.qb.DocType("Field Order")
+	scope = scope_criterion("Field Order", order)
+	if scope is NO_ROWS:
+		return 0.0
+	still_owed = Function("GREATEST", order.grand_total - IfNull(order.amount_paid, 0), 0)
+	query = (
+		frappe.qb.from_(order)
+		.select(Coalesce(Sum(still_owed), 0))
+		.where(order.retailer == retailer)
+		.where(order.docstatus == 1)
+		.where(IfNull(order.payment_status, "Unpaid") != "Paid")
+	)
+	if scope is not None:
+		query = query.where(scope)
+	rows = query.run()
+	return flt(rows[0][0] if rows else 0.0, 2)
+
+
 @frappe.whitelist(methods=["GET"])
 def get_customer_detail_records(customer_id: str) -> dict:
 	"""
@@ -944,18 +974,7 @@ def get_customer_detail_records(customer_id: str) -> dict:
 	# every retailer, but another team's orders are not theirs to total. What is still owed on
 	# each unpaid order: a Partially Paid one counts only its remainder, and a row without a
 	# payment status (older orders) counts as Unpaid instead of dropping out of `!=`.
-	order_scope = field_order_query(frappe.session.user) or "1=1"
-	unpaid_orders = frappe.db.sql(
-		f"""
-		SELECT COALESCE(SUM(GREATEST(grand_total - IFNULL(amount_paid, 0), 0)), 0) as balance
-		FROM `tabField Order`
-		WHERE retailer = %(ret)s AND docstatus = 1 AND IFNULL(payment_status, 'Unpaid') != 'Paid'
-			AND ({order_scope})
-		""",
-		{"ret": customer_id},
-		as_dict=True,
-	)
-	outstanding = flt(unpaid_orders[0].balance if unpaid_orders else 0.0, 2)
+	outstanding = _outstanding_balance(customer_id)
 
 	recent_orders = get_orders_list(retailer=customer_id, limit=5)
 	recent_visits = get_visits_list(retailer=customer_id, limit=5) if not is_retailer_user() else {"items": []}
@@ -1031,10 +1050,11 @@ def get_product_detail_stock(product_id: str) -> dict:
 	product = frappe.get_doc("Platform Product", product_id)
 	locations = get_sell_locations()
 
-	stock_by_loc = frappe.get_all(
+	stock_by_loc = frappe.get_list(
 		"Product Stock",
 		filters={"product": product_id},
 		fields=["location_id", "location_name", "available_qty"],
+		limit_page_length=0,
 	)
 
 	return {
@@ -1168,7 +1188,6 @@ def get_mobile_count(
 	Separated entirely from keyset page queries to avoid unneeded COUNT(*) overhead.
 	"""
 	_check_access()
-	user = frappe.session.user
 
 	if doctype not in ALLOWED_COUNT_DOCTYPES:
 		frappe.throw(_("Invalid doctype for count query: {0}").format(doctype), frappe.ValidationError)
@@ -1185,7 +1204,7 @@ def get_mobile_count(
 
 	filter_list.extend(_count_filters(doctype, filters))
 
-	# Scoped via frappe.get_list which applies row-level hierarchy permissions
+	# Counted with the list query, so the row-level hierarchy permissions apply
 	rows = frappe.get_list(
 		doctype,
 		filters=filter_list if filter_list else None,
@@ -1198,6 +1217,55 @@ def get_mobile_count(
 # ──────────────────────────────────────────────────────────────────────────────
 # 10. Server-Side Search with Debounce & Prefix Search
 # ──────────────────────────────────────────────────────────────────────────────
+
+
+# Doctypes the global search reads, with the row rule each one follows (Platform Product: any
+# reader sees every product, checked by the caller).
+SEARCH_SCOPED = {"Retailer", "Field Order", "Sales Rep"}
+
+
+def _search_rows(
+	doctype: str,
+	pfx: str,
+	limit: int,
+	user: str,
+	search_fields: tuple,
+	columns: tuple,
+	order_by: tuple = ("modified", "desc"),
+) -> list[dict]:
+	"""
+	Prefix-search rows of ``doctype`` the user may see, as ``frappe.qb`` (every value bound).
+
+	:param pfx: LIKE pattern (already escaped) matched against each of ``search_fields``.
+	:param columns: field names, or ``(field, alias)`` pairs, to return; ``doctype`` is added.
+	"""
+	from pypika import Order
+
+	from field_sales_woocommerce.permissions import NO_ROWS, scope_criterion
+
+	table = frappe.qb.DocType(doctype)
+	scope = scope_criterion(doctype, table, user) if doctype in SEARCH_SCOPED else None
+	if scope is NO_ROWS or limit <= 0:
+		return []
+	match = None
+	for field in search_fields:
+		condition = table[field].like(pfx)
+		match = condition if match is None else match | condition
+	fields = [table[c].as_(c) if isinstance(c, str) else table[c[0]].as_(c[1]) for c in columns]
+	field, direction = order_by
+	query = (
+		frappe.qb.from_(table)
+		.select(*fields)
+		.where(match)
+		.orderby(table[field], order=Order.desc if direction == "desc" else Order.asc)
+		.limit(limit)
+	)
+	if scope is not None:
+		query = query.where(scope)
+	rows = query.run(as_dict=True)
+	for row in rows:
+		row["doctype"] = doctype
+	return rows
 
 
 @frappe.whitelist(methods=["GET", "POST"])
@@ -1227,45 +1295,29 @@ def mobile_search(
 
 	# 1. Customers / Retailers
 	if not doctype or doctype == "Retailer":
-		r_perm = retailer_query(user)
-		if r_perm != "1=0":
-			where = ["(`retailer_name` LIKE %(pfx)s OR `name` LIKE %(pfx)s OR `phone` LIKE %(pfx)s OR `city` LIKE %(pfx)s)"]
-			params = {"pfx": pfx}
-			if r_perm:
-				where.append(r_perm)
-			rows = frappe.db.sql(
-				f"""
-				SELECT name, retailer_name as title, city as subtitle, status as badge, 'Retailer' as doctype
-				FROM `tabRetailer`
-				WHERE {' AND '.join(f'({w})' for w in where)}
-				ORDER BY modified DESC
-				LIMIT %(limit)s
-				""",
-				{**params, "limit": limit},
-				as_dict=True,
+		results.extend(
+			_search_rows(
+				"Retailer",
+				pfx,
+				limit,
+				user,
+				search_fields=("retailer_name", "name", "phone", "city"),
+				columns=("name", ("retailer_name", "title"), ("city", "subtitle"), ("status", "badge")),
 			)
-			results.extend(rows)
+		)
 
 	# 2. Orders
 	if (not doctype or doctype == "Field Order") and len(results) < limit:
-		o_perm = field_order_query(user)
-		if o_perm != "1=0":
-			where = ["(`name` LIKE %(pfx)s OR `retailer_name` LIKE %(pfx)s)"]
-			params = {"pfx": pfx}
-			if o_perm:
-				where.append(o_perm)
-			rows = frappe.db.sql(
-				f"""
-				SELECT name, name as title, retailer_name as subtitle, sync_status as badge, 'Field Order' as doctype
-				FROM `tabField Order`
-				WHERE {' AND '.join(f'({w})' for w in where)}
-				ORDER BY modified DESC
-				LIMIT %(limit)s
-				""",
-				{**params, "limit": limit - len(results)},
-				as_dict=True,
+		results.extend(
+			_search_rows(
+				"Field Order",
+				pfx,
+				limit - len(results),
+				user,
+				search_fields=("name", "retailer_name"),
+				columns=("name", ("name", "title"), ("retailer_name", "subtitle"), ("sync_status", "badge")),
 			)
-			results.extend(rows)
+		)
 
 	# 3. Platform Products
 	if (
@@ -1274,39 +1326,31 @@ def mobile_search(
 		and not is_retailer_user(user)
 		and frappe.has_permission("Platform Product", "read")
 	):
-		rows = frappe.db.sql(
-			"""
-			SELECT name, product_title as title, sku as subtitle, status as badge, 'Platform Product' as doctype
-			FROM `tabPlatform Product`
-			WHERE (`product_title` LIKE %(pfx)s OR `name` LIKE %(pfx)s OR `sku` LIKE %(pfx)s OR `barcode` LIKE %(pfx)s)
-			ORDER BY modified DESC
-			LIMIT %(limit)s
-			""",
-			{"pfx": pfx, "limit": limit - len(results)},
-			as_dict=True,
+		results.extend(
+			_search_rows(
+				"Platform Product",
+				pfx,
+				limit - len(results),
+				user,
+				search_fields=("product_title", "name", "sku", "barcode"),
+				columns=("name", ("product_title", "title"), ("sku", "subtitle"), ("status", "badge")),
+			)
 		)
-		results.extend(rows)
 
 	# 4. Sales Reps
 	if (not doctype or doctype == "Sales Rep") and len(results) < limit and not is_retailer_user(user):
-		rep_perm = sales_rep_query(user)
-		if rep_perm != "1=0":
-			where = ["(`full_name` LIKE %(pfx)s OR `name` LIKE %(pfx)s)"]
-			params = {"pfx": pfx}
-			if rep_perm:
-				where.append(rep_perm)
-			rows = frappe.db.sql(
-				f"""
-				SELECT name, full_name as title, territory as subtitle, IF(active = 1, 'Active', 'Inactive') as badge, 'Sales Rep' as doctype
-				FROM `tabSales Rep`
-				WHERE {' AND '.join(f'({w})' for w in where)}
-				ORDER BY full_name ASC
-				LIMIT %(limit)s
-				""",
-				{**params, "limit": limit - len(results)},
-				as_dict=True,
-			)
-			results.extend(rows)
+		reps = _search_rows(
+			"Sales Rep",
+			pfx,
+			limit - len(results),
+			user,
+			search_fields=("full_name", "name"),
+			columns=("name", ("full_name", "title"), ("territory", "subtitle"), "active"),
+			order_by=("full_name", "asc"),
+		)
+		for row in reps:
+			row["badge"] = "Active" if cint(row.pop("active")) else "Inactive"
+		results.extend(reps)
 
 	return {"results": results[:limit], "query": query}
 

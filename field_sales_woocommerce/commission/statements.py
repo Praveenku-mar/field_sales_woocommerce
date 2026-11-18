@@ -22,6 +22,7 @@ from field_sales_woocommerce.commission import commission_enabled, require_commi
 from field_sales_woocommerce.commission.engine import penalty_multiplier, slab_rate
 from field_sales_woocommerce.push.events import notify_statement
 from field_sales_woocommerce.permissions import get_own_rep, is_admin
+from field_sales_woocommerce.utils.db import safe_commit
 
 MANAGER_ROLES = {"Sales Manager", "System Manager"}
 
@@ -35,20 +36,28 @@ def generate_monthly_statements():
 	earned up to the period end), so none is stranded. A rep who already has a statement for the
 	month is skipped.
 	"""
-	if not commission_enabled():
-		return
-	period_end = add_days(get_first_day(getdate(nowdate())), -1)
-	period_start = get_first_day(period_end)
+	try:
+		if not commission_enabled():
+			return
+		period_end = add_days(get_first_day(getdate(nowdate())), -1)
+		period_start = get_first_day(period_end)
 
-	for rep in frappe.get_all("Sales Rep", filters={"commission_active": 1}, pluck="name"):
-		try:
-			if _statement_exists(rep, period_start) or not _open_entries(rep, period_end):
-				continue
-			build_statement(rep, period_start, period_end)
-			frappe.db.commit()
-		except Exception:
-			frappe.db.rollback()
-			frappe.log_error(title=f"Commission statement failed for {rep}")
+		for rep in frappe.get_all("Sales Rep", filters={"commission_active": 1}, pluck="name"):
+			try:
+				if _statement_exists(rep, period_start) or not _open_entries(rep, period_end):
+					continue
+				build_statement(rep, period_start, period_end)
+				safe_commit()
+			except Exception:
+				frappe.db.rollback()
+				frappe.log_error(title=f"Commission statement failed for {rep}")
+	except Exception:
+		# Keep a record of the failure (the job rolls back), then fail the job as before.
+		frappe.db.rollback()
+		frappe.log_error(title="Field Sales scheduled job failed: generate_monthly_statements")
+		safe_commit()
+		raise
+
 
 
 def build_statement(sales_rep: str, period_start, period_end):

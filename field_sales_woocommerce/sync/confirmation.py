@@ -5,6 +5,7 @@
 import contextvars
 import threading
 
+from contextlib import suppress
 import frappe
 from frappe import _
 from frappe.model.naming import make_autoname
@@ -12,6 +13,7 @@ from frappe.utils import fmt_money, format_datetime, now_datetime, today
 
 from field_sales_woocommerce.payments.razorpay import link_for_confirmation
 from field_sales_woocommerce.utils.money import site_currency
+from field_sales_woocommerce.utils.db import safe_commit
 
 SENDING_STATUS = "Sending…"
 INVOICE_SERIES = "INV-.YYYY.-.#####"
@@ -103,7 +105,7 @@ def resend_order_confirmation(name: str) -> dict:
 		frappe.throw(_("The confirmation can only be sent once the store has confirmed the order"))
 
 	doc.db_set("confirmation_status", SENDING_STATUS, update_modified=False)
-	frappe.db.commit()  # the job and the polling page must see "Sending…"
+	safe_commit()  # the job and the polling page must see "Sending…"
 
 	# A job id of its own: the automatic job's id may still be on the queue (or finished) and
 	# deduplicate would drop this one. Two quick clicks share this id, so only one job runs.
@@ -170,11 +172,9 @@ def _kill_wkhtmltopdf(keep: set):
 	except psutil.Error:
 		return
 	for child in children:
-		try:
+		with suppress(psutil.Error):
 			if child.pid not in keep and "wkhtmltopdf" in child.name():
 				child.kill()
-		except psutil.Error:
-			pass
 
 
 def _send(doc, retailer, pay_link: dict | None = None):
