@@ -10,6 +10,28 @@ from field_sales_woocommerce.permissions import clear_allowed_reps_cache, get_ow
 
 # What a rep earns and may give away: never set by the rep themselves (see _validate_not_own_terms).
 OWN_TERMS_FIELDS = ("commission_plan", "commission_active", "max_discount_pct")
+# The roles an existing user may hold when a manager (not a System Manager) makes them a rep.
+ADOPTABLE_ROLES = {"Field Sales Rep", "Sales Rep", "All", "Guest", "Desk User"}
+
+
+def check_adoptable_user(user: str) -> None:
+	"""
+	Linking a new Sales Rep to ``user`` changes that user's roles (``sync_sales_rep_roles``).
+	Outside a System Manager, the user may hold only a rep's roles: anyone else (another
+	manager, an accounts or HR user, a retailer login) would have their roles changed by
+	someone who does not manage them. ``create_sales_rep`` checks (or creates) the user before
+	it sets the roles, and marks it in ``frappe.flags.field_sales_checked_rep_user`` for this
+	request, so the insert that follows is not refused for the roles it has just given.
+	"""
+	if not user or is_admin() or user == frappe.flags.field_sales_checked_rep_user:
+		return
+	if user in ("Administrator", "Guest"):
+		frappe.throw(_("{0} cannot be a Sales Rep.").format(user), frappe.PermissionError)
+	if set(frappe.get_roles(user)) - ADOPTABLE_ROLES:
+		frappe.throw(
+			_("{0} already has other roles, so only a System Manager can make them a Sales Rep.").format(user),
+			frappe.PermissionError,
+		)
 
 
 def sync_sales_rep_roles(user_name: str, is_sales_manager: bool, is_sales_rep: bool) -> None:
@@ -64,6 +86,8 @@ class SalesRep(Document):
 			frappe.throw(_("Only a System Manager can change the user of a Sales Rep."), frappe.PermissionError)
 
 		self._validate_not_own_terms()
+		if self.is_new():
+			check_adoptable_user(self.user)
 
 		if self.is_new() and self.user and frappe.db.exists("User", self.user):
 			user_roles = set(frappe.get_roles(self.user))
