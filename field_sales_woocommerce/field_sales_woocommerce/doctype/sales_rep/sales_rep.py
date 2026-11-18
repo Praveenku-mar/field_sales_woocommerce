@@ -72,7 +72,6 @@ def sync_sales_rep_roles(user_name: str, is_sales_manager: bool, is_sales_rep: b
 				changed = True
 
 	if changed:
-		user_doc.flags.ignore_permissions = True
 		user_doc.save(ignore_permissions=True)
 
 
