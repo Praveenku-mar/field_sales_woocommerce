@@ -179,6 +179,30 @@ def retailer_query(user: str | None = None) -> str:
 	return ""
 
 
+def payment_transaction_query(user: str | None = None) -> str:
+	"""
+	Payment history of the orders in the user's hierarchy: rows linked by ``reference_order``,
+	and store checkout rows that only carry the store order id (``store_order_id``).
+	"""
+	user = user or frappe.session.user
+	if is_admin(user):
+		return ""
+	reps = get_allowed_reps(user)
+	if not reps:
+		return "1=0"
+	values = ", ".join(frappe.db.escape(rep) for rep in reps)
+	orders = f"select `name` from `tabField Order` where `sales_rep` in ({values})"
+	store_orders = (
+		f"select `external_order_id` from `tabField Order` where `sales_rep` in ({values})"
+		" and ifnull(`external_order_id`, '') != ''"
+	)
+	return (
+		f"(`tabPayment Transaction`.`reference_order` in ({orders})"
+		" or (ifnull(`tabPayment Transaction`.`reference_order`, '') = ''"
+		f" and `tabPayment Transaction`.`store_order_id` in ({store_orders})))"
+	)
+
+
 def hierarchy_filters(doctype: str, user: str | None = None) -> list:
 	"""
 	Filters limiting a list to the user's hierarchy, for doctypes whose read
@@ -238,6 +262,19 @@ def sales_rep_has_permission(doc, ptype: str | None = None, user: str | None = N
 	if ptype == "create" and doc.is_new():
 		return _rep_in_allowed(doc.reports_to, user)
 	return _rep_in_allowed(doc.name, user)
+
+
+def payment_transaction_has_permission(doc, ptype: str | None = None, user: str | None = None) -> bool:
+	"""A payment row belongs to its order's rep (``reference_order``, else the store order id)."""
+	user = user or frappe.session.user
+	if is_admin(user):
+		return True
+	order = doc.reference_order
+	if not order and doc.store_order_id:
+		order = frappe.db.get_value("Field Order", {"external_order_id": doc.store_order_id}, "name")
+	if not order:
+		return False
+	return _rep_in_allowed(frappe.db.get_value("Field Order", order, "sales_rep"), user)
 
 
 def _rep_in_allowed(rep: str | None, user: str | None) -> bool:
