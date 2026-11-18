@@ -130,6 +130,9 @@ class TestDraftLinker(IntegrationTestCase):
 			sync_orders.link_completed_drafts()
 
 		self.assertEqual(frappe.db.get_value("Field Order", self.good, "external_order_id"), "9002")
+		# The connector gets a record it can log against (Sync Log needs doctype and name).
+		passed = conn.set_order_metafields.call_args_list[-1].args[1]
+		self.assertEqual((passed.doctype, passed.name), ("Field Order", self.good))
 		rollback.assert_called_once()
 		logged = frappe.get_all(
 			"Error Log",
