@@ -319,7 +319,8 @@ def _archive(names: list[str]) -> int:
 
 def _hash(values: dict) -> str:
 	"""Stable md5 of the synced values, used to skip unchanged rows."""
-	return hashlib.md5(json.dumps(values, sort_keys=True, default=str).encode()).hexdigest()
+	# A change fingerprint, not security: usedforsecurity=False keeps the same digests.
+	return hashlib.md5(json.dumps(values, sort_keys=True, default=str).encode(), usedforsecurity=False).hexdigest()
 
 
 def _elapsed_ms(start: float) -> int:
