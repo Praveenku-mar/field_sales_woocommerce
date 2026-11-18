@@ -366,6 +366,9 @@ def link_completed_drafts():
 			order_id = completed.get(d.external_draft_id)
 			if not order_id:
 				continue
+			# The row stands in for the Field Order: the connector logs its call against
+			# ``doctype`` / ``name`` (a Sync Log needs both).
+			d.doctype = "Field Order"
 			# One draft's failure must not stop the rest: the next run would list the same draft
 			# first again (newest attempt first) and block every draft after it.
 			try:
