@@ -8,13 +8,18 @@ quantities and dates for reporting.
 Used by store privacy requests (``field_sales/shopify/privacy.py``) and by the daily
 ``anonymise_inactive_retailers()`` (Store Connection ``retailer_inactive_anonymise_days``).
 Writes go straight to the database: no controllers run, so nothing is pushed to the store.
-Edit history (Version) and emails (Communication) of anonymised records are deleted, since
-they hold the old values.
+
+Everything else that holds the old values goes too: edit history (Version), emails
+(Communication), comments and notes (Comment), bell notifications (Notification Log), the
+request and response bodies of their Sync Logs and the payloads of their Razorpay webhook
+events. The retailer's login user is disabled and anonymised in place: renamed to a
+``redacted-…`` address (links stay valid) with its personal fields blanked.
 """
 
 from __future__ import annotations
 
 import frappe
+from frappe.model.rename_doc import rename_doc
 from frappe.sessions import clear_sessions
 from frappe.utils import add_days, cint, now_datetime
 
@@ -22,10 +27,19 @@ from field_sales_woocommerce.field_sales_woocommerce.doctype.sync_log.sync_log i
 
 REDACTED = "Redacted"
 REDACTED_PHONE = "0000000000"  # Retailer.phone is mandatory and validated as a phone number
+REDACTED_EMAIL_DOMAIN = "redacted.invalid"
+# A retailer login holds only this role (plus Frappe's automatic ones); any other role is staff.
+RETAILER_LOGIN_ROLES = {"Field Sales Retailer", "All", "Guest"}
+# User fields that describe the person. Blanked when the login is anonymised.
+USER_PERSONAL_FIELDS = (
+	"middle_name", "last_name", "username", "user_image", "gender", "phone", "mobile_no",
+	"birth_date", "location", "interest", "bio",
+)  # fmt: skip
 
 
 def anonymise(retailers: list[str], orders: list[str]) -> dict:
 	"""Anonymise the given Retailers, their Visits and the given Field Orders."""
+	logins = []
 	for name in retailers:
 		# The login user holds the person's email and keeps working after the retailer
 		# is redacted: disable it and drop the link. Left enabled, an anonymised
@@ -34,6 +48,7 @@ def anonymise(retailers: list[str], orders: list[str]) -> dict:
 		if login and login not in ("Administrator", "Guest"):
 			frappe.db.set_value("User", login, "enabled", 0, update_modified=False)
 			clear_sessions(user=login, force=True)
+			logins.append(login)
 		frappe.db.set_value(
 			"Retailer",
 			name,
@@ -100,14 +115,58 @@ def anonymise(retailers: list[str], orders: list[str]) -> dict:
 			update_modified=False,
 		)
 
-	history = _delete_history("Retailer", retailers) + _delete_history("Visit", [v.name for v in visits])
-	history += _delete_history("Field Order", orders)
-	return {
+	records = {"Retailer": retailers, "Visit": [v.name for v in visits], "Field Order": orders}
+	result = {
 		"retailers": retailers,
 		"visits": len(visits),
 		"field_orders": len(orders),
-		"history_deleted": history,
+		"history_deleted": 0,
+		"comments_deleted": 0,
+		"notifications_deleted": 0,
+		"sync_log_bodies_cleared": 0,
+		"webhook_payloads_cleared": _clear_webhook_payloads(orders),
+		"users_anonymised": 0,
+		"users_not_renamed": 0,
 	}
+	for doctype, names in records.items():
+		result["history_deleted"] += _delete_history(doctype, names)
+		result["comments_deleted"] += _delete_comments(doctype, names)
+		result["notifications_deleted"] += _delete_notifications(doctype, names)
+		result["sync_log_bodies_cleared"] += _clear_sync_log_bodies(doctype, names)
+	for login in logins:
+		renamed = _anonymise_login(login)
+		if renamed is not None:
+			result["users_anonymised"] += 1
+			result["users_not_renamed"] += 0 if renamed else 1
+	return result
+
+
+def _anonymise_login(user: str) -> bool | None:
+	"""
+	Blank a retailer login's personal fields and rename it to a ``redacted-…`` address, so its
+	email is gone too (the User's name is the email). Renaming keeps every link valid, and
+	Frappe queues its own job that rewrites ``owner`` / ``modified_by`` columns to the new name.
+
+	:return: ``None`` when the user is not only a retailer login (staff are never touched),
+		``True`` when renamed, ``False`` when the rename was refused (e.g. Frappe is still
+		applying an earlier rename); the personal fields are blanked either way.
+	"""
+	if not frappe.db.exists("User", user) or set(frappe.get_roles(user)) - RETAILER_LOGIN_ROLES:
+		return None
+	frappe.db.set_value(
+		"User",
+		user,
+		{"first_name": REDACTED, "full_name": REDACTED, **dict.fromkeys(USER_PERSONAL_FIELDS)},
+		update_modified=False,
+	)
+	new_name = f"redacted-{frappe.generate_hash(length=12)}@{REDACTED_EMAIL_DOMAIN}"
+	try:
+		# The privacy job runs as whoever queued it (a webhook: Guest), so no permission check.
+		rename_doc("User", user, new_name, force=True, ignore_permissions=True, show_alert=False)
+	except frappe.ValidationError:
+		return False
+	frappe.db.set_value("User", new_name, "email", new_name, update_modified=False)
+	return True
 
 
 def _delete_history(doctype: str, names: list[str]) -> int:
@@ -123,6 +182,49 @@ def _delete_history(doctype: str, names: list[str]) -> int:
 		for name in frappe.get_all("Communication", filters=comm, pluck="name"):
 			frappe.delete_doc("Communication", name, ignore_permissions=True, force=True)
 			count += 1
+	return count
+
+
+def _delete_comments(doctype: str, names: list[str]) -> int:
+	"""Delete Comment rows (notes, the app's own messages) and the records' cached ``_comments``."""
+	count = 0
+	for chunk in _chunks(names, 500):
+		filters = {"reference_doctype": doctype, "reference_name": ("in", chunk)}
+		count += frappe.db.count("Comment", filters)
+		frappe.db.delete("Comment", filters)
+		table = frappe.qb.DocType(doctype)
+		frappe.qb.update(table).set(table._comments, None).where(table.name.isin(chunk)).run()
+	return count
+
+
+def _delete_notifications(doctype: str, names: list[str]) -> int:
+	"""Delete bell notifications about the records (their subjects name the retailer)."""
+	count = 0
+	for chunk in _chunks(names, 500):
+		filters = {"document_type": doctype, "document_name": ("in", chunk)}
+		count += frappe.db.count("Notification Log", filters)
+		frappe.db.delete("Notification Log", filters)
+	return count
+
+
+def _clear_sync_log_bodies(doctype: str, names: list[str]) -> int:
+	"""Blank the request and response bodies of the records' Sync Logs (customer and order pushes)."""
+	count = 0
+	log = frappe.qb.DocType("Sync Log")
+	for chunk in _chunks(names, 500):
+		where = (log.reference_doctype == doctype) & log.reference_name.isin(chunk)
+		count += frappe.db.count("Sync Log", {"reference_doctype": doctype, "reference_name": ("in", chunk)})
+		frappe.qb.update(log).set(log.request_payload, None).set(log.response_payload, None).where(where).run()
+	return count
+
+
+def _clear_webhook_payloads(orders: list[str]) -> int:
+	"""Blank the raw bodies of the orders' Razorpay webhook events (they hold the payer's contact)."""
+	count = 0
+	event = frappe.qb.DocType("Razorpay Webhook Event")
+	for chunk in _chunks(orders, 500):
+		count += frappe.db.count("Razorpay Webhook Event", {"reference_order": ("in", chunk)})
+		frappe.qb.update(event).set(event.payload, None).where(event.reference_order.isin(chunk)).run()
 	return count
 
 
