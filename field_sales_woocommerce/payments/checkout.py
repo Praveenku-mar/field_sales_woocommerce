@@ -77,33 +77,57 @@ class CheckoutError(Exception):
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 def ping() -> dict:
 	"""Whether the plugin can reach Agamsale, and how Razorpay is set up (no secrets)."""
-	return _endpoint(_ping)
+	# Guest by design (WordPress calls it server-to-server): the plugin's HMAC signature is the check.
+	signed = verify_plugin_signature()
+	return _endpoint(_ping, signed)
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 def test_razorpay() -> dict:
-	return _endpoint(_test_razorpay)
+	# Guest by design (WordPress calls it server-to-server): the plugin's HMAC signature is the check.
+	signed = verify_plugin_signature()
+	return _endpoint(_test_razorpay, signed)
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 def create_checkout_order() -> dict:
-	return _endpoint(_create_checkout_order, needs_razorpay=True)
+	# Guest by design (WordPress calls it server-to-server): the plugin's HMAC signature is the check.
+	signed = verify_plugin_signature()
+	return _endpoint(_create_checkout_order, signed, needs_razorpay=True)
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 def verify_checkout_payment() -> dict:
-	return _endpoint(_verify_checkout_payment, needs_razorpay=True)
+	# Guest by design (WordPress calls it server-to-server): the plugin's HMAC signature is the check.
+	signed = verify_plugin_signature()
+	return _endpoint(_verify_checkout_payment, signed, needs_razorpay=True)
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 def refund_checkout_payment() -> dict:
-	return _endpoint(_refund_checkout_payment, needs_razorpay=True)
+	# Guest by design (WordPress calls it server-to-server): the plugin's HMAC signature is the check.
+	signed = verify_plugin_signature()
+	return _endpoint(_refund_checkout_payment, signed, needs_razorpay=True)
 
 
-def _endpoint(handler, needs_razorpay: bool = False) -> dict:
-	"""Verify the plugin's signature, run ``handler(body)`` as Administrator, shape errors."""
+def verify_plugin_signature() -> dict | CheckoutError:
+	"""
+	Check the plugin's request signature (HMAC-SHA256 with the shared secret, timestamp within
+	5 minutes, single-use nonce). :return: the request's JSON body, or the refusal, which
+	``_endpoint`` turns into the plugin's error response.
+	"""
 	try:
-		body = _verified_body()
+		return _verified_body()
+	except CheckoutError as e:
+		return e
+
+
+def _endpoint(handler, signed: dict | CheckoutError, needs_razorpay: bool = False) -> dict:
+	"""Run ``handler(body)`` for a signed request as Administrator; refusals become error responses."""
+	try:
+		if isinstance(signed, CheckoutError):
+			raise signed
+		body = signed
 		if needs_razorpay and not cint(get_settings().enabled):
 			raise CheckoutError(409, "RAZORPAY_DISABLED", _("Razorpay is turned off in Agamsale"))
 		user = frappe.session.user

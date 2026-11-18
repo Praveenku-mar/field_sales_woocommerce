@@ -866,8 +866,16 @@ def get_order_detail(order_id: str) -> dict:
 	if not order_id:
 		frappe.throw(_("Order ID is required"), frappe.ValidationError)
 
-	doc = frappe.get_doc("Field Order", order_id)
-	doc.check_permission("read")
+	frappe.has_permission("Field Order", "read", order_id, throw=True)
+	doc = frappe.db.get_value("Field Order", order_id, ["name", "order_date", "retailer", "retailer_name", "sales_rep", "grand_total", "net_total", "tax_percent", "discount_percent", "tax_amount", "discount_amount", "docstatus", "sync_status", "sync_error", "store_order_name", "store_checkout_url", "payment_status", "manual_payment_method", "manual_payment_reference", "razorpay_payment_id", "amount_paid", "amount_refunded", "location_id", "visit", "remarks", "modified"], as_dict=True)
+	order_items = frappe.get_list(
+		"Field Order Item",
+		parent_doctype="Field Order",
+		filters={"parent": order_id, "parenttype": "Field Order"},
+		fields=["name", "product", "product_title", "variant_title", "sku", "qty", "rate", "amount", "available_qty"],
+		order_by="idx asc",
+		limit_page_length=0,
+	)
 
 	items = [
 		{
@@ -881,7 +889,7 @@ def get_order_detail(order_id: str) -> dict:
 			"amount": flt(item.amount),
 			"available_qty": flt(item.available_qty or 0.0),
 		}
-		for item in doc.items
+		for item in order_items
 	]
 
 	detail = {
@@ -907,7 +915,7 @@ def get_order_detail(order_id: str) -> dict:
 		"manual_payment_reference": doc.manual_payment_reference,
 		"can_mark_paid": bool(
 			not is_retailer_user()
-			and doc.has_permission("write")
+			and frappe.has_permission("Field Order", "write", order_id)
 			and doc.docstatus == 1
 			and flt(doc.grand_total) > 0
 			and doc.payment_status not in ("Paid", "Partially Paid", "Partially Refunded", "Refunded")
@@ -1012,8 +1020,8 @@ def get_visit_detail(visit_id: str) -> dict:
 	if not visit_id:
 		frappe.throw(_("Visit ID is required"), frappe.ValidationError)
 
-	doc = frappe.get_doc("Visit", visit_id)
-	doc.check_permission("read")
+	frappe.has_permission("Visit", "read", visit_id, throw=True)
+	doc = frappe.db.get_value("Visit", visit_id, ["name", "visit_date", "retailer", "retailer_name", "sales_rep", "sales_rep_name", "status", "check_in_time", "check_out_time", "time_on_site_min", "latitude", "longitude", "location_accuracy_m", "retailer_latitude", "retailer_longitude", "distance_from_retailer_m", "within_geofence", "notes", "no_order_reason", "no_order_remarks", "order_taken"], as_dict=True)
 
 	return {
 		"name": doc.name,

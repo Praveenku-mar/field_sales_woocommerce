@@ -259,15 +259,12 @@ def _upsert_page(
 		):
 			low_stock.append((row.name, values["available_qty"]))
 		if row:
-			doc = frappe.get_doc("Platform Product", row.name)
-			doc.update(values)
-			doc.save(ignore_permissions=True)
+			_update_product(row.name, values)
 			summary["updated"] += 1
 		else:
-			doc = frappe.get_doc({"doctype": "Platform Product", **values})
-			doc.insert(ignore_permissions=True)
-			seen.add(doc.name)
-			names[item["external_variant_id"]] = doc.name
+			name = _insert_product(values)
+			seen.add(name)
+			names[item["external_variant_id"]] = name
 			summary["created"] += 1
 
 	return names
@@ -324,6 +321,21 @@ def _archive(names: list[str]) -> int:
 			{"status": "Archived", "sync_hash": None, "last_synced": now_datetime()},
 		)
 	return len(names)
+
+
+def _update_product(name: str, values: dict) -> None:
+	"""Save the store's values onto an existing Platform Product (through its controller)."""
+	doc = frappe.get_doc("Platform Product", name)
+	doc.update(values)
+	doc.save(ignore_permissions=True)
+
+
+def _insert_product(values: dict) -> str:
+	"""Insert a Platform Product for a variant the store added; return its name."""
+	doc = frappe.new_doc("Platform Product")
+	doc.update(values)
+	doc.insert(ignore_permissions=True)
+	return doc.name
 
 
 def _hash(values: dict) -> str:

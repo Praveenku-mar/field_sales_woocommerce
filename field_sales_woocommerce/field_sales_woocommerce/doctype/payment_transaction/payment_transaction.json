@@ -9,7 +9,7 @@
  "module": "Field Sales Woocommerce",
  "name": "Payment Transaction",
  "owner": "Administrator",
- "modified": "2026-11-18 16:59:09.233868",
+ "modified": "2026-11-18 17:49:47.524751",
  "modified_by": "Administrator",
  "field_order": [
   "transaction_type",
@@ -72,6 +72,7 @@
   },
   {
    "fieldname": "currency",
+   "search_index": 1,
    "fieldtype": "Data",
    "label": "Currency",
    "read_only": 1

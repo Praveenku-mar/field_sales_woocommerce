@@ -340,8 +340,13 @@ def get_order_sync_info(field_order: str) -> dict:
 		they cannot be built.
 	"""
 	_check_access()
-	doc = frappe.get_doc("Field Order", field_order)
-	doc.check_permission("read")
+	frappe.has_permission("Field Order", "read", field_order, throw=True)
+	doc = frappe.db.get_value(
+		"Field Order",
+		field_order,
+		["external_order_id", "external_draft_id", "location_id", "location_name"],
+		as_dict=True,
+	)
 
 	location_id, location_name, order_mode = frappe.db.get_value(
 		"Store Connection", "Store Connection", ["default_location_id", "default_location_name", "order_mode"]

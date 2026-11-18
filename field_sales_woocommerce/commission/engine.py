@@ -533,6 +533,36 @@ class _Context:
 # ----------------------------------------------------------------------
 
 
+
+def load_plans(names) -> dict:
+	"""
+	Commission Plans by name, each with its ``rates`` and ``slabs`` rows, read in three queries
+	(one per table) instead of one document per plan. Plans that do not exist are left out.
+	"""
+	from frappe.model import no_value_fields, table_fields
+
+	names = [name for name in dict.fromkeys(names) if name]
+	if not names:
+		return {}
+	fields = ["name"] + [
+		df.fieldname
+		for df in frappe.get_meta("Commission Plan").fields
+		if df.fieldtype not in no_value_fields and df.fieldtype not in table_fields
+	]
+	plans = {p.name: p for p in frappe.get_all("Commission Plan", filters={"name": ("in", names)}, fields=fields)}
+	for plan in plans.values():
+		plan.rates, plan.slabs = [], []
+	for child, key in (("Commission Plan Rate", "rates"), ("Commission Plan Slab", "slabs")):
+		for row in frappe.get_all(
+			child,
+			filters={"parent": ("in", list(plans)), "parenttype": "Commission Plan"},
+			fields=["*"],
+			order_by="idx asc",
+		):
+			plans[row.parent][key].append(row)
+	return plans
+
+
 def resolve_rate(plan, product: str | None, collection: str | None, line: dict, month_to_date_base: float = 0) -> float:
 	"""
 	Base commission rate (%) of one line under ``plan``, before the discount penalty.
