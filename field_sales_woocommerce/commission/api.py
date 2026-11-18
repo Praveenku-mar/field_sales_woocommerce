@@ -275,15 +275,16 @@ def get_commission_plans() -> list[dict]:
 
 	used = {
 		row.commission_plan: row.total
-		for row in frappe.get_all(
+		for row in frappe.get_list(
 			"Sales Rep",
 			filters={"commission_plan": ("is", "set")},
 			fields=["commission_plan", {"COUNT": "*", "as": "total"}],
 			group_by="commission_plan",
+			limit_page_length=0,
 		)
 	}
 	plans = []
-	for name in frappe.get_all("Commission Plan", pluck="name", order_by="plan_name asc"):
+	for name in frappe.get_list("Commission Plan", pluck="name", order_by="plan_name asc", limit_page_length=0):
 		doc = frappe.get_doc("Commission Plan", name)
 		plans.append(_plan_dict(doc) | {"reps": used.get(name, 0)})
 	return plans
@@ -444,7 +445,10 @@ def generate_statements(month: str, sales_rep: str | None = None) -> dict:
 		reps = [sales_rep]
 	else:
 		reps = [
-			r for r in frappe.get_all("Sales Rep", filters={"commission_active": 1}, pluck="name", order_by="name")
+			r
+			for r in frappe.get_list(
+				"Sales Rep", filters={"commission_active": 1}, pluck="name", order_by="name", limit_page_length=0
+			)
 			if allowed is None or r in allowed
 		]
 

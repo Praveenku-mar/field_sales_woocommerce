@@ -360,11 +360,10 @@ def set_sales_rep_password(
 	For your own password the new ``{"api_key", "api_secret"}`` is returned so this device
 	stays signed in; otherwise ``None``.
 	"""
-	rep = frappe.get_doc("Sales Rep", sales_rep)
-	user = rep.user
+	user = _rep_user(sales_rep)
 
 	if user == frappe.session.user:
-		rep.check_permission("read")
+		frappe.has_permission("Sales Rep", "read", sales_rep, throw=True)
 		try:
 			check_password(user, old_password or "", delete_tracker_cache=False)
 		except frappe.AuthenticationError:
@@ -372,7 +371,7 @@ def set_sales_rep_password(
 		if old_password == new_password:
 			frappe.throw(_("The new password must be different from the current one"))
 	else:
-		rep.check_permission("write")
+		frappe.has_permission("Sales Rep", "write", sales_rep, throw=True)
 		if user in ("Administrator", "Guest"):
 			frappe.throw(_("The password of {0} cannot be changed here").format(user), frappe.PermissionError)
 		if not is_admin():
@@ -409,31 +408,45 @@ def send_sales_rep_password_reset(sales_rep: str, logout_all_sessions: int = 0) 
 		link; the reset itself happens in Frappe's ``update_password``, outside this app.
 	:return: ``{"email": user}``
 	"""
-	rep = frappe.get_doc("Sales Rep", sales_rep)
-	user = rep.user
+	user = _rep_user(sales_rep)
 	if not user:
 		frappe.throw(_("Sales Rep {0} has no user").format(sales_rep))
 	if user == frappe.session.user:
 		frappe.throw(_("Use Change Password for your own account"))
 
-	rep.check_permission("write")
+	frappe.has_permission("Sales Rep", "write", sales_rep, throw=True)
 	if user in ("Administrator", "Guest"):
 		frappe.throw(_("The password of {0} cannot be changed here").format(user), frappe.PermissionError)
 	_check_password_target(user)
 
-	user_doc = frappe.get_doc("User", user)
-	if not user_doc.enabled:
+	if not frappe.db.get_value("User", user, "enabled"):
 		frappe.throw(_("User {0} is disabled. Enable the user before sending a reset link.").format(user))
 	# The account Frappe will send through: enabled *and* default outgoing, or site config's mail_server.
 	if not EmailAccount.find_default_outgoing():
 		frappe.throw(_("Outgoing email is not set up. Add one under Settings > Outgoing Email."))
 
 	# Stores a hashed one-time key on the User and emails the link; the link is not kept here.
-	user_doc._reset_password(send_email=True)
+	frappe.get_doc("User", user)._reset_password(send_email=True)
 	if frappe.utils.cint(logout_all_sessions):
 		clear_sessions(user=user, force=True)
 		rotate_api_secret(user)
 	return {"email": user}
+
+
+def _retailer_user(retailer: str) -> str | None:
+	"""The login user of ``retailer``; a missing Retailer raises DoesNotExistError, as loading it would."""
+	values = frappe.db.get_value("Retailer", retailer, ["name", "user"], as_dict=True)
+	if not values:
+		frappe.throw(_("Customer {0} not found").format(retailer), frappe.DoesNotExistError)
+	return values.user
+
+
+def _rep_user(sales_rep: str) -> str | None:
+	"""The user of ``sales_rep``; a missing Sales Rep raises DoesNotExistError, as loading it would."""
+	values = frappe.db.get_value("Sales Rep", sales_rep, ["name", "user"], as_dict=True)
+	if not values:
+		frappe.throw(_("Sales Rep {0} not found").format(sales_rep), frappe.DoesNotExistError)
+	return values.user
 
 
 def _check_password_target(user: str) -> None:
@@ -467,9 +480,8 @@ def get_retailer_login(retailer: str) -> dict:
 	:return: ``{"user", "enabled"}`` with ``user=None`` when the retailer has no login.
 	"""
 	_check_login_manager()
-	doc = frappe.get_doc("Retailer", retailer)
-	doc.check_permission("read")
-	user = doc.user
+	frappe.has_permission("Retailer", "read", retailer, throw=True)
+	user = _retailer_user(retailer)
 	if not user:
 		return {"user": None, "enabled": None}
 	return {"user": user, "enabled": bool(frappe.db.get_value("User", user, "enabled"))}
@@ -628,22 +640,20 @@ def send_retailer_password_reset(retailer: str, logout_all_sessions: int = 0) ->
 	:return: ``{"email": user}``
 	"""
 	_check_login_manager()
-	doc = frappe.get_doc("Retailer", retailer)
-	doc.check_permission("write")
-	user = doc.user
+	frappe.has_permission("Retailer", "write", retailer, throw=True)
+	user = _retailer_user(retailer)
 	if not user:
 		frappe.throw(_("Customer {0} has no login").format(retailer))
 	_check_retailer_login_user(user)
 
-	user_doc = frappe.get_doc("User", user)
-	if not user_doc.enabled:
+	if not frappe.db.get_value("User", user, "enabled"):
 		frappe.throw(_("User {0} is disabled. Remove the login and invite again.").format(user))
 	# The account Frappe will send through: enabled *and* default outgoing, or site config's mail_server.
 	if not EmailAccount.find_default_outgoing():
 		frappe.throw(_("Outgoing email is not set up. Add one under Settings > Outgoing Email."))
 
 	# Stores a hashed one-time key on the User and emails the link; the link is not kept here.
-	user_doc._reset_password(send_email=True)
+	frappe.get_doc("User", user)._reset_password(send_email=True)
 	if frappe.utils.cint(logout_all_sessions):
 		clear_sessions(user=user, force=True)
 		rotate_api_secret(user)
@@ -916,19 +926,53 @@ def refresh_stock(field_order: str) -> list[dict]:
 	]
 
 
+RETRY_SYNC_MAX_ORDERS = 500
+
+
 @frappe.whitelist(methods=["POST"])
 def retry_sync(field_order: str) -> dict:
-
-	doc = frappe.get_doc("Field Order", field_order)
-	doc.check_permission("read")
-	if not _is_rep_or_their_manager(doc.sales_rep):
-		frappe.throw(_("Only the order's sales rep or their Sales Manager can retry the sync."), frappe.PermissionError)
-	if doc.docstatus != 1 or doc.sync_status != "Failed":
-		frappe.throw(_("Only a submitted Field Order whose sync failed can be retried"))
-
+	"""Queue another push of a submitted Field Order whose sync failed."""
+	_check_retry(field_order)
 	get_connector()  # fails fast if Store Connection is disabled
-	enqueue_push_order(doc.name)
+	enqueue_push_order(field_order)
 	return {"message": _("Sync to store queued")}
+
+
+@frappe.whitelist(methods=["POST"])
+def retry_sync_orders(field_orders: str | list) -> dict:
+	"""
+	Retry Sync for the orders selected in the list, in one call. Every order gets the checks of
+	``retry_sync``; if any fails them, nothing is queued.
+
+	:return: ``{"queued": int, "message": str}``
+	"""
+	frappe.has_permission("Field Order", "read", throw=True)
+	names = frappe.parse_json(field_orders) if isinstance(field_orders, str) else field_orders
+	if not isinstance(names, list) or not names:
+		frappe.throw(_("Select at least one Field Order"))
+	names = list(dict.fromkeys(str(name) for name in names))
+	if len(names) > RETRY_SYNC_MAX_ORDERS:
+		frappe.throw(_("Retry at most {0} orders at a time").format(RETRY_SYNC_MAX_ORDERS))
+	for name in names:
+		_check_retry(name)
+	get_connector()  # fails fast if Store Connection is disabled
+	for name in names:
+		enqueue_push_order(name)
+	return {"queued": len(names), "message": _("Retry queued for {0} order(s)").format(len(names))}
+
+
+def _check_retry(field_order: str) -> None:
+	"""The order exists, the user may read it, is its rep or their manager, and its sync failed."""
+	order = frappe.db.get_value(
+		"Field Order", field_order, ["name", "sales_rep", "docstatus", "sync_status"], as_dict=True
+	)
+	if not order:
+		frappe.throw(_("Field Order {0} not found").format(field_order), frappe.DoesNotExistError)
+	frappe.has_permission("Field Order", "read", field_order, throw=True)
+	if not _is_rep_or_their_manager(order.sales_rep):
+		frappe.throw(_("Only the order's sales rep or their Sales Manager can retry the sync."), frappe.PermissionError)
+	if order.docstatus != 1 or order.sync_status != "Failed":
+		frappe.throw(_("Only a submitted Field Order whose sync failed can be retried"))
 
 
 @frappe.whitelist()

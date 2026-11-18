@@ -99,6 +99,7 @@
   },
   {
    "fieldname": "retailer_name",
+   "search_index": 1,
    "fieldtype": "Data",
    "label": "Retailer Name",
    "fetch_from": "retailer.retailer_name",
@@ -267,6 +268,7 @@
   },
   {
    "fieldname": "external_draft_id",
+   "search_index": 1,
    "fieldtype": "Data",
    "label": "External Draft ID",
    "read_only": 1,
@@ -310,6 +312,7 @@
   },
   {
    "fieldname": "last_sync_attempt",
+   "search_index": 1,
    "fieldtype": "Datetime",
    "label": "Last Sync Attempt",
    "read_only": 1
@@ -509,7 +512,7 @@
  "is_submittable": 1,
  "issingle": 0,
  "links": [],
- "modified": "2026-11-18 13:01:08.745749",
+ "modified": "2026-11-18 16:59:09.233868",
  "modified_by": "Administrator",
  "module": "Field Sales Woocommerce",
  "name": "Field Order",

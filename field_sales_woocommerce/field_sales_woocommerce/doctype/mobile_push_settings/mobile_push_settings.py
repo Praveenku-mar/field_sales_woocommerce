@@ -107,11 +107,12 @@ def get_push_status() -> dict:
 def users_with_phones() -> list[dict]:
 	"""Users who have a phone registered for push: ``[{"user", "full_name", "phones"}]``, you first."""
 	frappe.only_for("System Manager")
-	rows = frappe.get_all(
+	rows = frappe.get_list(
 		"Mobile Device",
 		filters={"enabled": 1},
 		fields=["user", {"COUNT": "*", "as": "phones"}],
 		group_by="user",
+		limit_page_length=0,
 	)
 	result = [
 		{"user": r.user, "full_name": frappe.utils.get_fullname(r.user), "phones": r.phones} for r in rows

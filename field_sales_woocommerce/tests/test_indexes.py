@@ -15,6 +15,15 @@ EXPECTED = (
 	("Field Order", ("external_order_id",)),
 	("Retailer", ("external_customer_id",)),
 	("Payment Transaction", ("razorpay_refund_id",)),
+	("Product Stock", ("location_id",)),
+	("Field Order", ("retailer_name",)),
+	("Field Order", ("last_sync_attempt",)),
+	("Field Order", ("external_draft_id",)),
+	("Payment Transaction", ("status",)),
+	("Sales Rep", ("full_name",)),
+	("Commission Entry", ("posting_date",)),
+	("Commission Entry", ("earned_on",)),
+	("Retailer", ("retailer_name",)),
 )
 
 

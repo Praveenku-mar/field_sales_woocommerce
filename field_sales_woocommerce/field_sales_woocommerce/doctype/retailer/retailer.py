@@ -196,6 +196,7 @@ def get_default_country() -> str | None:
 	Country for a new retailer: the store's (Store Connection ``shop_country``), else
 	System Settings' country.
 	"""
+	frappe.has_permission("Retailer", "read", throw=True)
 	shop_country = (frappe.db.get_single_value("Store Connection", "shop_country") or "").strip()
 	if shop_country:
 		country = frappe.db.get_value("Country", {"code": shop_country.lower()}, "name")
@@ -207,5 +208,6 @@ def get_default_country() -> str | None:
 @frappe.whitelist(methods=["GET"])
 def get_phone_hint(country: str | None = None) -> dict:
 	"""``{"code", "example"}`` for the phone field's hint in the app (example mobile number)."""
+	frappe.has_permission("Retailer", "read", throw=True)
 	code = country_code_of(country)
 	return {"code": code, "example": example_number(code) if code else None}

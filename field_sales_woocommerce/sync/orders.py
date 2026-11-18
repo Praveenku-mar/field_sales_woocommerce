@@ -351,7 +351,8 @@ def link_completed_drafts():
 				"external_order_id": ("is", "not set"),
 				"last_sync_attempt": (">=", add_to_date(now_datetime(), days=-DRAFT_LINK_DAYS)),
 			},
-			fields=["name", "external_draft_id"],
+			# Everything the connector writes onto the store order, read once for the whole batch.
+			fields=["name", "external_draft_id", "sales_rep", "location_id", "location_name"],
 			order_by="last_sync_attempt desc",
 			limit=DRAFT_LINK_BATCH,
 		)
@@ -372,7 +373,7 @@ def link_completed_drafts():
 				# Logged by the connector; the order itself is linked either way.
 				with suppress(ConnectorError):
 					# Shopify does not copy a draft's fields to the order made from it.
-					conn.set_order_metafields(order_id, frappe.get_doc("Field Order", d.name))
+					conn.set_order_metafields(order_id, d)
 				enqueue_create_entries(d.name)
 				enqueue_order_confirmation(d.name)
 				log_sync(
