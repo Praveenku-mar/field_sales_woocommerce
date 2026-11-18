@@ -26,6 +26,7 @@ EXPECTED = (
 	("Retailer", ("retailer_name",)),
 	("Payment Transaction", ("currency",)),
 	("Platform Product", ("external_product_id",)),
+	("Field Order", ("payment_status",)),
 )
 
 

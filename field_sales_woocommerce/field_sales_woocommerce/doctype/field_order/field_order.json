@@ -341,6 +341,7 @@
   },
   {
    "fieldname": "payment_status",
+   "search_index": 1,
    "fieldtype": "Select",
    "label": "Payment Status",
    "options": "Unpaid\nLink Sent\nPartially Paid\nPaid\nLink Expired\nLink Cancelled\nPartially Refunded\nRefunded",
@@ -512,7 +513,7 @@
  "is_submittable": 1,
  "issingle": 0,
  "links": [],
- "modified": "2026-11-18 16:59:09.233868",
+ "modified": "2026-11-18 18:00:06.854803",
  "modified_by": "Administrator",
  "module": "Field Sales Woocommerce",
  "name": "Field Order",
