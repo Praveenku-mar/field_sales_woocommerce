@@ -933,6 +933,7 @@ RETRY_SYNC_MAX_ORDERS = 500
 def retry_sync(field_order: str) -> dict:
 	"""Queue another push of a submitted Field Order whose sync failed."""
 	_check_retry(field_order)
+	frappe.has_permission("Field Order", "read", field_order, throw=True)
 	get_connector()  # fails fast if Store Connection is disabled
 	enqueue_push_order(field_order)
 	return {"message": _("Sync to store queued")}
