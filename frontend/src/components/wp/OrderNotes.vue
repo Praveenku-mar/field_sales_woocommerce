@@ -75,6 +75,8 @@ const LIMIT = 8
 
 const timeline = createResource({
   url: 'field_sales_woocommerce.chatter.get_chatter',
+  // get_chatter accepts GET only; frappe-ui resources send POST unless told otherwise.
+  method: 'GET',
   makeParams: () => ({ doctype: props.doctype, name: props.name }),
   auto: true,
 })
