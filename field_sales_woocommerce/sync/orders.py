@@ -346,25 +346,31 @@ def link_completed_drafts():
 		order_id = completed.get(d.external_draft_id)
 		if not order_id:
 			continue
-		frappe.db.set_value("Field Order", d.name, "external_order_id", order_id, update_modified=False)
+		# One draft's failure must not stop the rest: the next run would list the same draft
+		# first again (newest attempt first) and block every draft after it.
 		try:
-			# Shopify does not copy a draft's fields to the order made from it.
-			conn.set_order_metafields(order_id, frappe.get_doc("Field Order", d.name))
-		except ConnectorError:
-			pass  # logged by the connector; the order itself is linked either way
-		enqueue_create_entries(d.name)
-		enqueue_order_confirmation(d.name)
-		log_sync(
-			platform=conn.settings.platform,
-			operation="Confirm Order",
-			reference_doctype="Field Order",
-			reference_name=d.name,
-			status="Success",
-			external_id=order_id,
-		)
-		notify_order_synced(d.name)
-		frappe.db.commit()
-		notify_sync_result("field_order_synced", "Field Order", d.name, "Synced")
+			frappe.db.set_value("Field Order", d.name, "external_order_id", order_id, update_modified=False)
+			try:
+				# Shopify does not copy a draft's fields to the order made from it.
+				conn.set_order_metafields(order_id, frappe.get_doc("Field Order", d.name))
+			except ConnectorError:
+				pass  # logged by the connector; the order itself is linked either way
+			enqueue_create_entries(d.name)
+			enqueue_order_confirmation(d.name)
+			log_sync(
+				platform=conn.settings.platform,
+				operation="Confirm Order",
+				reference_doctype="Field Order",
+				reference_name=d.name,
+				status="Success",
+				external_id=order_id,
+			)
+			notify_order_synced(d.name)
+			frappe.db.commit()
+			notify_sync_result("field_order_synced", "Field Order", d.name, "Synced")
+		except Exception:
+			frappe.db.rollback()
+			frappe.log_error(title=f"Linking completed draft failed: {d.name}")
 
 
 def _ensure_store_customer(retailer: str):

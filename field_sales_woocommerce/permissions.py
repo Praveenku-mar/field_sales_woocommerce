@@ -63,12 +63,6 @@ def get_own_rep(user: str | None = None) -> str | None:
 	return frappe.db.get_value("Sales Rep", {"user": user or frappe.session.user}, "name")
 
 
-def has_staff_role(user: str | None = None) -> bool:
-	"""Whether the user works the app (reps, managers, Administrator)."""
-	user = user or frappe.session.user
-	return user == "Administrator" or bool(STAFF_ROLES & set(frappe.get_roles(user)))
-
-
 def is_retailer_user(user: str | None = None) -> bool:
 	"""
 	A retailer login: holds the Field Sales Retailer role and no staff role.

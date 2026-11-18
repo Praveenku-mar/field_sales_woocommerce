@@ -241,6 +241,7 @@
   },
   {
    "fieldname": "external_customer_id",
+   "search_index": 1,
    "fieldtype": "Data",
    "label": "External Customer ID",
    "read_only": 1,
@@ -311,7 +312,7 @@
    "group": "Activity"
   }
  ],
- "modified": "2026-10-28 12:00:00.000000",
+ "modified": "2026-11-18 13:01:08.745749",
  "modified_by": "Administrator",
  "module": "Field Sales Woocommerce",
  "name": "Retailer",

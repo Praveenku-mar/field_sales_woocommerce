@@ -42,6 +42,9 @@ def get_my_commission_summary(period: str = "this_month") -> dict:
 		plan (sales still needed this month to reach the next slab) or ``None``;
 		``top_products`` are the 5 products with the most commission.
 	"""
+	from field_sales_woocommerce.frontend_api import _check_access
+
+	_check_access()
 	rep = get_own_rep()
 	if not rep:
 		return {"has_rep": False}
@@ -69,6 +72,9 @@ def get_team_commission(period: str = "this_month") -> list[dict]:
 		"reversed", "override", "net"}, ...]`` sorted by net, highest first. Every rep of the team is
 		listed, with zeros when they have no commission.
 	"""
+	from field_sales_woocommerce.frontend_api import _check_access
+
+	_check_access()
 	if is_admin():
 		reps = frappe.get_all("Sales Rep", pluck="name")
 	else:
@@ -107,6 +113,9 @@ def get_commission_entries(filters: dict | str | None = None, page: int = 1, pag
 	:param page_length: Rows per page (at most 2500).
 	:return: ``{"entries": [...], "page", "page_length", "total"}``
 	"""
+	from field_sales_woocommerce.frontend_api import _check_access
+
+	_check_access()
 	if isinstance(filters, str):
 		filters = json.loads(filters or "{}")
 	page = max(1, int(page))
@@ -154,6 +163,9 @@ def get_commission_statements(filters: dict | str | None = None, page: int = 1, 
 	:param page_length: Rows per page (at most 2500).
 	:return: ``{"statements": [...], "page", "page_length", "total"}``; each row has ``full_name`` of the rep.
 	"""
+	from field_sales_woocommerce.frontend_api import _check_access
+
+	_check_access()
 	if isinstance(filters, str):
 		filters = json.loads(filters or "{}")
 	page = max(1, int(page))

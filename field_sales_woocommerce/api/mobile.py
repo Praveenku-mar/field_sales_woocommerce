@@ -10,12 +10,11 @@ lazy-loaded detail endpoints, separate count queries, and debounced prefix searc
 import base64
 import json
 import re
-from urllib.parse import unquote
 
 import frappe
 from frappe import _
 from frappe.rate_limiter import rate_limit
-from frappe.utils import cint, flt, getdate, nowdate
+from frappe.utils import cint, flt, getdate
 
 from field_sales_woocommerce.commission import commission_enabled
 from field_sales_woocommerce.frontend_api import _check_access, get_attention_presets, get_card_presets
@@ -1074,7 +1073,9 @@ def get_product_sync_status() -> dict:
 	try:
 		is_running = bool(is_job_enqueued(JOB_ID))
 	except Exception:
-		pass
+		# Redis unreachable: report "not running" rather than fail the status card. Not logged:
+		# the screen polls this, so a Redis outage would flood the Error Log.
+		is_running = False
 
 	log = frappe.db.get_value(
 		"Sync Log",
@@ -1088,8 +1089,8 @@ def get_product_sync_status() -> dict:
 	if log and log.get("response_payload"):
 		try:
 			summary = json.loads(log["response_payload"])
-		except Exception:
-			pass
+		except (TypeError, ValueError):
+			summary = {}  # an older or truncated log body: show no counts
 
 	return {
 		"is_running": is_running,

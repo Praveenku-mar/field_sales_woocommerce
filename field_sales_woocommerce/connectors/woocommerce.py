@@ -35,7 +35,6 @@ from field_sales_woocommerce.connectors.base import (
 	ORDER_PAID_TOPIC,
 	PRODUCT_DELETE_TOPIC,
 	PRODUCT_UPDATE_TOPIC,
-	STOCK_TOPIC,
 	BaseConnector,
 	ConnectorError,
 )

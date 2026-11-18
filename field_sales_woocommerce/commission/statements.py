@@ -254,9 +254,20 @@ def _apply_slabs(rep_orders: list, sales_rep: str) -> float:
 
 	:return: Sales-weighted rate applied (0 if the statement has no slab entries).
 	"""
+	# Each plan's rule type, read once (not once per entry).
+	plans = list({e.commission_plan for e in rep_orders if e.commission_plan})
+	rule_types = (
+		dict(
+			frappe.get_all(
+				"Commission Plan", filters={"name": ("in", plans)}, fields=["name", "rule_type"], as_list=True
+			)
+		)
+		if plans
+		else {}
+	)
 	by_plan: dict[str, list] = {}
 	for e in rep_orders:
-		if e.commission_plan and frappe.db.get_value("Commission Plan", e.commission_plan, "rule_type") == "Tiered Slab":
+		if e.commission_plan and rule_types.get(e.commission_plan) == "Tiered Slab":
 			by_plan.setdefault(e.commission_plan, []).append(e)
 	if not by_plan:
 		return 0
