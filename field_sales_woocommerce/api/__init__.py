@@ -979,8 +979,8 @@ def _check_retry(field_order: str) -> None:
 @frappe.whitelist()
 def get_store_order_url(field_order: str) -> str | None:
 	"""Admin URL of the synced order (or its draft) on the store, for "Open in Store"."""
-	doc = frappe.get_doc("Field Order", field_order)
-	doc.check_permission("read")
+	frappe.has_permission("Field Order", "read", field_order, throw=True)
+	doc = frappe.db.get_value("Field Order", field_order, ["external_order_id", "external_draft_id"], as_dict=True)
 	if not (doc.external_order_id or doc.external_draft_id):
 		return None
 	return get_connector().get_order_url(doc.external_order_id, doc.external_draft_id)

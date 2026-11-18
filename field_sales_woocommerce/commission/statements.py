@@ -19,7 +19,7 @@ from frappe import _
 from frappe.utils import add_days, cint, flt, get_first_day, getdate, nowdate
 
 from field_sales_woocommerce.commission import commission_enabled, require_commission_enabled
-from field_sales_woocommerce.commission.engine import penalty_multiplier, slab_rate
+from field_sales_woocommerce.commission.engine import load_plans, penalty_multiplier, slab_rate
 from field_sales_woocommerce.push.events import notify_statement
 from field_sales_woocommerce.permissions import get_own_rep, is_admin
 from field_sales_woocommerce.utils.db import safe_commit
@@ -285,8 +285,9 @@ def _apply_slabs(rep_orders: list, sales_rep: str) -> float:
 	amount_precision = cint(frappe.get_precision("Commission Entry", "amount"))
 	weighted = base_total = 0.0
 
+	plans = load_plans(by_plan)
 	for plan_name, group in by_plan.items():
-		plan = frappe.get_doc("Commission Plan", plan_name)
+		plan = plans[plan_name]
 		total = sum(flt(e.base_amount) for e in group)
 		if plan.slab_mode == "Marginal":
 			rate = marginal_commission(plan, total) / total * 100 if total else 0

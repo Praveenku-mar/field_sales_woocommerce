@@ -167,6 +167,7 @@
   },
   {
    "fieldname": "external_product_id",
+   "search_index": 1,
    "fieldtype": "Data",
    "label": "External Product ID",
    "reqd": 1,
@@ -208,7 +209,7 @@
  "in_create": 0,
  "issingle": 0,
  "links": [],
- "modified": "2026-10-14 10:00:00.000000",
+ "modified": "2026-11-18 17:49:47.524751",
  "modified_by": "Administrator",
  "module": "Field Sales Woocommerce",
  "name": "Platform Product",

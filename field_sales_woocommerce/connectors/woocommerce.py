@@ -24,6 +24,8 @@ import hmac
 import re
 import time
 from typing import TYPE_CHECKING
+from contextlib import suppress
+
 import frappe
 import requests
 from frappe import _
@@ -503,7 +505,7 @@ class WooCommerceConnector(BaseConnector):
 
 		# The note is a record only: the order is already marked, so a failure here (logged by
 		# _request) must not make the job report the payment as not reaching the store.
-		try:
+		with suppress(ConnectorError):
 			self._request(
 				"POST",
 				f"/orders/{order_id}/notes",
@@ -511,8 +513,6 @@ class WooCommerceConnector(BaseConnector):
 				json_body={"note": payment["note"], "customer_note": False},
 				ref=field_order,
 			)
-		except ConnectorError:
-			pass
 
 		return {"financial_status": "paid" if order.get("date_paid") or already_paid else "pending", "already_paid": already_paid}
 
@@ -547,15 +547,13 @@ class WooCommerceConnector(BaseConnector):
 		if payment_id:
 			body["transaction_id"] = payment_id
 		order = self._request("PUT", f"/orders/{order_id}", operation="Mark Order Paid", json_body=body)
-		try:
+		with suppress(ConnectorError):
 			self._request(
 				"POST",
 				f"/orders/{order_id}/notes",
 				operation="Mark Order Paid",
 				json_body={"note": _("Razorpay payment {0} confirmed by Agamsale (webhook).").format(payment_id or ""), "customer_note": False},
 			)
-		except ConnectorError:
-			pass
 		return {"already_paid": False, "status": order.get("status")}
 
 	def get_order(self, external_id: str) -> dict:

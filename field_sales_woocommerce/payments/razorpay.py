@@ -689,10 +689,7 @@ def reconcile_open_links() -> None:
 		settings = get_settings()
 		for name in names:
 			try:
-				doc = frappe.get_doc("Field Order", name, for_update=True)
-				if doc.payment_status == "Link Sent" and doc.razorpay_payment_link_id:
-					link = fetch_payment_link(doc.razorpay_payment_link_id, settings=settings)
-					_apply_link_state(doc, link, _latest_payment(link))
+				_reconcile_link(name, settings)
 				safe_commit()
 			except Exception:
 				frappe.db.rollback()
@@ -704,6 +701,14 @@ def reconcile_open_links() -> None:
 		safe_commit()
 		raise
 
+
+
+def _reconcile_link(name: str, settings) -> None:
+	"""Re-read one order's Link Sent payment link from Razorpay and apply its state (row locked)."""
+	doc = frappe.get_doc("Field Order", name, for_update=True)
+	if doc.payment_status == "Link Sent" and doc.razorpay_payment_link_id:
+		link = fetch_payment_link(doc.razorpay_payment_link_id, settings=settings)
+		_apply_link_state(doc, link, _latest_payment(link))
 
 
 def _apply_link_state(doc, link_entity: dict, payment_entity: dict | None = None) -> bool:

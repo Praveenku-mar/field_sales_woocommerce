@@ -24,6 +24,8 @@ EXPECTED = (
 	("Commission Entry", ("posting_date",)),
 	("Commission Entry", ("earned_on",)),
 	("Retailer", ("retailer_name",)),
+	("Payment Transaction", ("currency",)),
+	("Platform Product", ("external_product_id",)),
 )
 
 

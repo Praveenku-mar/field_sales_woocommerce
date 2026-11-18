@@ -14,6 +14,7 @@ logs, anonymising inactive retailers. Review that here first.
 
 import importlib
 
+import click
 import frappe
 from frappe.utils import add_days, add_to_date, cint, now_datetime, nowdate
 from frappe.utils.scheduler import is_scheduler_disabled
@@ -159,4 +160,5 @@ def _print(out: frappe._dict):
 		f"Commission on: {out.commission_enabled}; reps with commission: {out.commission_active_reps} (Draft statements on the 1st)",
 		f"Razorpay on: {out.razorpay_enabled}; links re-checked hourly: {out.payment_links_to_recheck}",
 	]
-	print("\n".join(lines))
+	# A bench command: its report goes to the terminal.
+	click.echo("\n".join(lines))

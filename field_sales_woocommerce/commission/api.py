@@ -16,6 +16,7 @@ from frappe import _
 from frappe.utils import add_months, cint, flt, get_first_day, get_last_day, getdate, nowdate
 
 from field_sales_woocommerce.commission import require_commission_enabled
+from field_sales_woocommerce.commission.engine import load_plans
 from field_sales_woocommerce.commission.statements import (
 	MANAGER_ROLES,
 	_open_entries,
@@ -283,11 +284,9 @@ def get_commission_plans() -> list[dict]:
 			limit_page_length=0,
 		)
 	}
-	plans = []
-	for name in frappe.get_list("Commission Plan", pluck="name", order_by="plan_name asc", limit_page_length=0):
-		doc = frappe.get_doc("Commission Plan", name)
-		plans.append(_plan_dict(doc) | {"reps": used.get(name, 0)})
-	return plans
+	names = frappe.get_list("Commission Plan", pluck="name", order_by="plan_name asc", limit_page_length=0)
+	plans = load_plans(names)
+	return [_plan_dict(plans[name]) | {"reps": used.get(name, 0)} for name in names if name in plans]
 
 
 @frappe.whitelist(methods=["POST"])
@@ -602,8 +601,12 @@ def _next_slab_gap(rep: str) -> dict | None:
 	)
 	sales = flt(rows[0].total) if rows else 0
 
-	plan = frappe.get_doc("Commission Plan", plan_name)
-	for slab in sorted(plan.slabs, key=lambda s: flt(s.from_amount)):
+	slabs = frappe.get_all(
+		"Commission Plan Slab",
+		filters={"parent": plan_name, "parenttype": "Commission Plan"},
+		fields=["from_amount", "rate"],
+	)
+	for slab in sorted(slabs, key=lambda s: flt(s.from_amount)):
 		if flt(slab.from_amount) > sales:
 			return {"amount": flt(flt(slab.from_amount) - sales, 2), "rate": flt(slab.rate)}
 	return None
