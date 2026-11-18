@@ -244,3 +244,36 @@ def _rep_in_allowed(rep: str | None, user: str | None) -> bool:
 	if is_admin(user):
 		return True
 	return bool(rep) and rep in get_allowed_reps(user)
+
+
+# ----------------------------------------------------------------------
+# validate: who a saved record belonged to
+# ----------------------------------------------------------------------
+
+
+def check_owner_change(doc, method: str | None = None) -> None:
+	"""
+	``validate`` hook (hooks.doc_events): a saved record may move to another Sales Rep only
+	when the user may already edit it, i.e. its stored rep is in their hierarchy.
+
+	The ``has_permission`` hooks above see the record as sent, with the new rep. REST PUT
+	checks the stored record first, but ``frappe.client.save`` and the desk's ``savedocs``
+	build the document from the request, so without this check a user could take another
+	team's record by saving it with their own rep. Server code that saves with
+	``ignore_permissions`` and admins are not limited. A record with no stored rep may still
+	be claimed (the ``has_permission`` hooks decide who).
+	"""
+	if doc.is_new() or doc.flags.ignore_permissions or is_admin():
+		return
+	field = REP_FIELD.get(doc.doctype)
+	if not field or field == "name":
+		return
+	before = doc.get_doc_before_save()
+	stored = before.get(field) if before else None
+	if stored and stored != doc.get(field) and stored not in get_allowed_reps():
+		frappe.throw(
+			frappe._("{0} {1} belongs to another team. Only its own team can assign it to someone else.").format(
+				frappe._(doc.doctype), doc.name
+			),
+			frappe.PermissionError,
+		)
