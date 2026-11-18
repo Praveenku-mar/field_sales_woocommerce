@@ -19,7 +19,7 @@ from frappe.utils.password import check_password
 
 from field_sales_woocommerce.connectors import ConnectorError, get_connector
 from field_sales_woocommerce.field_sales_woocommerce.doctype.visit.visit import get_geofence_radius
-from field_sales_woocommerce.field_sales_woocommerce.doctype.sales_rep.sales_rep import sync_sales_rep_roles
+from field_sales_woocommerce.field_sales_woocommerce.doctype.sales_rep.sales_rep import check_adoptable_user, sync_sales_rep_roles
 from field_sales_woocommerce.permissions import (
 	RETAILER_ROLE,
 	STAFF_ROLES,
@@ -332,15 +332,12 @@ def create_sales_rep(
 		new_user.insert(ignore_permissions=True)
 		user_created = True
 	else:
-		# An existing user becomes a rep: never a System Manager or a retailer login (their
-		# roles would be widened by a manager), unless a System Manager does it.
-		held = set(frappe.get_roles(user))
-		if not is_admin() and ({"System Manager", RETAILER_ROLE} & held or user in ("Administrator", "Guest")):
-			frappe.throw(
-				_("{0} cannot be made a Sales Rep here. Ask a System Manager.").format(user),
-				frappe.PermissionError,
-			)
+		# An existing user's roles change below: outside a System Manager, only a user who
+		# holds nothing beyond a rep's roles.
+		check_adoptable_user(user)
 		sync_sales_rep_roles(user, is_mgr, is_rep)
+	# Checked (or created) above, before its roles were set: SalesRep.validate lets it through.
+	frappe.flags.field_sales_checked_rep_user = user
 
 	rep.insert()
 	return {"name": rep.name, "user_created": user_created}
