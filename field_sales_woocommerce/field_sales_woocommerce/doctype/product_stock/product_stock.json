@@ -26,6 +26,7 @@
   },
   {
    "fieldname": "location_id",
+   "search_index": 1,
    "fieldtype": "Data",
    "label": "Location ID",
    "reqd": 1,
@@ -58,7 +59,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-11-18 13:02:15.821964",
+ "modified": "2026-11-18 16:59:09.233868",
  "modified_by": "Administrator",
  "module": "Field Sales Woocommerce",
  "name": "Product Stock",

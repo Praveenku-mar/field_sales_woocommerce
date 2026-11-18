@@ -36,6 +36,7 @@
   },
   {
    "fieldname": "full_name",
+   "search_index": 1,
    "fieldtype": "Data",
    "label": "Full Name",
    "fetch_from": "user.full_name",
@@ -135,7 +136,7 @@
  "in_create": 0,
  "issingle": 0,
  "links": [],
- "modified": "2026-11-11 15:00:00.000000",
+ "modified": "2026-11-18 16:59:09.233868",
  "modified_by": "Administrator",
  "module": "Field Sales Woocommerce",
  "name": "Sales Rep",

@@ -13,14 +13,16 @@ frappe.listview_settings["Field Order"] = {
 				frappe.msgprint(__("Select submitted orders whose sync failed."));
 				return;
 			}
-			Promise.all(
-				failed.map((doc) =>
-					frappe.call({ method: "field_sales_woocommerce.api.retry_sync", args: { field_order: doc.name } })
-				)
-			).then(() => {
-				frappe.show_alert({ message: __("Retry queued for {0} order(s)", [failed.length]), indicator: "blue" });
-				listview.refresh();
-			});
+			// One call for the whole selection; the server checks every order before queuing any.
+			frappe
+				.call({
+					method: "field_sales_woocommerce.api.retry_sync_orders",
+					args: { field_orders: failed.map((doc) => doc.name) },
+				})
+				.then((r) => {
+					frappe.show_alert({ message: r.message.message, indicator: "blue" });
+					listview.refresh();
+				});
 		});
 	},
 

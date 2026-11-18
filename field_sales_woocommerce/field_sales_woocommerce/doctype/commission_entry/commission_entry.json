@@ -105,6 +105,7 @@
   },
   {
    "fieldname": "posting_date",
+   "search_index": 1,
    "fieldtype": "Date",
    "label": "Posting Date",
    "reqd": 1,
@@ -113,6 +114,7 @@
   },
   {
    "fieldname": "earned_on",
+   "search_index": 1,
    "fieldtype": "Date",
    "label": "Earned On",
    "read_only": 1,
@@ -271,7 +273,7 @@
   }
  ],
  "links": [],
- "modified": "2026-10-15 10:00:00.000000",
+ "modified": "2026-11-18 16:59:09.233868",
  "modified_by": "Administrator",
  "module": "Field Sales Woocommerce",
  "name": "Commission Entry",

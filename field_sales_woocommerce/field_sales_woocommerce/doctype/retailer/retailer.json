@@ -68,6 +68,7 @@
   },
   {
    "fieldname": "retailer_name",
+   "search_index": 1,
    "fieldtype": "Data",
    "label": "Retailer Name",
    "reqd": 1,
@@ -312,7 +313,7 @@
    "group": "Activity"
   }
  ],
- "modified": "2026-11-18 13:01:08.745749",
+ "modified": "2026-11-18 16:59:09.233868",
  "modified_by": "Administrator",
  "module": "Field Sales Woocommerce",
  "name": "Retailer",
