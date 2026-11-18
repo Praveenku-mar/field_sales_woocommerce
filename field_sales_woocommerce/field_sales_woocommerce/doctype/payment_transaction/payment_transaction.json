@@ -9,7 +9,7 @@
  "module": "Field Sales Woocommerce",
  "name": "Payment Transaction",
  "owner": "Administrator",
- "modified": "2026-11-16 15:00:00.000000",
+ "modified": "2026-11-18 13:01:08.745749",
  "modified_by": "Administrator",
  "field_order": [
   "transaction_type",
@@ -145,6 +145,7 @@
   },
   {
    "fieldname": "razorpay_refund_id",
+   "search_index": 1,
    "fieldtype": "Data",
    "label": "Refund ID",
    "read_only": 1
