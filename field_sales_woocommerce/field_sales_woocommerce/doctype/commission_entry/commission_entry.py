@@ -24,10 +24,24 @@ class CommissionEntry(Document):
 	"""
 
 	def validate(self):
+		self._validate_order_entry_origin()
 		self._validate_adjustment()
 		self._validate_manual_edit()
 		self._validate_statement_lock()
 		self._set_dedupe_key()
+
+	def _validate_order_entry_origin(self):
+		"""
+		Order entries are what the store says was earned: only the engine creates them. A hand-made
+		one (Desk or REST, by anyone) would pay like store-earned commission with no order behind
+		it and no reason, and its base amount would lift the rep's slab for every real order (review
+		finding F9). Money added by hand is an Adjustment, which needs a reason.
+		"""
+		if self.is_new() and self.entry_type == "Order" and not self.flags.from_engine:
+			frappe.throw(
+				_("Order commission entries are created from store orders only. Add an Adjustment instead."),
+				frappe.PermissionError,
+			)
 
 	def _validate_adjustment(self):
 		if self.entry_type != "Adjustment":

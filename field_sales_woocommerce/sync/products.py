@@ -14,7 +14,7 @@ import time
 
 import frappe
 from frappe import _
-from frappe.utils import add_to_date, get_datetime, now_datetime
+from frappe.utils import add_to_date, flt, get_datetime, now_datetime
 
 from field_sales_woocommerce.connectors import get_connector
 from field_sales_woocommerce.field_sales_woocommerce.doctype.sync_log.sync_log import log_sync
@@ -242,14 +242,6 @@ def _upsert_page(
 		sync_hash = _hash(values)
 
 		row = existing.get(item["external_variant_id"])
-		if row:
-			seen.add(row.name)
-			names[item["external_variant_id"]] = row.name
-			if row.sync_hash == sync_hash:
-				summary["unchanged"] += 1
-				continue
-
-		values.update(sync_hash=sync_hash, last_synced=now)
 		if (
 			row is not None
 			and low_stock is not None
@@ -258,6 +250,24 @@ def _upsert_page(
 			and crossed_low_stock(row.available_qty, values["available_qty"])
 		):
 			low_stock.append((row.name, values["available_qty"]))
+		if row:
+			seen.add(row.name)
+			names[item["external_variant_id"]] = row.name
+			if row.sync_hash == sync_hash:
+				# Webhooks and live checks write available_qty without the hash, so a product can match
+				# its last sync while its stored figure has moved on (review finding F7): put the
+				# store's figure back, or lists and filters keep the stale one.
+				if flt(row.available_qty) != flt(values["available_qty"]):
+					frappe.db.set_value(
+						"Platform Product",
+						row.name,
+						{"available_qty": values["available_qty"], "stock_updated_at": now},
+						update_modified=False,
+					)
+				summary["unchanged"] += 1
+				continue
+
+		values.update(sync_hash=sync_hash, last_synced=now)
 		if row:
 			_update_product(row.name, values)
 			summary["updated"] += 1

@@ -36,16 +36,17 @@
 import { reactive, ref } from 'vue'
 import { Button, Dialog, FormControl, createResource, toast } from 'frappe-ui'
 import LinkField from '@/components/LinkField.vue'
-import { plural } from '@/utils/format'
+import { plural, siteNow } from '@/utils/format'
 
 /** Manager-only: draft the statements of a month now. Emits `generated` with the result. */
 const emit = defineEmits(['generated'])
 const open = defineModel({ type: Boolean, default: false })
 
 // The last 12 months, newest first, from last month (the usual one to generate).
+// Counted from the site's current month (statement periods are site dates).
+const siteMonth = siteNow()
 const months = Array.from({ length: 12 }, (_, i) => {
-  const d = new Date()
-  d.setDate(1)
+  const d = new Date(siteMonth.year, siteMonth.month - 1, 1)
   d.setMonth(d.getMonth() - 1 - i)
   return {
     label: d.toLocaleDateString(undefined, { month: 'long', year: 'numeric' }),

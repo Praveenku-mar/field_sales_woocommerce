@@ -413,6 +413,17 @@ class _Context:
 			if statements
 			else []
 		)
+		# What each approved statement paid for its entries (amount, reversed), frozen at approval: losses
+		# after that are measured against it, not against the entry, which may have been changed in
+		# place while the statement was still a Draft (review finding F8).
+		frozen = {
+			row.commission_entry: row
+			for row in frappe.get_all(
+				"Commission Statement Entry",
+				filters={"parent": ("in", list(locked_statements)), "parenttype": "Commission Statement"},
+				fields=["commission_entry", "amount", "reversed_amount"],
+			)
+		} if locked_statements else {}
 		adjusted_so_far = defaultdict(float)
 		for adj in frappe.get_all(
 			"Commission Entry",
@@ -427,7 +438,7 @@ class _Context:
 		for e in entries:
 			fraction = self._entry_fraction(e, order_fraction)
 			if e.commission_statement in locked_statements:
-				adjusted += self._adjust_locked(e, fraction, adjusted_so_far[e.name])
+				adjusted += self._adjust_locked(e, fraction, adjusted_so_far[e.name], frozen.get(e.name))
 			else:
 				updated += self._update_open(e, fraction)
 		return updated, adjusted
@@ -485,20 +496,25 @@ class _Context:
 		doc.save(ignore_permissions=True)
 		return 1
 
-	def _adjust_locked(self, entry, fraction: float, already_adjusted: float) -> int:
+	def _adjust_locked(self, entry, fraction: float, already_adjusted: float, paid=None) -> int:
 		"""
-		Book the difference between what the store says is lost and what the frozen entry
+		Book the difference between what the store says is lost and what the approved statement
 		plus earlier Adjustments already cover, as a new negative Adjustment; 1 if one was made.
+
+		:param paid: The entry's row on its approved statement (``amount``, ``reversed_amount``), i.e.
+			what was paid; the entry's own values when there is none.
 		"""
+		amount = flt(paid.amount if paid else entry.amount)
 		if self.order.get("cancelled"):
-			lost = flt(entry.amount)
+			lost = amount
 			reason = _("Order {0} was cancelled on the store.").format(self.external_id)
 		else:
-			lost = self.money(flt(entry.amount) * fraction)
+			lost = self.money(amount * fraction)
 			reason = _("Refund on order {0}: {1}% of the line returned.").format(self.external_id, flt(fraction * 100, 2))
 
-		# The frozen entry's own reversed_amount is already on its statement.
-		wanted = -self.money(max(0, lost - flt(entry.reversed_amount)))
+		# The reversal already deducted on the statement.
+		deducted = flt(paid.reversed_amount if paid else entry.reversed_amount)
+		wanted = -self.money(max(0, lost - deducted))
 		difference = self.money(wanted - already_adjusted)
 		if not difference:
 			return 0

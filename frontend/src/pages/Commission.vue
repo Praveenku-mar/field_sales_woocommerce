@@ -190,7 +190,7 @@ import CommissionAdjustmentDialog from '@/components/CommissionAdjustmentDialog.
 import GenerateStatementsDialog from '@/components/GenerateStatementsDialog.vue'
 import { useSessionStore } from '@/stores/session'
 import { callMethod } from '@/utils/api'
-import { formatCurrency, formatDate, formatNumber } from '@/utils/format'
+import { formatCurrency, formatDate, formatNumber, siteNow } from '@/utils/format'
 
 const PERIODS = [
   { label: 'This month', value: 'this_month' },
@@ -328,9 +328,10 @@ async function loadEntries(reset = true) {
 
 // Entries filter on posting date; the summary uses earned dates, so totals can differ slightly.
 function periodFilter() {
-  const now = new Date()
-  const y = now.getFullYear()
-  const m = now.getMonth()
+  // This month on the site's clock (posting dates are site dates), not the browser's.
+  const now = siteNow()
+  const y = now.year
+  const m = now.month - 1
   const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
   const range = {
     this_month: [new Date(y, m, 1), new Date(y, m + 1, 0)],

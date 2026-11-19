@@ -244,6 +244,48 @@ def _fill(doc) -> None:
 		)
 
 
+def check_statement_current(doc) -> None:
+	"""
+	Refuse to approve a Draft statement whose entries changed since it was built.
+
+	The engine changes entries on a Draft statement in place (a refund sets ``reversed_amount``,
+	a cancellation the status), but the statement's totals only move on Regenerate. Approving the
+	stored totals would pay out a refund that arrived in between, and once approved the entry is
+	frozen with the refund already on it, so no Adjustment would follow (review finding F8).
+
+	Rebuilds the statement as Regenerate would, inside a savepoint that is rolled back, and compares.
+	"""
+	savepoint = "commission_statement_current"
+	frappe.db.savepoint(savepoint)
+	try:
+		frappe.db.set_value(
+			"Commission Entry", {"commission_statement": doc.name}, "commission_statement", None, update_modified=False
+		)
+		fresh = frappe.new_doc("Commission Statement")
+		fresh.update({"sales_rep": doc.sales_rep, "period_start": doc.period_start, "period_end": doc.period_end})
+		_fill(fresh)
+	finally:
+		frappe.db.rollback(save_point=savepoint)
+
+	if _summary(fresh) != _summary(doc):
+		frappe.throw(
+			_(
+				"Commission Statement {0} is out of date: its entries changed after it was built (a refund, "
+				"cancellation or new earning). Regenerate it, check the amounts, then approve."
+			).format(doc.name),
+			title=_("Statement out of date"),
+		)
+
+
+def _summary(doc) -> tuple:
+	"""What approval pays: the totals and each entry's net amount."""
+	money = lambda value: flt(value, 2)  # noqa: E731
+	return (
+		tuple(money(doc.get(f)) for f in ("gross_commission", "reversals", "override_commission", "net_payable")),
+		tuple(sorted((row.commission_entry, money(row.net_amount)) for row in doc.get("entries") or [])),
+	)
+
+
 def _link_entries(doc) -> None:
 	names = [row.commission_entry for row in doc.entries]
 	if names:

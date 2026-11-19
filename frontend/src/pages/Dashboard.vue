@@ -376,6 +376,7 @@ const PERIODS = [
   { label: 'Today', value: 'today' },
   { label: 'This Week', value: 'week' },
   { label: 'This Month', value: 'month' },
+  { label: 'Last Month', value: 'last_month' },
 ]
 const STATUS_THEMES = { Synced: 'green', Pending: 'amber', Failed: 'red', Draft: 'gray', Cancelled: 'gray' }
 

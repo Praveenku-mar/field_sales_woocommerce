@@ -82,9 +82,11 @@ class CommissionStatement(Document):
 		if user != "Administrator" and not MANAGER_ROLES & set(frappe.get_roles(user)):
 			frappe.throw(_("Only a Sales Manager or System Manager can approve a Commission Statement."), frappe.PermissionError)
 		# Also for a submit from the Desk form or REST, not only approve_statement().
-		from field_sales_woocommerce.commission.statements import check_not_own_commission
+		from field_sales_woocommerce.commission.statements import check_not_own_commission, check_statement_current
 
 		check_not_own_commission(self.sales_rep)
+		# Approve exactly what the entries now say (refunds while it was a Draft included).
+		check_statement_current(self)
 
 	def on_submit(self):
 		self.db_set({"status": "Approved", "approved_by": frappe.session.user})

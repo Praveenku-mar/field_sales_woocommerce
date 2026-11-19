@@ -60,6 +60,10 @@ def get_boot(embedded: dict | None = None) -> dict:
 			"site_name": frappe.local.site,
 			"default_route": _app_base(),
 			"sysdefaults": frappe.defaults.get_defaults(),
+			# The site's time zone (System Settings; the store's when its settings are matched):
+			# server dates and times are in it, so "today" and expiry checks use it, not the
+			# browser's (utils/format.js). Read directly: the defaults copy can lag behind.
+			"time_zone": frappe.utils.get_system_timezone(),
 			# Realtime socket (composables/useRealtime.js): its own port under bench start.
 			"socketio_port": frappe.conf.socketio_port,
 			"dev_server": frappe._dev_server,

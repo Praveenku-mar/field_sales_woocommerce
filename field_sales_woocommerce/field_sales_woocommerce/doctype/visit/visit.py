@@ -22,6 +22,10 @@ from field_sales_woocommerce.utils.geo import (
 CHECK_IN_FIELDS = ("check_in_time", "check_out_time", "latitude", "longitude", "location_accuracy_m")
 CHECK_IN_STATUSES = ("In Progress", "Completed")
 RETAILER_POSITION_FIELDS = ("retailer_latitude", "retailer_longitude")
+# What a check-in proves: this rep was at this retailer on this day. Fixed once checked in, or a
+# rep could check in at one shop and turn the visit (still "inside geofence") into another
+# retailer's, another day's or another rep's.
+CHECKED_IN_FIELDS = ("retailer", "visit_date", "sales_rep")
 
 
 # Same rule as Field Order.client_temp_id.
@@ -131,6 +135,7 @@ class Visit(Document):
 		Check-in time, location and the In Progress / Completed statuses are set
 		by the check-in API from server time. Block them being edited through
 		the form or REST, except by a System Manager (corrections, data import).
+		Once checked in, the retailer, date and rep are fixed too (``CHECKED_IN_FIELDS``).
 		"""
 		if self.flags.via_check_in_api or "System Manager" in frappe.get_roles():
 			return
@@ -141,6 +146,17 @@ class Visit(Document):
 		if before and before.check_in_time:
 			for fieldname in RETAILER_POSITION_FIELDS:
 				self.set(fieldname, before.get(fieldname))
+			for fieldname in CHECKED_IN_FIELDS:
+				old, new = before.get(fieldname), self.get(fieldname)
+				if fieldname == "visit_date":
+					old, new = old and getdate(old), new and getdate(new)
+				if (old or None) != (new or None):
+					frappe.throw(
+						_("{0} cannot be changed after Check In. Cancel this visit and plan a new one.").format(
+							_(self.meta.get_label(fieldname))
+						),
+						frappe.PermissionError,
+					)
 		for fieldname in CHECK_IN_FIELDS:
 			if self._normalized(fieldname, self) != self._normalized(fieldname, before):
 				frappe.throw(
