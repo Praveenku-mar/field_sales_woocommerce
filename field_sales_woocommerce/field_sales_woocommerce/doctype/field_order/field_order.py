@@ -73,6 +73,7 @@ class FieldOrder(Document):
 		self._validate_location()
 		self._set_row_stock()
 		self._validate_item_quantities()
+		self._validate_products_for_sale()
 		self._validate_no_duplicate_products()
 		self._compute_item_amounts()
 		self._compute_totals()
@@ -306,11 +307,39 @@ class FieldOrder(Document):
 				row.available_qty = stock[row.product]
 
 	def _validate_item_quantities(self):
-		"""Every line item must have qty > 0."""
+		"""
+		Every line item has a whole quantity above 0: the store takes whole units, and a fraction
+		was cut off when the order was sent (2.5 billed here, 2 on the store; 0.5 failed the push).
+		"""
 		for row in self.items:
-			if flt(row.qty) <= 0:
+			qty = flt(row.qty)
+			if qty <= 0:
 				frappe.throw(
 					_("Row {0}: Quantity must be greater than 0.").format(row.idx)
+				)
+			if qty != int(qty):
+				frappe.throw(_("Row {0}: Quantity must be a whole number.").format(row.idx))
+
+	def _validate_products_for_sale(self):
+		"""
+		A draft sells only Active products: a Draft product is not released yet, and an Archived one
+		is gone from the store, so its push would fail after submit. The app's pickers already offer
+		Active products only; this covers Desk, REST and a product archived after it was added.
+		"""
+		products = {row.product for row in self.items if row.product}
+		if not products or (self.docstatus != 0 and self.get("_action") != "submit"):
+			return
+		status = dict(
+			frappe.get_all(
+				"Platform Product", filters={"name": ("in", list(products))}, fields=["name", "status"], as_list=True
+			)
+		)
+		for row in self.items:
+			if row.product and status.get(row.product, "Active") != "Active":
+				frappe.throw(
+					_("Row {0}: {1} is {2} on the store and cannot be ordered. Remove it from the order.").format(
+						row.idx, row.product_title or row.product, _(status[row.product])
+					)
 				)
 
 	def _validate_no_duplicate_products(self):
@@ -448,14 +477,20 @@ class FieldOrder(Document):
 		"""
 		Roll up item amounts into order-level totals, rounded to currency
 		precision so they match what the store calculates from the same order.
+
+		GST is charged on the discounted value: a discount given on the invoice at the time of supply
+		is not part of the taxable value (review finding F10). The web app (``OrderDetail.vue``), the
+		Desk form (``field_order.js``) and the mobile app (``FieldOrder`` in ``models.dart``) compute
+		the same way.
 		"""
 		self.total_qty = sum(flt(r.qty) for r in self.items)
 		self.net_total = flt(sum(flt(r.amount) for r in self.items), self.precision("net_total"))
-		self.tax_amount = flt(
-			flt(self.net_total) * flt(self.tax_percent) / 100, self.precision("tax_amount")
-		)
 		self.discount_amount = flt(
 			flt(self.net_total) * flt(self.discount_percent) / 100, self.precision("discount_amount")
+		)
+		self.tax_amount = flt(
+			(flt(self.net_total) - flt(self.discount_amount)) * flt(self.tax_percent) / 100,
+			self.precision("tax_amount"),
 		)
 		self.grand_total = flt(
 			flt(self.net_total) + flt(self.tax_amount) - flt(self.discount_amount),

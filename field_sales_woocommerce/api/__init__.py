@@ -215,6 +215,28 @@ def create_order(
 	return doc.as_dict()
 
 
+@frappe.whitelist(methods=["POST"])
+def set_order_location(field_order: str, location_id: str) -> dict:
+	"""
+	Switch a draft Field Order to another sell-from location (the order page's Location picker).
+
+	A draft made by ``create_order`` has no items until they are added, and ``items`` is mandatory:
+	a plain save (``frappe.client.set_value``) of it fails with "Items is mandatory". Like
+	``create_order``, the mandatory check is skipped while the draft has no items; every other
+	check (write permission, the location being a sell-from one) still runs.
+
+	:return: ``{"location_id", "location_name"}`` as saved.
+	"""
+	doc = frappe.get_doc("Field Order", field_order)
+	if doc.docstatus != 0:
+		frappe.throw(_("The location can only be changed on a draft order"))
+	doc.location_id = location_id
+	if not doc.items:
+		doc.flags.ignore_mandatory = True
+	doc.save()
+	return {"location_id": doc.location_id, "location_name": doc.location_name}
+
+
 @frappe.whitelist()
 def get_user_for_sales_rep(email: str) -> dict:
 	"""

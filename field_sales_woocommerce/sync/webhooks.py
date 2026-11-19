@@ -45,6 +45,12 @@ def process_event(platform: str, webhook: dict) -> dict:
 	"""
 	event = webhook
 	start = time.monotonic()
+	# The store's delivery was accepted as Guest, and a job runs as the user who queued it: act as
+	# the system here, as the draft linker (a scheduled job) does. Jobs queued from this event (the
+	# order confirmation, which prints the invoice) then run with the same rights as when the linker
+	# queues them, instead of failing as Guest.
+	if frappe.session.user == "Guest":
+		frappe.set_user("Administrator")
 	try:
 		conn = get_connector(require_enabled=False)
 		topic = event.get("topic")

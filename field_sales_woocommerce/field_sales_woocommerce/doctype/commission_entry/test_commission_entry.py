@@ -83,6 +83,27 @@ class TestCommissionEntry(IntegrationTestCase):
 			self.adjustment(adjustment_reason="").insert(ignore_permissions=True)
 		self.assertTrue(self.adjustment(adjustment_reason="Festival bonus").insert(ignore_permissions=True).name)
 
+	def test_order_entries_come_from_the_engine_only(self):
+		# A hand-made Order entry paid like store-earned commission, with no order and no reason.
+		values = {
+			"doctype": "Commission Entry",
+			"entry_type": "Order",
+			"beneficiary_type": "Rep",
+			"sales_rep": self.rep,
+			"status": "Earned",
+			"posting_date": nowdate(),
+			"earned_on": nowdate(),
+			"currency": "INR",
+			"amount": 50000,
+			"base_amount": 500000,
+		}
+		with self.assertRaises(frappe.PermissionError):
+			frappe.get_doc(values).insert(ignore_permissions=True)  # Administrator included
+
+		entry = frappe.get_doc(values)
+		entry.flags.from_engine = True
+		self.assertTrue(entry.insert(ignore_permissions=True).name)
+
 	def test_a_rep_cannot_add_an_adjustment(self):
 		frappe.set_user(frappe.db.get_value("Sales Rep", self.rep, "user"))
 		with self.assertRaises(frappe.PermissionError):

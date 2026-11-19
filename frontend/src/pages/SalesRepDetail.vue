@@ -251,7 +251,7 @@ import EmptyState from '@/components/EmptyState.vue'
 import Achievement from '@/components/Achievement.vue'
 import LinkField from '@/components/LinkField.vue'
 import { useSessionStore } from '@/stores/session'
-import { formatCurrency, formatDate, formatNumber, orderStatus } from '@/utils/format'
+import { formatCurrency, formatDate, formatNumber, orderStatus, siteNow } from '@/utils/format'
 import { callMethod } from '@/utils/api'
 
 const props = defineProps({ name: { type: String, required: true } })
@@ -377,7 +377,8 @@ const month = createResource({
   auto: true,
 })
 const m = computed(() => month.data?.[props.name] || null)
-const monthLabel = new Date().toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
+// The month the server's stats cover: the site's current month.
+const monthLabel = new Date(siteNow().year, siteNow().month - 1, 1).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
 const pct = (v) => (v == null ? '—' : `${formatNumber(v, 1)}%`)
 const monthRows = computed(() => [
   { label: 'Orders', value: `${formatNumber(m.value.orders)}${m.value.avg_order_value ? ` · avg ${formatCurrency(m.value.avg_order_value, undefined, 0)}` : ''}` },

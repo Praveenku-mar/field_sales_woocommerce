@@ -88,3 +88,21 @@ class TestFieldOrder(IntegrationTestCase):
 	def test_quantity_must_be_positive(self):
 		with self.assertRaises(frappe.ValidationError):
 			self.order([{"product": self.product, "qty": 0, "rate": 100}]).insert(ignore_permissions=True)
+
+	def test_quantity_must_be_whole(self):
+		# The store takes whole units: 2.5 was billed here and sent as 2.
+		with self.assertRaises(frappe.ValidationError):
+			self.order([{"product": self.product, "qty": 2.5, "rate": 100}]).insert(ignore_permissions=True)
+		self.order([{"product": self.product, "qty": 2, "rate": 100}]).insert(ignore_permissions=True)
+
+	def test_only_active_products_can_be_ordered(self):
+		for status in ("Draft", "Archived"):
+			frappe.db.set_value("Platform Product", self.product, "status", status)
+			with self.assertRaises(frappe.ValidationError):
+				self.order([{"product": self.product, "qty": 1, "rate": 100}]).insert(ignore_permissions=True)
+
+	def test_a_product_archived_after_it_was_added_stops_the_submit(self):
+		doc = self.order([{"product": self.product, "qty": 1, "rate": 100}]).insert(ignore_permissions=True)
+		frappe.db.set_value("Platform Product", self.product, "status", "Archived")
+		with self.assertRaises(frappe.ValidationError):
+			doc.submit()

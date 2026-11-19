@@ -215,7 +215,7 @@ import {
 } from 'frappe-ui'
 import EmptyState from '@/components/EmptyState.vue'
 import { callMethod } from '@/utils/api'
-import { daysAgo, formatDate, formatDateTime, formatTime } from '@/utils/format'
+import { daysAgo, formatDate, formatDateTime, formatTime, nowSql } from '@/utils/format'
 
 const doc = createDocumentResource({ doctype: 'Store Connection', name: 'Store Connection' })
 const d = computed(() => doc.doc || {})
@@ -398,11 +398,6 @@ function webhooksText(webhooks) {
   return `Live updates: ${count} webhooks deliver to ${webhooks.delivery_url}.`
 }
 
-function nowSql() {
-  const n = new Date()
-  const p = (x) => String(x).padStart(2, '0')
-  return `${n.getFullYear()}-${p(n.getMonth() + 1)}-${p(n.getDate())} ${p(n.getHours())}:${p(n.getMinutes())}:${p(n.getSeconds())}`
-}
 
 const isDirty = computed(() => !!doc.isDirty)
 function discard() {

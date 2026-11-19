@@ -545,8 +545,9 @@ function _recalc_totals(frm) {
 
 	// Rounded like the server does, so the form shows what will be saved.
 	net_total = flt(net_total, precision("net_total"));
-	var tax_amount = flt(net_total * flt(frm.doc.tax_percent) / 100, precision("tax_amount"));
+	// GST on the discounted value, as FieldOrder._compute_totals does.
 	var discount_amount = flt(net_total * flt(frm.doc.discount_percent) / 100, precision("discount_amount"));
+	var tax_amount = flt((net_total - discount_amount) * flt(frm.doc.tax_percent) / 100, precision("tax_amount"));
 	var grand_total = flt(
 		net_total + tax_amount - discount_amount,
 		precision("grand_total")

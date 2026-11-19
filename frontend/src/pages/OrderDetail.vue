@@ -228,6 +228,7 @@
                       v-model.number="row.qty"
                       type="number"
                       min="1"
+                      step="1"
                       class="num-input"
                       :class="isShort(row) && 'text-ink-red-6'"
                       :aria-label="`Quantity for ${rowLabel(row)}`"
@@ -270,7 +271,6 @@
             </Field>
             <dl class="space-y-2.5">
               <div class="flex justify-between"><dt class="text-ink-gray-6">Net Total</dt><dd class="tabular-nums">{{ formatCurrency(totals.net) }}</dd></div>
-              <div class="flex justify-between"><dt class="text-ink-gray-6">GST {{ formatNumber(form.tax_percent, 2) }}%</dt><dd class="tabular-nums">{{ formatCurrency(totals.tax) }}</dd></div>
               <div v-if="editable" class="flex items-start justify-between gap-3">
                 <dt class="pt-1 text-ink-gray-6">Discount %</dt>
                 <dd class="text-right">
@@ -292,6 +292,8 @@
                 <dt class="text-ink-gray-6">Discount ({{ formatNumber(form.discount_percent || 0, 2) }}%)</dt>
                 <dd class="tabular-nums">{{ formatCurrency(form.discount_amount || 0) }}</dd>
               </div>
+              <!-- After the discount: GST is charged on the discounted value. -->
+              <div class="flex justify-between"><dt class="text-ink-gray-6">GST {{ formatNumber(form.tax_percent, 2) }}%</dt><dd class="tabular-nums">{{ formatCurrency(totals.tax) }}</dd></div>
               <div class="flex justify-between border-t border-outline-gray-2 pt-3 text-lg font-semibold text-ink-gray-9">
                 <dt>Grand Total</dt><dd class="tabular-nums">{{ formatCurrency(totals.grand) }}</dd>
               </div>
@@ -590,7 +592,7 @@ import { useMediaQuery } from '@/composables/useMediaQuery'
 import { onDocEvent, onDoctypeEvent } from '@/composables/useRealtime'
 import { callMethod, findProductByBarcode } from '@/utils/api'
 import { copyText } from '@/utils/clipboard'
-import { formatCurrency, formatDate, formatNumber, formatTime, orderStatus, relativeDay } from '@/utils/format'
+import { formatCurrency, formatDate, formatNumber, formatTime, isPast, orderStatus, relativeDay } from '@/utils/format'
 
 const props = defineProps({ name: { type: String, required: true } })
 const router = useRouter()
@@ -714,8 +716,9 @@ const totals = computed(() => {
   }
   const items = form.value.items
   const net = Math.round(items.reduce((sum, r) => sum + amountOf(r), 0) * 100) / 100
-  const tax = Math.round(((net * (+form.value.tax_percent || 0)) / 100) * 100) / 100
   const discount = Math.round(((net * (+form.value.discount_percent || 0)) / 100) * 100) / 100
+  // GST on the discounted value, as FieldOrder._compute_totals does.
+  const tax = Math.round((((net - discount) * (+form.value.tax_percent || 0)) / 100) * 100) / 100
   return {
     qty: items.reduce((sum, r) => sum + (+r.qty || 0), 0),
     net,
@@ -993,12 +996,9 @@ async function changeLocation(location) {
         return
       }
     } else {
-      await callMethod('frappe.client.set_value', {
-        doctype: 'Field Order',
-        name: props.name,
-        fieldname: 'location_id',
-        value: location,
-      })
+      // Not frappe.client.set_value: a new draft has no items yet, and a plain save of it fails
+      // with "Items is mandatory".
+      await callMethod('field_sales_woocommerce.api.set_order_location', { field_order: props.name, location_id: location })
     }
     if (d.value.items?.some((r) => r.product) || form.value.items.some((r) => r.product)) {
       await callMethod('field_sales_woocommerce.api.refresh_stock', { field_order: props.name })
@@ -1310,8 +1310,8 @@ const paymentRows = computed(() => {
 })
 
 const linkExpired = computed(() => {
-  const exp = pay.value.payment_link_expires_on
-  return !!exp && new Date(exp.replace(' ', 'T')) <= new Date()
+  // A naive server time (site's zone): compared on the site's clock, not the browser's.
+  return isPast(pay.value.payment_link_expires_on)
 })
 // A link the retailer can still pay.
 const linkActive = computed(

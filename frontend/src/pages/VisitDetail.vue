@@ -117,7 +117,7 @@ import VisitDialog from '@/components/VisitDialog.vue'
 import NewOrderDialog from '@/components/NewOrderDialog.vue'
 import { useSessionStore } from '@/stores/session'
 import { callMethod, getPosition } from '@/utils/api'
-import { formatCurrency, formatDate, formatTime, plural, today } from '@/utils/format'
+import { formatCurrency, formatDate, formatTime, msUntil, plural, today } from '@/utils/format'
 import { isEmbedded, openStandalone } from '@/shopify/embedded'
 
 const session = useSessionStore()
@@ -171,8 +171,8 @@ const outcome = computed(() => [
 const onSite = computed(() => {
   if (d.value.status === 'Completed') return `${d.value.time_on_site_min || 0} min`
   if (d.value.status === 'In Progress' && d.value.check_in_time) {
-    const start = new Date(String(d.value.check_in_time).replace(' ', 'T').slice(0, 19))
-    return `${Math.max(0, Math.round((Date.now() - start) / 60000))} min`
+    // check_in_time is site time: measured on the site's clock, not the browser's.
+    return `${Math.max(0, Math.round(-msUntil(d.value.check_in_time) / 60000))} min`
   }
   return '—'
 })
