@@ -14,7 +14,7 @@ from frappe.utils import add_days, date_diff, flt, get_first_day, get_first_day_
 from field_sales_woocommerce.frontend_api import get_attention_presets
 from field_sales_woocommerce.www.fieldsales import has_app_access
 
-PERIODS = ("today", "week", "month")
+PERIODS = ("today", "week", "month", "last_month")
 MANAGER_ROLES = {"System Manager", "Sales Manager"}
 TOP_REPS = 10
 RECENT_ORDERS = 10
@@ -23,7 +23,8 @@ RECENT_ORDERS = 10
 @frappe.whitelist()
 def get_dashboard(period: str = "today") -> dict:
 	"""
-	Cards, charts and lists for ``period`` ("today", "week" or "month", up to today).
+	Cards, charts and lists for ``period``: "today", "week" or "month" (up to today), or
+	"last_month" (the whole previous calendar month).
 
 	Pending and failed sync counts are the current backlog, not limited to the period.
 
@@ -35,12 +36,17 @@ def get_dashboard(period: str = "today") -> dict:
 	if period not in PERIODS:
 		frappe.throw(_("Period must be one of: {0}").format(", ".join(PERIODS)))
 
-	to_date = getdate(nowdate())
-	from_date = {
-		"today": to_date,
-		"week": get_first_day_of_week(to_date),
-		"month": get_first_day(to_date),
-	}[period]
+	today = getdate(nowdate())
+	if period == "last_month":
+		to_date = getdate(add_days(get_first_day(today), -1))
+		from_date = getdate(get_first_day(to_date))
+	else:
+		to_date = today
+		from_date = {
+			"today": today,
+			"week": get_first_day_of_week(today),
+			"month": get_first_day(today),
+		}[period]
 	in_period = ("between", [from_date, to_date])
 	submitted = {"docstatus": 1, "order_date": in_period}
 
